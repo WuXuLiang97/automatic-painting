@@ -1,0 +1,37 @@
+name: server_env
+channels:
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/peterjc123/
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/pytorch/
+  - https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main/
+  - defaults
+dependencies:
+  - ca-certificates=2024.7.2
+  - openssl=3.0.15
+  - pip=24.2
+  - python=3.9.19
+  - setuptools=72.1.0
+  - sqlite=3.45.3
+  - vc=14.40
+  - vs2015_runtime=14.40.33807
+  - wheel=0.43.0
+  - pip:
+      - albumentations==2.0.5
+      - numpy==1.26.4
+      - onnxruntime==1.19.2
+      - opencv-contrib-python==4.10.0.84
+      - opencv-python==4.10.0.84
+      - opencv-python-headless==4.10.0.84
+      - paddle-bfloat==0.1.7
+      - paddleocr==2.10.0
+      - paddlepaddle-gpu==2.3.2
+      - pillow==10.4.0
+      - protobuf==3.20.0
+      - torch==1.12.1+cu113
+      - torchaudio==0.12.1+cu113
+      - torchvision==0.13.1+cu113
+      - ultralytics==8.2.92
+      - requests==2.32.3
+      - scipy==1.13.1
+      - typing-extensions==4.12.2    
