@@ -67,7 +67,7 @@ class PYAUTO:
         elif self.sign == 1:
             logger.info(f"VNC键盘点击：{input_char}")
             self.VNC.key_down(input_char)
-            time.sleep(random.randint(30, 50) * 0.001)
+            time.sleep(random.randint(50, 80) * 0.001)
             self.VNC.key_up(input_char)
         else:
             yjs.KeyPressChar(input_char)

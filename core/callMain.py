@@ -618,6 +618,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 # 继续关闭窗口的过程
                 event.accept()
             api.shutdown()
+            exit()
         except Exception as e:
             print("closeEvent", e)
 
