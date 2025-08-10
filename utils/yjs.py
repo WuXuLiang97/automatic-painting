@@ -178,8 +178,8 @@ class YJS():
 
         # 初始化易建鼠dll
         VID, PID = 0xC216, 0x0301
-        # __path = os.path.join(root_path, "msdk.dll")
-        __path = os.getcwd() + os.path.sep + "msdk.dll"
+        __path = os.path.join(root_path, "utils/msdk.dll")
+        # __path = os.getcwd() + os.path.sep + "msdk.dll"
         self.objdll = ctypes.windll.LoadLibrary(__path)  # 注册dll
         self.objdll.M_Open_VidPid.restype = wintypes.LPHANDLE
         self.hdl = self.objdll.M_Open_VidPid(VID, PID)  # 获取usb键鼠
