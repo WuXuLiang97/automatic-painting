@@ -1204,6 +1204,7 @@ class PlayerThread(QThread):
                                 logger.info("尝试向下移动")
                                 self.movement_recorder.up_down_move("down", 1)
                                 up_and_down_move = False
+                            self.test_move()
                             # if self.player_pos.y < 458:
                             #     logger.info("人物位置在上面卡住了")
                             #     self.movement_recorder.up_down_move("down", 1)
@@ -1271,6 +1272,7 @@ class PlayerThread(QThread):
                                 logger.info("尝试向下移动")
                                 self.movement_recorder.up_down_move("down", 1)
                                 up_and_down_move = False
+                            self.test_move()
                             # if self.player_pos.y < 458:
                             #     logger.info("人物位置在上面卡住了")
                             #     self.movement_recorder.up_down_move("down", 1)
@@ -1384,6 +1386,7 @@ class PlayerThread(QThread):
                             logger.info("尝试向下移动")
                             self.movement_recorder.up_down_move("down", 1)
                             up_and_down_move = False
+                        self.test_move()
                         # if self.player_pos.y < 458:
                         #     logger.info("人物位置在上面卡住了")
                         #     self.movement_recorder.up_down_move("down", 1)
@@ -1820,6 +1823,8 @@ class PlayerThread(QThread):
                 else:
                     self.send_log("没有识别到移速")
                     continue
+                if self.player.player_occupation == "弓箭手-缪斯":
+                    plain_move_speed+=20
                 # game_image = screenshot_util.get_game_screenshot()
                 # move_speed_image = game_image[512:530, 427:500]
                 # ocr_text = ocr_util.ocr(move_speed_image)
@@ -1885,7 +1890,7 @@ class PlayerThread(QThread):
         # 处理X轴方向
         dx = abs(player_pos.x - target_pos.x)
         if dx > diff_x:
-            delta = self.player.x_speed_walk * 0.05
+            delta = self.player.x_speed_walk * 0.1
             if player_pos.x > target_pos.x and player_pos.x - target_pos.x > delta:
                 target_pos.x += delta
             elif player_pos.x < target_pos.x and target_pos.x - player_pos.x > delta:
@@ -4309,3 +4314,23 @@ class PlayerThread(QThread):
             # if button == "middle":
             self.mouse_pos = (x, y)
             # self.send_log(f"鼠标事件: 移动 - 位置({x}, {y})")
+
+    def test_move(self):
+        if self.player_pos.x > 1067 / 2:
+            if abs(self.player_pos.x - 244) < 200:
+                move_info = self.compute_move_info_walk(self.player_pos, Point(244, 468), 0, 0)  # 计算到最近货物的移动信息
+                logger.info("卡点了，尝试移动：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
+                self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
+            else:
+                move_info = self.compute_move_info(self.player_pos, Point(244, 468), 0, 0)  # 计算到最近货物的移动信息
+                logger.info("卡点了，尝试跑步：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
+                self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
+        else:
+            if abs(self.player_pos.x - 244) < 200:
+                move_info = self.compute_move_info_walk(self.player_pos, Point(848, 468), 0, 0)  # 计算到最近货物的移动信息
+                logger.info("卡点了，尝试移动：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
+                self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
+            else:
+                move_info = self.compute_move_info(self.player_pos, Point(848, 468), 0, 0)  # 计算到最近货物的移动信息
+                logger.info("卡点了，尝试跑步：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
+                self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
