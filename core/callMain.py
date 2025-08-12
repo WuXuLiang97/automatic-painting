@@ -53,17 +53,19 @@ class DisplayThread(QThread):
     def __init__(self):
         super().__init__()
         self.running = True
+        self.lock = threading.Lock()  # 添加线程锁
 
     def run(self):
         while self.running:
-            if not display_queue.empty():
-                frame = display_queue.get()
-
-                # 发送到GUI线程
-                self.update_signal.emit(frame)
-
-            # 稳定30fps刷新率
+            with self.lock:  # 使用锁保护共享资源
+                if not display_queue.empty():
+                    frame = display_queue.get()
+                    self.update_signal.emit(frame)
             time.sleep(0.033)
+
+    def stop(self):
+        with self.lock:
+            self.running = False
 
 
 class AppMain(QMainWindow, Ui_MainWindow):
@@ -511,18 +513,32 @@ class AppMain(QMainWindow, Ui_MainWindow):
             else:
                 screenshot_util.init_game_hwnd()
             # self.WindowPositionUpdater.stop()  # 停止窗口坐标识别线程
-
-            self.playerThread.stop()  # 停止玩家线程
-            self.checkProcess.stop()  # 停止检查线程
-            self.playerThread.terminate()
-            self.checkProcess.terminate()
+            # 先停止所有线程（使用安全停止方式）
+            if self.playerThread:
+                self.playerThread.stop()
+                self.playerThread.wait(2000)  # 等待2秒安全退出
+                self.playerThread.terminate()
+            if self.checkProcess:
+                self.checkProcess.stop()
+                self.checkProcess.wait(2000)
+                self.displaythread.terminate()
+            if self.displaythread:
+                self.displaythread.stop()
+                self.displaythread.wait(2000)
+                self.displaythread.terminate()
             # self.yoloProcess.stop()  # 停止YOLO处理
             self.startBtn.setEnabled(True)  # 启用开始按钮
-            screenshot_util.cancel_window_topping()  # 取消窗口置顶
+            if self.VNC is not None:
+                pass
+            else:
+                screenshot_util.cancel_window_topping()  # 取消窗口置顶
             pyauto.releaseallkey()
             self.update_log("脚本已停止")
+
+            # self.label_7.setText("状态：未连接")
+            # self.label_7.setStyleSheet("color: red;")
         except Exception as e:
-            print("callMain_324行异常", e)
+            print("callMain_531行异常", e)
 
     def open_settings_group_dialog(self):
         """
@@ -604,9 +620,21 @@ class AppMain(QMainWindow, Ui_MainWindow):
     def closeEvent(self, event):
         try:
             # 如果线程还在运行，等待它结束
-            self.keyboard_thread.stop()  # 停止键盘监听线程
-            self.playerThread.stop()
-            self.checkProcess.stop()  # 停止检查线程
+            try:
+                self.keyboard_thread.stop()  # 停止键盘监听线程
+            except Exception as e:
+                print("closeEvent", e)
+            if self.playerThread:
+                self.playerThread.stop()
+                self.playerThread.wait(2000)  # 等待2秒安全退出
+
+            if self.checkProcess:
+                self.checkProcess.stop()
+                self.checkProcess.wait(2000)
+
+            if self.displaythread:
+                self.displaythread.stop()
+                self.displaythread.wait(2000)
             # 启动卡断检测线程
             # self.check_player_dynamics.stop()
             # 在窗口关闭之前保存设置
@@ -617,6 +645,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 self.playerThread.wait(5)
                 # 继续关闭窗口的过程
                 event.accept()
+            self.VNC.stop()
             api.shutdown()
             exit()
         except Exception as e:
@@ -646,7 +675,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
     def connect_to_vnc(self):
         if self.VNC is not None:
-            QMessageBox.information(self, "提示和", f"连接状态：已连接成功")
+            QMessageBox.information(self, "提示", f"连接状态：已连接成功")
             return
         image = None
         try:
@@ -666,9 +695,11 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
         if isinstance(image, np.ndarray):
             self.label_7.setText("已连接成功")
+            self.label_7.setStyleSheet("color: green;")  # 设置文字为红色
         else:
             self.VNC = None
-            self.label_7.setText("连接状态：连接失败")
+            self.label_7.setText("状态：连接失败")
+            self.label_7.setStyleSheet("color: red;")  # 设置文字为红色
             QMessageBox.information(self, "警告", f"连接失败，请检查ip、端口和密码！")
 
     def update_image(self, qimage):

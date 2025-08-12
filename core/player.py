@@ -315,6 +315,15 @@ class PlayerThread(QThread):
                 if self.player.map_name == "风暴逆鳞普通":
                     # 打开金绿盒子
                     self.access_0()
+                if self.player.map_name == "跌宕群岛":
+                    pyauto.KeyPressChar('f2')
+                    time.sleep(0.1)
+                    ret = self.mm.FindPic_sleep(185, 401, 350, 482, "每日_跌宕群岛.bmp", 0.9, time_s=1, my_sleep=0.2)
+                    if ret:
+                        self.player.map_name = "风暴逆鳞普通"
+                        self.player.map_level = 3
+                    pyauto.KeyPressChar('esc')
+                    time.sleep(0.1)
                 # 存、取
                 self.access()
                 # 检查自动捡物
@@ -657,6 +666,15 @@ class PlayerThread(QThread):
                 if self.player.map_name == "风暴逆鳞普通":
                     # 打开金绿盒子
                     self.access_0()
+                if self.player.map_name == "跌宕群岛":
+                    pyauto.KeyPressChar('f2')
+                    time.sleep(0.1)
+                    ret = self.mm.FindPic_sleep(185, 401, 350, 482, "每日_跌宕群岛.bmp", 0.9, time_s=1, my_sleep=0.2)
+                    if ret:
+                        self.player.map_name = "风暴逆鳞普通"
+                        self.player.map_level = 3
+                    pyauto.KeyPressChar('esc')
+                    time.sleep(0.1)
                 # 存、取
                 self.access()
                 # 检查自动捡物
@@ -1345,6 +1363,11 @@ class PlayerThread(QThread):
                 move_info = self.compute_move_info_walk(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                 logger.info("向物品步行：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                 self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
+            if '金币' in goods_pos[0][2]:
+                pass
+            else:
+                pyauto.KeyPressChar("x")
+                time.sleep(0.05)
             # move_info = self.compute_move_info(self.player_pos, the_first_item, 0, 0)
             # self.movement_recorder.left_right_up_down_move_by(move_info, False)
             if time.time() - frame_time > 5:
@@ -1394,7 +1417,7 @@ class PlayerThread(QThread):
                         #     logger.info("人物位置在下面卡住了")
                         #     self.movement_recorder.up_down_move("up", 1)
             # 执行捡取与结果验证
-            self._execute_pickup_action()
+            # self._execute_pickup_action()
         logger.info("拾取物品结束")
         pyauto.releaseallkey()
 
@@ -1824,7 +1847,7 @@ class PlayerThread(QThread):
                     self.send_log("没有识别到移速")
                     continue
                 if self.player.player_occupation == "弓箭手-缪斯":
-                    plain_move_speed+=20
+                    plain_move_speed += 20
                 # game_image = screenshot_util.get_game_screenshot()
                 # move_speed_image = game_image[512:530, 427:500]
                 # ocr_text = ocr_util.ocr(move_speed_image)
@@ -2202,10 +2225,10 @@ class PlayerThread(QThread):
                 if should_filter:
                     logger.info(f"已筛选掉：{text}")
                 else:
-                    filtered_goods.append((dx, dy, dx1, dy1))
+                    filtered_goods.append((dx, dy, dx1, dy1, cleaned_text))
 
             # 计算商品中心点坐标
-            self.goods = [(int((dx + dx1) / 2), dy1 + 20) for dx, dy, dx1, dy1 in filtered_goods]
+            self.goods = [(int((dx + dx1) / 2), dy1 + 20, text) for dx, dy, dx1, dy1, text in filtered_goods]
             logger.info(f"self.goods:{self.goods}")
 
     def similarity(self, s1, s2):

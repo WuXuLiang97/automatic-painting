@@ -59,6 +59,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_5 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_5.setObjectName("horizontalLayout_5")
         self.label_7 = QtWidgets.QLabel(self.verticalLayoutWidget_2)
+        self.label_7.setStyleSheet("color: rgb(255, 0, 0);")
         self.label_7.setObjectName("label_7")
         self.horizontalLayout_5.addWidget(self.label_7)
         self.startBtn_2 = QtWidgets.QPushButton(self.verticalLayoutWidget_2)
