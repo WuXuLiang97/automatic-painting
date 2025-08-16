@@ -12,26 +12,17 @@ from PyQt5.QtCore import Qt, QTimer
 from api import test_login, test_register, test_change_password  # 添加修改密码API
 # 这里可以添加跳转到主界面的代码
 from core.callMain import AppMain
+from root_dir import root_path
 
 # 设置日志
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 import os
-from pathlib import Path
 
-# 获取用户配置目录
-if os.name == 'nt':  # Windows
-    config_dir = Path(os.environ['APPDATA']) / 'AutoPainting'
-elif os.name == 'posix':  # Linux/macOS
-    config_dir = Path.home() / '.config' / 'automatic-painting'
-else:
-    config_dir = Path.home() / 'AutoPainting'
-
-config_dir.mkdir(parents=True, exist_ok=True)
-config_path = config_dir / 'remember.json'
+# config_path = os.path.join(root_path, 'json_resources/remember.json')
 # 用户数据存储文件
-USER_DATA_FILE = config_dir / 'users.json'
+USER_DATA_FILE = os.path.join(root_path, 'json_resources/users.json')
 # 记住密码的配置文件
-REMEMBER_FILE = config_dir / 'remember.json'
+REMEMBER_FILE = os.path.join(root_path, 'json_resources/remember.json')
 
 
 def encrypt_password(password):

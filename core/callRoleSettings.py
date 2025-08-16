@@ -6,7 +6,7 @@ from PyQt5.QtCore import QStringListModel
 from PyQt5.QtWidgets import QDialog, QMainWindow, QMessageBox
 
 from api import test_view_subgroups, test_delete_subgroup_config, test_delete_subgroup, test_add_subgroup_config, test_view_subgroup_config, test_update_subgroup_config
-from utils.config_util import get_settings_group, get_all_role_settings, save_role_settings, delete_role_settings, delete_all_role_settings
+# from utils.config_util import get_settings_group, get_all_role_settings, save_role_settings, delete_role_settings, delete_all_role_settings
 from view.roleSettings import Ui_Form
 
 

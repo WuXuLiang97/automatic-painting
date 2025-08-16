@@ -8,7 +8,7 @@ import numpy as np
 from core.capture import Capture
 from vnc_mm import hwnd
 from utils.screenshot_util import screenshot_util
-from LogDebug import logger
+from logging_setup import logger
 
 
 class SkillUtil:

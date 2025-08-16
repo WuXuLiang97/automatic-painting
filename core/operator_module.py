@@ -3,15 +3,15 @@ import re
 import time
 
 import cv2
-from utils.pyauto_b import pyauto
-from root_path import root_path
+from utils.cross_control import pyauto
+from root_dir import root_path
 from core.common import occupationInfoMap
 # from dnf_ocr import recognize_text
 from vnc_mm import vnc_mm, my_imread
 from utils.screenshot_util import screenshot_util
 import random
 from core import global_variable as gv
-from LogDebug import logger
+from logging_setup import logger
 
 
 # from utils.yjs import yjs

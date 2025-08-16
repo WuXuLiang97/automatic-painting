@@ -2,7 +2,7 @@
 import os
 import cv2
 from paddleocr import PaddleOCR
-from root_path import root_path
+from root_dir import root_path
 
 det_model_dir = os.path.join(root_path, 'ch_PP-OCRv4_det_infer')
 rec_model_dir = os.path.join(root_path, 'ch_PP-OCRv4_rec_infer')

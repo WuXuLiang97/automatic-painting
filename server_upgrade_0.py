@@ -221,7 +221,7 @@ import threading
 from queue import Queue
 from paddleocr import PaddleOCR
 from yolo.yolo_main import YoloV8
-from root_path import root_path
+from root_dir import root_path
 import tkinter as tk
 from tkinter import scrolledtext
 import sys

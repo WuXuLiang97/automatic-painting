@@ -6,11 +6,11 @@ import cv2
 from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThread
 from vnc_mm import my_imread, vnc_mm
 from utils.cv_util import template_match
-from utils.pyauto_b import pyauto
+from utils.cross_control import pyauto
 from utils.screenshot_util import screenshot_util
-from root_path import root_path
+from root_dir import root_path
 from core import global_variable as gv
-from LogDebug import logger
+from logging_setup import logger
 
 # from utils.yjs import yjs
 
@@ -72,3 +72,4 @@ class CheckProcess(QThread):
 
     def stop(self):
         self.running = False
+        self.wait(1000)

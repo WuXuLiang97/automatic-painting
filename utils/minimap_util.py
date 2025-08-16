@@ -9,7 +9,7 @@ import numpy as np
 from core.capture import Capture
 from core.common import map_pos_info
 from vnc_mm import my_imread
-from LogDebug import logger
+from logging_setup import logger
 from utils.screenshot_util import screenshot_util
 
 current_path = os.path.dirname(os.path.abspath(__file__))

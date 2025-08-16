@@ -16,6 +16,7 @@ from time import sleep
 import cv2
 import numpy as np
 import win32gui
+from core.capture import Capture
 from root_dir import root_path
 from logging_setup import logger
 
@@ -489,6 +490,7 @@ except Exception as e:
 
 class MM:
     def __init__(self, img_path=None, ):
+        self.hwnd = hwnd
         # 检查找图路径是否在实例时添加了
         if img_path:
             self.target_image = my_imread(img_path)
@@ -638,179 +640,23 @@ class MM:
     #
     #         # 如果没有识别到数字，则返回-1
     #         return -1
-    # def screenshot_OCR_str(self, x1, y1, x2, y2, image_template_name, sim, get_colour=None, drag=None):
-    #     """
-    #     优化后的数字识别方法，专注于识别数字字符
-    #     """
-    #     # 捕获指定区域的屏幕截图
-    #
-    #     try:
-    #         screenshot_np = self.VNC.capture()[0:600, 0:1067]
-    #         if isinstance(screenshot_np, np.ndarray):
-    #             logger.info("vnc_mm截图成功")
-    #         else:
-    #             logger.info("vnc_mm截图失败")
-    #             return self.arr_ret
-    #         region = screenshot_np[y1:y2, x1:x2]
-    #         # 保存原始图像用于调试
-    #         if drag is not None:
-    #             cv2.imwrite("debug_original.png", region)
-    #             logger.info(f"保存原始图像到 debug_original.png")
-    #     except Exception as e:
-    #         logger.info(f"捕获屏幕区域时出错: {e}")
-    #         return ''
-    #
-    #     # 颜色空间转换
-    #     if get_colour is not None:
-    #         try:
-    #             processed_img = cv2.cvtColor(region, cv2.COLOR_BGR2HSV)
-    #         except Exception as e:
-    #             logger.info(f"颜色空间转换错误: {e}")
-    #             return ''
-    #     else:
-    #         try:
-    #             processed_img = cv2.cvtColor(region, cv2.COLOR_BGR2GRAY)
-    #         except Exception as e:
-    #             logger.info(f"灰度转换错误: {e}")
-    #             return ''
-    #
-    #     # 预处理目标图像 - 获取裁剪后的数字区域
-    #     try:
-    #         _, target_components = self.image_pretreatment(
-    #             processed_img,
-    #             get_colour=get_colour,
-    #             drag=drag
-    #         )
-    #         logger.info(f"找到 {len(target_components)} 个数字区域")
-    #     except Exception as e:
-    #         logger.info(f"图像预处理错误: {e}")
-    #         return ''
-    #     # 处理模板图像
-    #     template_names = image_template_name.split("|")
-    #     templates = {}  # {数字字符: 模板图像}
-    #
-    #     for name in template_names:
-    #         try:
-    #             label = name.split(".")[0]  # 假设文件名就是数字字符
-    #             logger.info(f"处理模板: {label}")
-    #
-    #             # 加载模板图像
-    #             template_img = self.get_image(name, color_space=get_colour)
-    #
-    #             # 预处理模板 - 只取第一个有效的连通组件
-    #             _, template_components = self.image_pretreatment(
-    #                 template_img,
-    #                 get_colour=get_colour,
-    #                 drag=None
-    #             )
-    #
-    #             # 只取第一个有效组件（数字模板）
-    #             if template_components and template_components[0].size > 0:
-    #                 templates[label] = template_components[0]
-    #                 logger.info(f"模板 '{label}' 尺寸: {template_components[0].shape}")
-    #
-    #                 # # 调试显示
-    #                 # if drag is not None:
-    #                 #     cv2.imshow(f'Template: {label}', template_components[0])
-    #                 #     cv2.waitKey(1)  # 等待1秒而不是立即关闭
-    #             else:
-    #                 logger.info(f"警告: 模板 '{label}' 未找到有效组件")
-    #         except Exception as e:
-    #             logger.info(f"处理模板 '{name}' 时出错: {e}")
-    #
-    #     # 识别结果
-    #     recognized_digits = []
-    #
-    #     logger.info(f"开始匹配 {len(target_components)} 个数字区域...")
-    #
-    #     # 遍历目标图像中的每个数字区域
-    #     for i, digit_region in enumerate(target_components):
-    #         if digit_region is None or digit_region.size == 0:
-    #             logger.info(f"数字区域 {i} 无效 - 跳过")
-    #             continue
-    #
-    #         logger.info(f"处理数字区域 {i} - 尺寸: {digit_region.shape}")
-    #
-    #         # 调试显示
-    #         if drag is not None:
-    #             cv2.imshow(f'Digit Region {i}', digit_region)
-    #             cv2.waitKey(0)  # 等待1秒而不是立即关闭
-    #
-    #         best_match = None
-    #         best_similarity = 0
-    #         best_template = None
-    #
-    #         # 与所有模板进行匹配
-    #         for digit_char, template_img in templates.items():
-    #             # 检查模板尺寸是否适合目标区域
-    #             if template_img.shape[0] > digit_region.shape[0] or template_img.shape[1] > digit_region.shape[1]:
-    #                 logger.info(f"  模板 '{digit_char}' 太大 ({template_img.shape} vs {digit_region.shape}) - 跳过")
-    #                 continue
-    #
-    #             try:
-    #                 # 调整模板尺寸以匹配目标区域（如果需要）
-    #                 if template_img.shape != digit_region.shape:
-    #                     resized_template = cv2.resize(template_img, (digit_region.shape[1], digit_region.shape[0]))
-    #                     logger.info(f"  调整模板 '{digit_char}' 尺寸: {template_img.shape} -> {digit_region.shape}")
-    #                 else:
-    #                     resized_template = template_img
-    #                 if drag is not None:
-    #                     cv2.imshow(f'digit_region', digit_region)
-    #                     cv2.imshow(f'resized_template', resized_template)
-    #                     cv2.waitKey(0)  # 等待1秒而不是立即关闭
-    #                 # 模板匹配
-    #                 result = cv2.matchTemplate(digit_region, resized_template, cv2.TM_CCOEFF_NORMED)
-    #                 min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-    #
-    #                 logger.info(f"  匹配 '{digit_char}': 最大相似度 = {max_val:.4f}")
-    #
-    #                 # 更新最佳匹配
-    #                 if max_val > best_similarity:
-    #                     best_similarity = max_val
-    #                     best_match = digit_char
-    #                     best_template = resized_template
-    #
-    #                     # 调试显示匹配结果
-    #                     if drag is not None and max_val >= sim:
-    #                         h, w = resized_template.shape
-    #                         top_left = max_loc
-    #                         bottom_right = (top_left[0] + w, top_left[1] + h)
-    #
-    #                         # 创建带匹配框的副本
-    #                         match_vis = digit_region.copy()
-    #                         cv2.rectangle(match_vis, top_left, bottom_right, 128, 2)
-    #                         cv2.imshow(f'Match: {digit_char} ({max_val:.2f})', match_vis)
-    #                         cv2.waitKey(1)
-    #             except Exception as e:
-    #                 logger.info(f"  匹配模板 '{digit_char}' 时出错: {e}")
-    #
-    #         # 保存有效匹配
-    #         if best_match and best_similarity >= sim:
-    #             logger.info(f"  最佳匹配: '{best_match}' (相似度 = {best_similarity:.4f})")
-    #             recognized_digits.append(best_match)
-    #         else:
-    #             logger.info(f"  未找到有效匹配 (最高相似度 = {best_similarity:.4f})")
-    #
-    #     # 返回识别结果
-    #     result = ''.join(recognized_digits)
-    #     logger.info(f"最终识别结果: '{result}'")
-    #     return result
-    def screenshot_OCR_str(self, x1, y1, x2, y2, templates_dict, sim, get_colour=None, drag=None):
+    def screenshot_OCR_str(self, x1, y1, x2, y2, image_template_name, sim, get_colour=None, drag=None):
         """
         优化后的数字识别方法，专注于识别数字字符
-
-        :param templates_dict: 字典格式的数字模板 {数字字符: [模板文件名列表]}
-            示例: {'0': ['0_1.bmp', '0_2.bmp'], '1': ['1.bmp'], ...}
         """
         # 捕获指定区域的屏幕截图
+        if not self.hwnd:
+            logger.info("错误：无效的窗口句柄")
+            return ''
+
         try:
-            screenshot_np = self.VNC.capture()[0:600, 0:1067]
-            if isinstance(screenshot_np, np.ndarray):
-                logger.info("vnc_mm截图成功")
+            if self.VNC is not None:
+                screenshot_np = self.VNC.capture()[0:600, 0:1067]
             else:
-                logger.info("vnc_mm截图失败")
-                return ''
+                # 捕获屏幕区域
+                screenshot_np = Capture(self.hwnd, 0, 0, 1067, 600)
             region = screenshot_np[y1:y2, x1:x2]
+
             # 保存原始图像用于调试
             if drag is not None:
                 cv2.imwrite("debug_original.png", region)
@@ -845,53 +691,42 @@ class MM:
             logger.info(f"图像预处理错误: {e}")
             return ''
 
-        # 处理模板图像 - 支持每个数字多个模板
-        templates = {}  # {数字字符: 模板图像列表}
-        logger.info(f"开始加载模板...")
+        # 处理模板图像
+        template_names = image_template_name.split("|")
+        templates = {}  # {数字字符: 模板图像}
 
-        for digit_char, filenames in templates_dict.items():
-            logger.info(f"处理数字 '{digit_char}' 的模板")
-            digit_templates = []
+        for name in template_names:
+            try:
+                label = name.split(".")[0]  # 假设文件名就是数字字符
+                logger.info(f"处理模板: {label}")
 
-            for filename in filenames:
-                try:
-                    logger.info(f"  加载模板: {filename}")
+                # 加载模板图像
+                template_img = self.get_image(name, color_space=get_colour)
 
-                    # 加载模板图像
-                    template_img = self.get_image(filename, color_space=get_colour)
-                    if template_img is None:
-                        logger.info(f"    警告: 模板文件 '{filename}' 未找到")
-                        continue
+                # 预处理模板 - 只取第一个有效的连通组件
+                _, template_components = self.image_pretreatment(
+                    template_img,
+                    get_colour=get_colour,
+                    drag=drag
+                )
 
-                    # 预处理模板 - 只取第一个有效的连通组件
-                    _, template_components = self.image_pretreatment(
-                        template_img,
-                        get_colour=get_colour,
-                        drag=None
-                    )
+                # 只取第一个有效组件（数字模板）
+                if template_components and template_components[0].size > 0:
+                    templates[label] = template_components[0]
+                    logger.info(f"模板 '{label}' 尺寸: {template_components[0].shape}")
 
-                    # 只取第一个有效组件（数字模板）
-                    if template_components and template_components[0].size > 0:
-                        digit_templates.append(template_components[0])
-                        logger.info(f"    模板 '{filename}' 尺寸: {template_components[0].shape}")
-
-                        # 调试显示
-                        if drag is not None:
-                            cv2.imshow(f'Template: {digit_char} - {filename}', template_components[0])
-                            cv2.waitKey(1)  # 短暂显示
-                    else:
-                        logger.info(f"    警告: 模板 '{filename}' 未找到有效组件")
-                except Exception as e:
-                    logger.info(f"    处理模板 '{filename}' 时出错: {e}")
-
-            if digit_templates:
-                templates[digit_char] = digit_templates
-                logger.info(f"  数字 '{digit_char}' 加载了 {len(digit_templates)} 个有效模板")
-            else:
-                logger.info(f"  警告: 数字 '{digit_char}' 未找到任何有效模板")
+                    # 调试显示
+                    if drag is not None:
+                        cv2.imshow(f'Template: {label}', template_components[0])
+                        cv2.waitKey(1000)  # 等待1秒而不是立即关闭
+                else:
+                    logger.info(f"警告: 模板 '{label}' 未找到有效组件")
+            except Exception as e:
+                logger.info(f"处理模板 '{name}' 时出错: {e}")
 
         # 识别结果
         recognized_digits = []
+
         logger.info(f"开始匹配 {len(target_components)} 个数字区域...")
 
         # 遍历目标图像中的每个数字区域
@@ -905,51 +740,52 @@ class MM:
             # 调试显示
             if drag is not None:
                 cv2.imshow(f'Digit Region {i}', digit_region)
-                cv2.waitKey(1)  # 短暂显示
+                cv2.waitKey(1000)  # 等待1秒而不是立即关闭
 
             best_match = None
             best_similarity = 0
+            best_template = None
 
-            # 与所有数字模板进行匹配
-            for digit_char, digit_templates in templates.items():
-                for template_idx, template_img in enumerate(digit_templates):
-                    # 检查模板尺寸是否适合目标区域
-                    if template_img.shape[0] > digit_region.shape[0] or template_img.shape[1] > digit_region.shape[1]:
-                        # logger.info(f"  模板 '{digit_char}_{template_idx}' 太大 - 跳过")
-                        continue
+            # 与所有模板进行匹配
+            for digit_char, template_img in templates.items():
+                # 检查模板尺寸是否适合目标区域
+                if template_img.shape[0] > digit_region.shape[0] or template_img.shape[1] > digit_region.shape[1]:
+                    logger.info(f"  模板 '{digit_char}' 太大 ({template_img.shape} vs {digit_region.shape}) - 跳过")
+                    continue
 
-                    try:
-                        # 调整模板尺寸以匹配目标区域（如果需要）
-                        if template_img.shape != digit_region.shape:
-                            resized_template = cv2.resize(template_img, (digit_region.shape[1], digit_region.shape[0]))
-                            # logger.info(f"  调整模板 '{digit_char}_{template_idx}' 尺寸")
-                        else:
-                            resized_template = template_img
+                try:
+                    # 调整模板尺寸以匹配目标区域（如果需要）
+                    if template_img.shape != digit_region.shape:
+                        resized_template = cv2.resize(template_img, (digit_region.shape[1], digit_region.shape[0]))
+                        logger.info(f"  调整模板 '{digit_char}' 尺寸: {template_img.shape} -> {digit_region.shape}")
+                    else:
+                        resized_template = template_img
 
-                        # 模板匹配
-                        result = cv2.matchTemplate(digit_region, resized_template, cv2.TM_CCOEFF_NORMED)
-                        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
+                    # 模板匹配
+                    result = cv2.matchTemplate(digit_region, resized_template, cv2.TM_CCOEFF_NORMED)
+                    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
 
-                        # logger.info(f"  匹配 '{digit_char}' (模板{template_idx}): 相似度 = {max_val:.4f}")
+                    logger.info(f"  匹配 '{digit_char}': 最大相似度 = {max_val:.4f}")
 
-                        # 更新最佳匹配
-                        if max_val > best_similarity:
-                            best_similarity = max_val
-                            best_match = digit_char
+                    # 更新最佳匹配
+                    if max_val > best_similarity:
+                        best_similarity = max_val
+                        best_match = digit_char
+                        best_template = resized_template
 
-                            # 调试显示匹配结果
-                            if drag is not None and max_val >= sim:
-                                h, w = resized_template.shape
-                                top_left = max_loc
-                                bottom_right = (top_left[0] + w, top_left[1] + h)
+                        # 调试显示匹配结果
+                        if drag is not None and max_val >= sim:
+                            h, w = resized_template.shape
+                            top_left = max_loc
+                            bottom_right = (top_left[0] + w, top_left[1] + h)
 
-                                # 创建带匹配框的副本
-                                match_vis = digit_region.copy()
-                                cv2.rectangle(match_vis, top_left, bottom_right, 128, 2)
-                                cv2.imshow(f'Match: {digit_char} ({max_val:.2f})', match_vis)
-                                cv2.waitKey(1)
-                    except Exception as e:
-                        logger.info(f"  匹配模板 '{digit_char}_{template_idx}' 时出错: {e}")
+                            # 创建带匹配框的副本
+                            match_vis = digit_region.copy()
+                            cv2.rectangle(match_vis, top_left, bottom_right, 128, 2)
+                            cv2.imshow(f'Match: {digit_char} ({max_val:.2f})', match_vis)
+                            cv2.waitKey(500)
+                except Exception as e:
+                    logger.info(f"  匹配模板 '{digit_char}' 时出错: {e}")
 
             # 保存有效匹配
             if best_match and best_similarity >= sim:
@@ -961,11 +797,6 @@ class MM:
         # 返回识别结果
         result = ''.join(recognized_digits)
         logger.info(f"最终识别结果: '{result}'")
-
-        # 关闭调试窗口
-        if drag is not None:
-            cv2.destroyAllWindows()
-
         return result
 
     def image_pretreatment(self, image, get_colour=None, drag=None):
@@ -991,7 +822,13 @@ class MM:
 
                     # 应用掩码
                     colored_image = cv2.bitwise_and(image, image, mask=mask)
-                    image = cv2.cvtColor(colored_image, cv2.COLOR_BGR2GRAY)
+                    black_image = cv2.bitwise_not(mask)
+                    black_image = cv2.bitwise_and(image, np.zeros_like(image), mask=black_image)
+                    final_image = cv2.add(colored_image, black_image)
+
+                    # 转换为灰度图
+                    image = cv2.cvtColor(final_image, cv2.COLOR_HSV2BGR)
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             except Exception as e:
                 logger.info(f"HSV处理错误: {e}")
 
@@ -1013,12 +850,10 @@ class MM:
 
         # 调试显示
         if drag is not None:
-            cv2.imshow('binary_image', binary_image)
-            cv2.waitKey(0)
-            # cv2.imshow('Original', image)
-            # cv2.waitKey(500)
-            # cv2.imshow('Binary', binary_image)
-            # cv2.waitKey(500)
+            cv2.imshow('Original', image)
+            cv2.waitKey(500)
+            cv2.imshow('Binary', binary_image)
+            cv2.waitKey(500)
 
         # 查找连通组件
         try:
@@ -1040,10 +875,7 @@ class MM:
                 # 提取组件区域
                 x, y, w, h = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], \
                     stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]
-                # 放宽尺寸限制（允许更小的组件）
-                if w < 2 or h < 2:  # 仅过滤极小噪声（根据实际数字尺寸调整）
-                    logger.info(f"  跳过小组件: {w}x{h}")
-                    continue
+
                 # # 过滤掉太小的组件（可能是噪声）
                 # if w < 5 or h < 5:
                 #     logger.info(f"  跳过小组件: {w}x{h} (位置: {x},{y})")
@@ -1066,7 +898,7 @@ class MM:
                 # 调试显示
                 if drag is not None:
                     cv2.imshow(f'Component {i}', cropped)
-                    cv2.waitKey(0)
+                    cv2.waitKey(500)
             except Exception as e:
                 logger.info(f"处理组件 {i} 时出错: {e}")
 
@@ -1616,28 +1448,24 @@ class MM:
                 screenshot_np = img_numpy[y1:y2, x1:x2]
                 self.screenshot_show_image = screenshot_np
 
+            elif self.hwnd is not None:
+                screenshot_np = Capture(self.hwnd, 0, 0, 1067, 600)
+                screenshot_np = screenshot_np[y1:y2, x1:x2]
+                if drag is not None:
+                    logger.info("保存到内存中")
+                # 这里用做画出找到位置显示的图片
+                self.screenshot_show_image = screenshot_np
             elif self.VNC is not None:
                 logger.info("VNC截图")
                 screenshot_np = self.VNC.capture()[0:600, 0:1067]
-                if isinstance(screenshot_np, np.ndarray):
-                    logger.info("vnc_mm截图成功")
-                else:
-                    logger.info("vnc_mm截图失败")
-                    return self.arr_ret
-                if screenshot_np is None:
-                    logger.error("截图获取为空数组")
-                    return self.arr_ret
-                screenshot_np = screenshot_np[y1:y2, x1:x2]
                 # 这里用做画出找到位置显示的图片
                 self.screenshot_show_image = screenshot_np
+
                 # 转为灰度图像  # self.target_image = cv2.cvtColor(screenshot_np, cv2.COLOR_BGR2GRAY)
 
         except Exception as ee:
             if drag is not None:
                 logger.info(f"截图或保存失败: {ee}")
-            return self.arr_ret
-        if screenshot_np is None:
-            logger.error("截图获取为空数组")
             return self.arr_ret
         # 将图像从BGR转换到HSV
         hsv_image = cv2.cvtColor(screenshot_np, cv2.COLOR_BGR2HSV)
@@ -1848,9 +1676,6 @@ class MM:
         center_y = maxLoc[1] + template_height / 2
         adjusted_center_x = int(center_x + pard + x1)
         adjusted_center_y = int(center_y + pard + y1)
-        # print(f"x1:{x1}\ty1:{y1}")
-        # adjusted_center_x = int(center_x + pard)
-        # adjusted_center_y = int(center_y + pard)
         logger.info_str = f"找到图片：{img_name},相似度：{maxVal};\n"
 
         if x1 != 0 or y1 != 0:
@@ -1925,7 +1750,7 @@ class MM:
             logger.info(type(Color_Image))  # 应该输出 <class 'numpy.ndarray'>
             logger.info(Color_Image.shape)  # 应该输出图像的形状，如 (height, width, channels)
             # 打印将要绘制的矩形的坐标和颜色
-            logger.info(f"{(x, y), (x + template_width, y + template_height), (0, 255, 0)}")
+            logger.info((x, y), (x + template_width, y + template_height), (0, 255, 0))
             # 在Color_Image上绘制矩形
             cv2.rectangle(Color_Image, (x, y), (x + template_width, y + template_height), (0, 255, 0), thickness=2)
 
@@ -2334,7 +2159,6 @@ def get_color_at_point(image_path, x, y):
     return color
 
 
-vnc_mm = MM()
 if __name__ == '__main__':
     mm = MM()
     # results = mm.screenshot_OCR_str(348, 466, 388, 479, '0.bmp|1.bmp|2.bmp|3.bmp|4.bmp|5.bmp|6.bmp|7.bmp|8.bmp|9.bmp', 0.9, get_colour=([62, 130, 159], [65, 141, 163]))

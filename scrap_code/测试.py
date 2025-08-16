@@ -1,339 +1,110 @@
 import os
-from collections import namedtuple
-import json
+import random
+import re
+import time
 
+import cv2
+import numpy as np
+import keyboard
+# from rapidocr_onnxruntime import RapidOCR
+
+# from pad_ocr import ocr_get_text, has_two_common_chars
 from root_dir import root_path
+from core.capture import Capture
 
-file_path = os.path.join(root_path, "res/occupation_info_1067.json")
-# 读取JSON文件
-with open(file_path, "r", encoding="utf-8") as file:
-    occupationInfoMap = json.load(file)
+from core.get_hwnd import hwnd
 
+from mm import MM
+import cv2
 
-class Point:
-    def __init__(self, p_x, p_y):
-        self.x = p_x
-        self.y = p_y
+from utils.cross_control import pyauto
 
+goods = []
+mm = MM()
+game_image = Capture(hwnd, 0, 0, 1067, 600)
 
-class Player:
-    def __init__(self):
-        self.map_name = None  # 地图名称
-        self.map_level = None  # 地图级别
-        self.player_room_id = None  # 玩家房间id
-        self.player_occupation = None  # 玩家_职业
-        self.player_height = None
-        self.x_speed = None
-        self.y_speed = None
-        self.x_speed_walk = None
-        self.y_speed_walk = None
-        self.has_get_speed = False  # 有速度
-        self.is_daily_tasks = None
-        self.pl_value = None
+# while True:
+#     # 显示帧
+#     cv2.imshow('Video Frame', game_image)
+#     # 等待按键
+#     if cv2.waitKey(1) & 0xFF == ord('q'):
+#         break
+# game_image = game_image[350:680, 0:1280]
+st = time.time()
 
-
-class MoveInfo:
-    def __init__(self, left_right, up_down, x_time, y_time, run):
-        self.leftRightDirection = left_right
-        self.upDownDirection = up_down
-        self.xTime = x_time
-        self.yTime = y_time
-        self.run = run
-
-
-# class BuffKey:
-#     def __init__(self, up, down, left, right, space):
-#         self.up = up
-#         self.down = down
-#         self.left = left
-#         self.right = right
-#         self.space = space
-
-
-# buff_key = BuffKey("up", "down", "left", "right", "space")
-
-# role_info_pos_trait = (444, 532, 107, 129)  # 角色信息pos特征
-# select_player_pos_trait = (590, 650, 577, 602)  # 选择玩家pos特征
-# select_menu_pos_trait = (598, 128, 694, 158)  # 选择菜单pos特性
-# return_town_in_map_pos_trait = (1194, 667, 1260, 681)  # 地图pos特征中的回城
-# map_name_pos_trait = (74, 410, 221, 437)  # 地图名称pos特征
-# weakness_pos_trait = (808, 561, 1035, 682)  # 弱点pos特征
-# weakness_recovery_pos_trait = (640, 453, 697, 480)  # 虚弱恢复pos特征
-
-# 地图水平难度
-mapLevelDict = {"普通": 1, "冒险": 2, "勇士": 3, "王者": 4, "噩梦": 5}
-# # 映射第一个房间id
-# map_first_room_id = {
-#     '流雨瀑布': {'2-0'},
-#     '风暴幽城': {(1, 0), (0, 1), (1, 1)},
-#     '风暴逆鳞普通': {(0, 2), (1, 3)},
-# }
-# # 映射第一个房间id
-# map_first_room_id = {'流雨瀑布': {'2-0'}, '风暴幽城': {(2, 0), (0, 2), (2, 2)}, '风暴逆鳞普通': {(0, 2), (1, 3)}, }
-# # 映射boss房间前一个房间的id
-# map_boss_previous_room_id = {'流雨瀑布': '1-5', '风暴幽城': {(1, 4), (0, 3), (2, 4)}, '风暴逆鳞普通': {(0, 4), (1, 5)}, }
-pink_goods_info = {
-    "风暴逆鳞普通": {
-        '蓝色': True,
-        '紫色': True,
-        '粉色': False,
-        '金色': True,
-    },
-    "德洛斯矿山外围": {
-        '蓝色': True,
-        '紫色': True,
-        '粉色': True,
-        '金色': True,
-    },
-}
-# 地图特定的最小房间数要求
-MAP_MIN_ROOMS = {
-    "跌宕群岛": 8,
-    "妖气追踪": 8,
-    "风暴逆鳞普通": 4,
-    "德洛斯矿山外围": 12
-}
-map_boss_info = {
-    "风暴幽城": {
-        'boss_fbyc_mymbz': {'height': 245},
-        'monster_fbyc_min_boss': {'height': 180}
-    },
-    "风暴逆鳞普通": {
-        'boss_fbnl_yhzgdzstk': {'height': 240},
-        # 名字高度+380（身体+离地）
-        'boss_fbnl_phzwh': {'height': 277},
-        # 身体高度+120离地高度
-        'boss_fbnl_phzwh_box': {'height': 50},
-    },
-    "流雨瀑布": {
-        'boss_lypb': {'height': 200},
-        'monster_lypb_min_boss': {'height': 200},
-        'monster_lypb_min_boss_xgswzljl': {'height': 242},
-    },
-    "海伯伦的预言所": {
-        'boss_fbyc_mymbz': {'height': 245},
-        'monster_fbyc_min_boss': {'height': 180}
-    },
-    "德洛斯矿山外围": {
-        'boss_dlsks_onsblk': {'height': 140},
-        'boss_dlsks_qtzft': {'height': 182},
-        'boss_dlsks_klj': {'height': 182},
-    },
-    "深渊：终末崇拜者": {
-        'boss_sy': {'height': 100},
-        'boss_sy_1': {'height': 0},
-        'boss_sy-zmcbz': {'height': 175},
-        'boss_sy-zmcbz_box': {'height': 0},
-    },
-    "跌宕群岛": {
-        'monster_115_1': {'height': 240},
-        'monster_115_1_box': {'height': 0},
-        'monster_115_2': {'height': 180},
-        'monster_115_2_box': {'height': 0},
-        'monster_115_3': {'height': 162},
-        'monster_115_3_box': {'height': 0},
-        'monster_115_4': {'height': 200},
-        'monster_115_4_box': {'height': 0},
-        'monster_115_5': {'height': 220},
-        'monster_115_5_box': {'height': 0},
-        'boss_115_1': {'height': 180},
-        'boss_115_1_box': {'height': 0},
-        'boss_115_2': {'height': 220},
-        'boss_115_2_box': {'height': 0},
-        'boss_115_3': {'height': 140},
-        'boss_115_3_box': {'height': 0},
-        'boss_115_4': {'height': 140},
-        'boss_115_4_box': {'height': 0},
-    },
-    "妖气追踪": {
-        'monster_115_1': {'height': 240},
-        'monster_115_1_box': {'height': 0},
-        'monster_115_2': {'height': 180},
-        'monster_115_2_box': {'height': 0},
-        'monster_115_3': {'height': 162},
-        'monster_115_3_box': {'height': 0},
-        'monster_115_4': {'height': 200},
-        'monster_115_4_box': {'height': 0},
-        'monster_115_5': {'height': 220},
-        'monster_115_5_box': {'height': 0},
-        'monster_115_6': {'height': 220},
-        'monster_115_6_box': {'height': 0},
-        'boss_115_1': {'height': 180},
-        'boss_115_1_box': {'height': 0},
-        'boss_115_2': {'height': 220},
-        'boss_115_2_box': {'height': 0},
-        'boss_115_3': {'height': 140},
-        'boss_115_3_box': {'height': 0},
-        'boss_115_4': {'height': 140},
-        'boss_115_4_box': {'height': 0},
-    },
-    "通用": {
-        'monster_115_1': {'height': 240},
-        'monster_115_1_box': {'height': 0},
-        'monster_115_2': {'height': 180},
-        'monster_115_2_box': {'height': 0},
-        'monster_115_3': {'height': 162},
-        'monster_115_3_box': {'height': 0},
-        'monster_115_4': {'height': 200},
-        'monster_115_4_box': {'height': 0},
-        'monster_115_5': {'height': 220},
-        'monster_115_5_box': {'height': 0},
-        'monster_115_6': {'height': 220},
-        'monster_115_6_box': {'height': 0},
-        'boss_115_1': {'height': 180},
-        'boss_115_1_box': {'height': 0},
-        'boss_115_2': {'height': 220},
-        'boss_115_2_box': {'height': 0},
-        'boss_115_3': {'height': 140},
-        'boss_115_3_box': {'height': 0},
-        'boss_115_4': {'height': 140},
-        'boss_115_4_box': {'height': 0},
-        'boss_dlsks_onsblk': {'height': 140},
-        'boss_dlsks_qtzft': {'height': 182},
-        'boss_dlsks_klj': {'height': 182},
-        'boss_fbnl_yhzgdzstk': {'height': 240},
-        # 名字高度+380（身体+离地）
-        'boss_fbnl_phzwh': {'height': 277},
-        # 身体高度+120离地高度
-        'boss_fbnl_phzwh_box': {'height': 50},
-    },
-}
-map_pos_info = {
-    "风暴幽城": {"x1": 1067 - 6 - 108, "y1": 48, "x2": 1067 - 6, "y2": 48 + 54},
-    "风暴逆鳞普通": {"x1": 1067 - 6 - 72, "y1": 48, "x2": 1067 - 6, "y2": 48 + 36},
-    "流雨瀑布": {"x1": 1067 - 11 - 126, "y1": 52, "x2": 1067 - 11, "y2": 52 + 54},
-    "海伯伦的预言所": {"x1": 1067 - 11 - 90, "y1": 52, "x2": 1067 - 11, "y2": 52 + 72},
-    "德洛斯矿山外围": {"x1": 1067 - 12 - 126, "y1": 52, "x2": 1067 - 12, "y2": 52 + 54},
-    "深渊：终末崇拜者": {"x1": 1067 - 12 - 126, "y1": 52, "x2": 1067 - 12, "y2": 52 + 54},
-    "跌宕群岛": {"x1": 1067 - 12 - 126, "y1": 52, "x2": 1067 - 12, "y2": 52 + 54},
-    "妖气追踪": {"x1": 1067 - 12 - 126, "y1": 52, "x2": 1067 - 12, "y2": 52 + 54},
-    "通用": {"x1": 1067 - 12 - 162, "y1": 52, "x2": 1067 - 12, "y2": 52 + 90},
-}
-a_mapInfo = {
-    "风暴幽城": [
-        [1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1], ],
-    "风暴逆鳞普通": [
-        [1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1], ],
-    "流雨瀑布": [
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1], ],
-    "海伯伦的预言所": [
-        [1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1], ],
-    "德洛斯矿山外围": [
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1], ],
-    "深渊：终末崇拜者": [
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1], ],
-    "跌宕群岛": [
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1], ],
-    "妖气追踪": [
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1], ],
-    "通用": [
-        [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1], ],
-
-}
-a_DictInfo = {
-    '风暴幽城': {
-        'right': {"min_x": 833, "max_x": 1067, "min_y": 0, "max_y": 600},
-        'left': {"min_x": 0, "max_x": 233, "min_y": 0, "max_y": 600},
-        "up": {"min_x": 250, "max_x": 817, "min_y": 125, "max_y": 417},
-        "down": {"min_x": 250, "max_x": 1067, "min_y": 417, "max_y": 600},
-    },
-    '风暴逆鳞普通': {
-        'right': {"min_x": 817, "max_x": 1067, "min_y": 0, "max_y": 600},
-        'left': {"min_x": 0, "max_x": 533, "min_y": 0, "max_y": 600},
-        "up": {"min_x": 533, "max_x": 1067, "min_y": 0, "max_y": 600},
-        "down": {"min_x": 0, "max_x": 1067, "min_y": 458, "max_y": 650},
-    },
-    '流雨瀑布': {
-        'right': {"min_x": 933, "max_x": 1067, "min_y": 300, "max_y": 600},
-        'left': {"min_x": 0, "max_x": 233, "min_y": 300, "max_y": 600},
-        "up": {"min_x": 250, "max_x": 817, "min_y": 125, "max_y": 417},
-        "down": {"min_x": 250, "max_x": 1067, "min_y": 417, "max_y": 600},
-    },
-    '海伯伦的预言所': {
-        'right': {"min_x": 933, "max_x": 1067, "min_y": 300, "max_y": 600},
-        'left': {"min_x": 0, "max_x": 233, "min_y": 300, "max_y": 600},
-        "up": {"min_x": 250, "max_x": 1067, "min_y": 125, "max_y": 417},
-        "down": {"min_x": 250, "max_x": 1067, "min_y": 417, "max_y": 600},
-    },
-    '德洛斯矿山外围': {
-        'right': {"min_x": 933, "max_x": 1067, "min_y": 0, "max_y": 600},
-        'left': {"min_x": 0, "max_x": 233, "min_y": 0, "max_y": 600},
-        "up": {"min_x": 250, "max_x": 875, "min_y": 125, "max_y": 417},
-        "down": {"min_x": 250, "max_x": 933, "min_y": 417, "max_y": 650},
-    },
-    '跌宕群岛': {
-        'right': {"min_x": 933, "max_x": 1067, "min_y": 0, "max_y": 600},
-        'left': {"min_x": 0, "max_x": 233, "min_y": 0, "max_y": 600},
-        "up": {"min_x": 0, "max_x": 1067, "min_y": 125, "max_y": 370},
-        "down": {"min_x": 250, "max_x": 933, "min_y": 500, "max_y": 650},
-    },
-    '妖气追踪': {
-        'right': {"min_x": 933, "max_x": 1067, "min_y": 0, "max_y": 600},
-        'left': {"min_x": 0, "max_x": 350, "min_y": 0, "max_y": 600},
-        "up": {"min_x": 0, "max_x": 1067, "min_y": 0, "max_y": 370},
-        "down": {"min_x": 250, "max_x": 933, "min_y": 500, "max_y": 650},
-    },
-    '通用': {
-        'right': {"min_x": 933, "max_x": 1067, "min_y": 0, "max_y": 600},
-        'left': {"min_x": 0, "max_x": 350, "min_y": 0, "max_y": 600},
-        "up": {"min_x": 0, "max_x": 1067, "min_y": 0, "max_y": 370},
-        "down": {"min_x": 0, "max_x": 1067, "min_y": 417, "max_y": 650},
-    },
-}
-# # 地图词典信息
-# mapDictInfo = {"流雨瀑布": {"1-2": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "1-3": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "1-4": {"direction": "right", "min_x": 1100, "max_x": 1280, "min_y": 440, "max_y": 660}, "1-5": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720},
-#                             "2-0": {"direction": "right", "min_x": 0, "max_x": 1280, "min_y": 0, "max_y": 720}, "2-1-r": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "2-1-d": {"direction": "down", "min_x": 740, "max_x": 990, "min_y": 570, "max_y": 720}, "2-2": {"direction": "up", "min_x": 492, "max_x": 980, "min_y": 320, "max_y": 530},
-#                             "2-3": {"direction": "up", "min_x": 620, "max_x": 930, "min_y": 340, "max_y": 540}, "2-4": {"direction": "up", "min_x": 690, "max_x": 1020, "min_y": 300, "max_y": 560}, "3-1": {"direction": "up", "min_x": 0, "max_x": 700, "min_y": 310, "max_y": 540}, "3-2": {"direction": "up", "min_x": 240, "max_x": 1030, "min_y": 310, "max_y": 530}, },
-#                "风暴幽城_1": {  # "1-2": {"direction": "down", "min_x": 0, "max_x": 1280, "min_y": 440, "max_y": 720},
-#                    "1-2": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "1-3": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "1-4": {"direction": "down", "min_x": 0, "max_x": 1280, "min_y": 500, "max_y": 720}, "1-1": {"direction": "down", "min_x": 0, "max_x": 1280, "min_y": 500, "max_y": 720},
-#                    "2-0": {"direction": "right", "min_x": 0, "max_x": 1280, "min_y": 0, "max_y": 720}, "2-1": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "2-2": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "2-3": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720},
-#                    "2-4": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "3-1": {"direction": "up", "min_x": 0, "max_x": 1280, "min_y": 310, "max_y": 540}, "3-2": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "3-3": {"direction": "up", "min_x": 0, "max_x": 1280, "min_y": 310, "max_y": 540}, },
-#                "风暴幽城_2": {  # "1-2": {"direction": "down", "min_x": 0, "max_x": 1280, "min_y": 440, "max_y": 720},
+# max_image = mm.get_mask(game_image, ([94, 140, 0], [96, 143, 255]))
+# # 定义一个膨胀核，这里我们使用一个3x3的矩形核作为示例
+# kernel = np.ones((2, 5), np.uint8)
 #
-#                    "1-4": {"direction": "down", "min_x": 0, "max_x": 1280, "min_y": 500, "max_y": 720}, "1-1": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "1-2": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "1-3": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720},
-#                    "2-1": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "2-2": {"direction": "up", "min_x": 300, "max_x": 930, "min_y": 340, "max_y": 540}, "2-3": {"direction": "left", "min_x": 0, "max_x": 900, "min_y": 0, "max_y": 720}, "2-4": {"direction": "left", "min_x": 0, "max_x": 900, "min_y": 0, "max_y": 720},
-#                    # "3-1": {"direction": "up", "min_x": 0, "max_x": 700, "min_y": 310, "max_y": 540},
-#                    # "3-2": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720},
-#                    # "3-3": {"direction": "up", "min_x": 240, "max_x": 1030, "min_y": 310, "max_y": 530},
-#                }, "风暴幽城_3": {  # "1-2": {"direction": "down", "min_x": 0, "max_x": 1280, "min_y": 440, "max_y": 720},
+# # 对掩码进行膨胀
+# dilated_mask = cv2.dilate(max_image, kernel, iterations=2)
 #
-#         # "1-4": {"direction": "down", "min_x": 0, "max_x": 1280, "min_y": 500, "max_y": 720},
-#         # "1-1": {"direction": "down", "min_x": 0, "max_x": 1280, "min_y": 500, "max_y": 720},
-#         # "1-2": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720},
-#         # "1-3": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720},
+# # 获取连通组件的数量、标签、统计信息和质心
+# num_components, labels, stats, centroids = cv2.connectedComponentsWithStats(dilated_mask)
 #
-#         "2-1": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "3-1": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "3-2": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "3-3": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720},
-#         "3-4": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720},
+# max_area = 0
 #
-#         "2-2": {"direction": "down", "min_x": 0, "max_x": 1280, "min_y": 500, "max_y": 720}, "2-3": {"direction": "left", "min_x": 0, "max_x": 900, "min_y": 0, "max_y": 720}, "2-4": {"direction": "left", "min_x": 0, "max_x": 900, "min_y": 0, "max_y": 720},  # "3-1": {"direction": "up", "min_x": 0, "max_x": 700, "min_y": 310, "max_y": 540},
-#         # "3-2": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720},
-#         # "3-3": {"direction": "up", "min_x": 240, "max_x": 1030, "min_y": 310, "max_y": 530},
-#     }, "风暴逆鳞普通": {"1-0": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "1-1": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720}, "1-2": {"direction": "right", "min_x": 900, "max_x": 1280, "min_y": 0, "max_y": 720},
-#
-#                         }}
+# # 遍历所有组件（从1开始，因为0是背景）
+# for i in range(1, num_components):
+#     area = stats[i, cv2.CC_STAT_AREA]
+#     if area >= 600:
+#         x = stats[i, cv2.CC_STAT_LEFT]
+#         y = stats[i, cv2.CC_STAT_TOP]
+#         # 获取当前连通组件的宽度和高度
+#         width = stats[i, cv2.CC_STAT_WIDTH]
+#         height = stats[i, cv2.CC_STAT_HEIGHT]
+#         goods.append((x, y + 350, x + width, y + 350 + height))
+#         # 打印当前组件的宽度和高度
+#         print(f"Component {i} - Width: {width}, Height: {height},area: {area}")
+#         print(f"goods :{goods}")
+# ret = mm.get_goods(0, 350, 1280, 680, game_image, (110, 300, 14, 18), None, ([133, 144, 50], [137, 150, 255]))
 
-# occupationInfoMap = {
+# ret = mm.FindPic(33, 406, 286, 448, "流雨瀑布.bmp", 0.9)
+ret = mm.FindPic(447, 539, 635, 597, "开始游戏.bmp", 0.9, drag=2)
+print(ret)
+# while True:
+#
+#     # 显示图片
+#     cv2.imshow('img', a)
+#
+#     # 等待按键，如果是'q'则退出循环
+#     if cv2.waitKey(1) & 0xFF == ord('q'):
+#         break
+# ret = mm.FindPic(301, 108, 995, 619, "金币寄售.bmp", 0.9, drag=2, delta_color=([20, 0, 0], [23, 255, 255]))
+# if ret:
+#     x1, y1 = ret[0][3] + 60, ret[0][4] - 5
+#     x2, y2 = x1 + 55, y1 + 20
+#     game_image_0 = Capture(hwnd, 0, 0, 1067, 600)
+#     while True:
+#         print([x1, y1, x2, y2])
+#         image = game_image_0[y1:y2, x1:x2]
+#         # 定义缩放比例（例如放大2倍）
+#         scale_factor = 1.5
+#
+#         # 计算新尺寸
+#         new_width = int(image.shape[1] * scale_factor)
+#         new_height = int(image.shape[0] * scale_factor)
+#         new_size = (new_width, new_height)
+#
+#         # 按比例放大图像
+#         resized_image = cv2.resize(image, new_size, interpolation=cv2.INTER_LINEAR)
+#         # 显示帧
+#         cv2.imshow('Video Frame', resized_image)
+#         # 等待按键
+#         if cv2.waitKey(1) & 0xFF == ord('q'):
+#             break  # ret = mm.FindPic(61, 383, 238, 444, "德洛斯矿山外围.bmp", 0.9)
+# print(ret)
+# ret = mm.FindPic(1177, 651, 1279, 692, "返回城镇.bmp", 0.9)
+# print(ret)
+# print(f"耗时:{time.time() - st}")
+# print(cv2.__version__)
+# from core.common import pink_goods_info
+#
+# print(pink_goods_info.get("风暴逆鳞普通").get("蓝色"))
+# import json
+#
+# # 定义职业信息字典
+# occupation_info_map = {
 #     "男鬼剑士-剑魂": {
 #         "x_speed": {"30": 320, "60": 320, "90": 320, "120": 320, "150": 320, "180": 320, "210": 320, "240": 320, "270": 320, "300": 320},
 #         "y_speed": {"30": 120, "60": 120, "90": 120, "120": 120, "150": 120, "180": 120, "210": 120, "240": 120, "270": 120, "300": 120},
@@ -443,7 +214,7 @@ a_DictInfo = {
 #         "y_speed": {"30": 120, "60": 120, "90": 120, "120": 120, "150": 120, "180": 120, "210": 120, "240": 120, "270": 120, "300": 120},
 #         "height": 218, "buffer": "right,right,space"},
 #     "男魔法师-元素爆破师": {
-#         "x_speed": {"30": 305, "60": 305, "90": 305, "120": 305, "150": 305, "180": 305, "210": 305, "240": 305, "270": 305, "300": 305},
+#         "x_speed": {"30": 320, "60": 320, "90": 320, "120": 320, "150": 320, "180": 320, "210": 320, "240": 320, "270": 320, "300": 320},
 #         "y_speed": {"30": 120, "60": 120, "90": 120, "120": 120, "150": 120, "180": 120, "210": 120, "240": 120, "270": 120, "300": 120},
 #         "height": 197, "buffer": "up,down,space"},
 #     "男魔法师-冰结师": {
@@ -598,40 +369,45 @@ a_DictInfo = {
 #         "x_speed": {"30": 320, "60": 320, "90": 320, "120": 320, "150": 320, "180": 320, "210": 320, "240": 320, "270": 320, "300": 320},
 #         "y_speed": {"30": 120, "60": 120, "90": 120, "120": 120, "150": 120, "180": 120, "210": 120, "240": 120, "270": 120, "300": 120},
 #         "height": 215, "buffer": "right,right,space"}}
-if __name__ == '__main__':
-    # print(map_pos_info)
-    # print(map_pos_info.get("流雨瀑布"))
-    # m = map_pos_info.get("流雨瀑布")
-    # min_map = None
-    # if m:
-    #     print(m["x1"], m["y1"], m["x2"], m["y2"])
-    # else:
-    #     print("map_pos_info无小地图数据，请检查")
-    # pass
-    # from core.capture import Capture
-    #
-    # image = Capture(4916870, 0, 0, 1067, 600)
-    # min_map_img = image[m["y1"]:m["y2"], m["x1"]:m["x2"]]
-    # import cv2
-    #
-    # cv2.imshow('123', min_map_img)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-    print(map_boss_info.get("流雨瀑布").get('monster_lypb_min_boss_xgswzljl'))
-    print(a_mapInfo.get("风暴逆鳞普通"))
-    count = 0  # 初始化计数器
-    for row in a_mapInfo.get("风暴逆鳞普通"):  # 遍历每个子列表（行）
-        for element in row:  # 遍历子列表中的每个元素
-            if element == 0:  # 如果元素等于0
-                count += 1  # 计数器加1
-
-    print("0的数量（方法1）:", count)  # 输出: 0的数量（方法1）: 0
-    # if any('111' in key for key in mapDictInfo) is False:
-    #     print('不在')
-    # else:
-    #     print("在")
-    # if "风暴幽城" in has_query_mapInfo:
-    #     print((has_query_mapInfo["风暴幽城"]))
-    #     print('在')
-    # else:
-    #     print('不在')
+#
+# # 将字典转换为JSON格式并写入文件
+# with open("occupation_info.json", "w", encoding="utf-8") as file:
+#     json.dump(occupation_info_map, file, ensure_ascii=False, indent=4)
+#
+# # 打印输出，表示文件已生成
+# print("occupation_info.json 文件已生成。")
+# import json
+#
+# # 读取JSON文件
+# with open("occupation_info.json", "r", encoding="utf-8") as file:
+#     occupation_info_dict = json.load(file)
+#
+# print(root_path)
+# # 打印输出字典，确认转换成功
+# # print(occupation_info_dict)
+# p = r"res/occupation_info.json"
+# print(p)
+# file_path = os.path.join(root_path, p)
+# print(file_path)
+# time.sleep(5)
+# keyboard.write('立即执行', delay=random.uniform(0.05, 0.08))
+# cv2.imshow("dilated_mask", dilated_mask)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+#
+# ret = mm.FindPic(0, 0, 1067, 600, "移动速度.bmp", 0.9, 1, None, delta_color=([19, 0, 0], [21, 255, 255]))
+# if ret:
+#     x1, y1 = ret[0][3] + 60, ret[0][4] - 5
+#     x2, y2 = x1 + 55, y1 + 20
+#     results = mm.screenshot_OCR_str(x1, y1, x2, y2,
+#                                     '+.bmp|%.bmp|0.bmp|1.bmp|2.bmp|3.bmp|4.bmp|5.bmp|6.bmp|7.bmp|8.bmp|9.bmp',
+#                                     0.9, get_colour=([62, 130, 159], [65, 141, 163]))
+#     print(f"移速识别结果：{results}")
+#     if len(results) > 3:
+#         # 去除后面2个字符
+#         s = results[:-2]
+#         # 去除前面一个字符
+#         s = int(s[1:])
+#         print(f"处理后移速为：{s}")
+# else:
+#     print("没有找到移动坐标")

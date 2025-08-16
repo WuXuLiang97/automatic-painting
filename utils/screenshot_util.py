@@ -11,7 +11,7 @@ import win32gui
 import win32ui
 # from mss import mss
 from core import capture
-from LogDebug import logger
+from logging_setup import logger
 
 
 # from yolo.yolo_main import YoloV8

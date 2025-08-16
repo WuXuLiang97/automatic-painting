@@ -4,13 +4,12 @@ import json
 import os
 import shutil
 
-from root_path import root_path
+from root_dir import root_path
 from utils.common_util import get_date
 
 run_path = os.path.join(root_path, "work_space")
 
-# 拼接文件路径
-ini_file_path = os.path.join('C:\\', "config.json")
+
 
 config_path = 'C:\\work_space'  # C 盘上的目标文件夹路径
 
@@ -76,7 +75,7 @@ def release_folder():
         print("源文件夹不存在：", source_folder_path)
 
 
-release_folder()
+# release_folder()
 
 
 def set_ip(input_char):
@@ -95,26 +94,7 @@ def set_ip(input_char):
         json.dump(settings, file, indent=4)
 
 
-def get_gui_config():
-    """获取主机IP"""
-    try:
-        with open(ini_file_path, 'r') as file:
-            settings = json.load(file)
-        gui_config = {
-            'ip': settings.get("ip", ''),
-            'yjs': settings.get("yjs", 0),
-            'banzhuan': settings.get("banzhuan", 0),
-            'vmware_ip': settings.get("vmware_ip", "127.0.0.1"),
-            'vmware_prot': settings.get("vmware_prot", "5900"),
-            'vmware_password': settings.get("vmware_password", ''),
-        }
-        return gui_config
-    except FileNotFoundError:
-        # 如果文件不存在，则使用默认设置
-        pass
-    except json.JSONDecodeError:
-        # 如果文件存在但格式不正确，则使用默认设置并可能给出警告
-        print("Warning: Config file is corrupted or not in JSON format.")
+
     # config = configparser.ConfigParser()  # 创建配置解析器对象
     # config.read(ini_file_path)  # 确保加载了配置文件
     # my_ip = config.get('config', 'ip', fallback='')

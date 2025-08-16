@@ -5,7 +5,7 @@ from PyQt5.QtCore import QStringListModel, pyqtSignal
 from PyQt5.QtWidgets import QMainWindow, QMessageBox
 
 from api import test_view_subgroups, test_create_subgroup, test_delete_subgroup
-from utils.config_util import get_settings_group, save_settings_group, delete_settings_group
+# from utils.config_util import get_settings_group, save_settings_group, delete_settings_group
 from view.settingsGroup import Ui_Form
 
 

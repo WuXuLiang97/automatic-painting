@@ -3,7 +3,7 @@ import ctypes
 import os
 import time
 from ctypes import wintypes
-from root_path import root_path
+from root_dir import root_path
 import win32api
 
 code_dict = {

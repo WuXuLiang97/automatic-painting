@@ -16,7 +16,7 @@ import keyboard
 import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal
 
-from aa import a_star, judge_direction
+from core.directional_astar import a_star, judge_direction  # A星寻路
 from api import test_view_subgroup_config, test_update_subgroup_config
 from core.common import Point, occupationInfoMap, Player, mapLevelDict, MoveInfo, a_mapInfo, a_DictInfo, map_boss_info, pink_goods_info, MAP_MIN_ROOMS
 from core.operator_module import OperatorModule
@@ -26,22 +26,16 @@ from core.player_move import MovementRecorder
 # from utils.yjs import yjs
 from vnc_mm import vnc_mm
 from utils.common_util import sort_points_by_x, get_date
-from utils.config_util import get_all_role_settings, update_role_brush_date
+# from utils.config_util import get_all_role_settings, update_role_brush_date
 from utils.minimap_util import miniMapUtil
-from utils.pyauto_b import pyauto
+from utils.cross_control import pyauto
 # from utils.ocr_util import ocr_util
 from utils.screenshot_util import screenshot_util
 from utils.skill_util import skill_util
 import socket
 from core import global_variable as gv
 
-from LogDebug import logger
-
-# from dnf_ocr import recognize_text
-
-# from pad_ocr import ocr_get_text, has_two_common_chars
-
-# from core.client import TCPClient
+from logging_setup import logger
 
 current_path = os.path.dirname(os.path.abspath(__file__))
 root_path = os.path.abspath(os.path.join(current_path, '../'))
@@ -580,7 +574,7 @@ class PlayerThread(QThread):
     def stop(self):
         self.running = False
         self.brush_running = False
-        screenshot_util.cancel_window_topping()
+        # screenshot_util.cancel_window_topping()
         self.send_log("脚本已停止，可关闭窗口")
 
     def send_log(self, log):
@@ -1059,6 +1053,8 @@ class PlayerThread(QThread):
                     continue  # 跳过后续代码，继续下一次循环
                 if skill is not None:  # 如果技能不是None
                     if self.player.player_occupation == "弓箭手-缪斯" and skill == "q":
+                        pyauto.releaseallkey()
+                        time.sleep(0.05)
                         if random.random() < 0.5:
                             if random.random() < 0.5:
                                 pyauto.KeyPressChar("q")
@@ -1366,6 +1362,7 @@ class PlayerThread(QThread):
             if '金币' in goods_pos[0][2]:
                 pass
             else:
+                time.sleep(0.1)
                 pyauto.KeyPressChar("x")
                 time.sleep(0.05)
             # move_info = self.compute_move_info(self.player_pos, the_first_item, 0, 0)
@@ -1623,6 +1620,8 @@ class PlayerThread(QThread):
                 continue  # 跳过后续代码，继续下一次循环
             if skill is not None:  # 如果技能不是None
                 if self.player.player_occupation == "弓箭手-缪斯" and skill == "q":
+                    pyauto.releaseallkey()
+                    time.sleep(0.05)
                     if random.random() < 0.7:
                         if random.random() < 0.7:
                             pyauto.KeyPressChar("q")
@@ -2075,27 +2074,6 @@ class PlayerThread(QThread):
                 if not self.is_boss and self.player.map_name == "深渊：终末崇拜者":
                     logger.info(f"刷深渊中，当前不是boss房不捡物品")
                     continue
-                # 如果启用了物品过滤，并且当前物品在过滤列表中，则跳过
-                # if self.filter_goods:
-                #     if data[0] in ['goods_pjdpg', 'goods_sbp', 'goods_sxdtp',
-                #                    'goods_zxjyhj', 'goods_zxjds', 'goods_fhdsg',
-                #                    'goods_badge', 'goods_yb']:
-                #         continue
-                # 如果启用了物品过滤，并且当前物品在过滤列表中，则跳过
-                # if self.filter_goods:
-                #     if data[0] in [  # 'goods_pjdpg',  # 破旧的皮革
-                #         # 'goods_zxjhyj',  # 最下级硬化剂
-                #         # 'goods_zxjds',  # 最下级砥石
-                #         # 'goods_sxdtp',  # 生锈的铁片
-                #         # 'goods_fhdsg',  # 风化的碎骨
-                #         # 'goods_xtjjt',  # 协调结晶体
-                #         'goods_lyh',  # 炉岩核
-                #         # 'goods_sbp',  # 碎布片
-                #     ]:
-                #         logger.info(f"物品被忽略：{data}")
-                #         continue
-                #     if data[1] < 100:
-                #         continue
                 # 如果物品位置在特定区域外，也跳过
                 if 5 < data[1] < 22 and 340 < data[2] < 354:
                     continue

@@ -18,7 +18,7 @@ from PyQt5.QtCore import pyqtSignal, QByteArray, QPoint, QSize, QThread, QUrl
 from PyQt5.QtGui import QTextCursor, QPixmap, QImage, QDesktopServices
 from PyQt5.QtWidgets import QMainWindow, QAbstractItemView, QTableWidgetItem, QHeaderView, QMessageBox
 
-from root_path import root_path
+from root_dir import root_path
 from core.KeyboardListenerThread import KeyPressSignal, KeyboardListenerThread
 # from core.check_caton import CheckPlayerDynamics
 from core.check_d import CheckProcess
@@ -27,23 +27,59 @@ from core.player import PlayerThread
 # from core.yolo_process import YoloProcess
 
 from utils.common_util import get_date
-from utils.config_util import get_settings_group, get_all_role_settings, get_gui_config, set_ip, ini_file_path
+# from utils.config_util import get_settings_group, get_all_role_settings, get_gui_config, set_ip, ini_file_path
 from core.callRoleSettings import RoleSettingsWindow
 from core.callSettingsGroup import SettingsGroupWindow
 from utils.screenshot_util import screenshot_util
 # from utils.yjs import yjs
-from utils.pyauto_b import pyauto
+from utils.cross_control import pyauto
 from view.main import Ui_MainWindow
-from core.ret_zcm import send_request, ret_data
-from core.registration_code import get_identity_mark
+from core.device_identity_client import send_request, ret_data
+from core.device_time_utils import get_identity_mark
 # from core.window_position import WindowPositionUpdater
 from core import global_variable as gv
 from api import test_view_subgroups, test_view_subgroup_config
 from core.vnc import VNC, api
 from vnc_mm import vnc_mm
+from root_dir import root_path
 
-f_program_version = '250810'
+# 拼接文件路径
+CONFIG_PATH = os.path.join(root_path, "json_resources/config.json")
+f_program_version = '250812'
 Network = 0
+
+
+def get_gui_config():
+    """获取GUI配置"""
+    # 默认配置
+    default_config = {
+        "ip": "127.0.0.1",
+        "yjs": 0,
+        "banzhuan": 0,
+        "vmware_ip": "127.0.0.1",
+        "vmware_prot": "5900",
+        "vmware_password": "",
+    }
+
+    try:
+        # 如果配置文件存在，读取它
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as file:
+                file_config = json.load(file)
+                # 合并默认配置和文件配置
+                return {**default_config, **file_config}
+
+        # 如果配置文件不存在，创建默认配置
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
+            json.dump(default_config, file, indent=4, ensure_ascii=False)
+        return default_config
+
+    except json.JSONDecodeError:
+        print("Warning: Config file is corrupted or not in JSON format.")
+        return default_config
+    except Exception as e:
+        print(f"Error loading config: {e}")
+        return default_config
 
 
 class DisplayThread(QThread):
@@ -99,7 +135,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         # self.sock = None
         self.setupUi(self)  # 假设这个方法是在某个UI文件中通过pyuic生成的，用于设置窗口的UI界面
         self.action12.triggered.connect(self.show_login)
-        self.loadSettings("ui_config.json")
+        self.loadSettings("json_resources/ui_config.json")
         self.lineEdit.textChanged.connect(self.on_text_changed)
         self.lineEdit_3.textChanged.connect(self.on_text_changed)
         self.lineEdit_4.textChanged.connect(self.on_text_changed)
@@ -211,6 +247,11 @@ class AppMain(QMainWindow, Ui_MainWindow):
         chars = string.ascii_letters + string.digits  # 大小写字母+数字
         random_string = ''.join(random.choices(chars, k=10))
         self.setWindowTitle(random_string)
+
+        # 启动显示线程
+        self.displaythread = DisplayThread()
+        self.displaythread.update_signal.connect(self.update_image)
+        self.displaythread.start()
         # global Network
         # Network = 1
 
@@ -251,7 +292,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
             同时，打印输出文本输入框的名称及其当前内容。
             """
         text = ''
-        with open(ini_file_path, 'r') as file:
+        with open(CONFIG_PATH, 'r') as file:
             settings = json.load(file)
         sender_obj = self.sender()  # 使用 self.sender() 获取发送者
         if sender_obj == self.lineEdit:
@@ -270,7 +311,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
             text = self.lineEdit_5.text()  # 读取 self.lineEdit 的内容
             gv.vmware_ip = text
             settings["vmware_password"] = text
-        with open(ini_file_path, 'w') as file:
+        with open(CONFIG_PATH, 'w') as file:
             json.dump(settings, file, indent=4)
 
     def on_combobox_changed(self):
@@ -278,7 +319,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         处理下拉框选择项变化的事件。
         根据发送信号的下拉框控件，更新配置字典中相应的键值对。
         """
-        with open(ini_file_path, 'r') as file:
+        with open(CONFIG_PATH, 'r') as file:
             settings = json.load(file)
         currentIndex = None
         sender_obj = self.sender()  # 使用 self.sender() 获取发送者
@@ -291,7 +332,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
             currentIndex = self.ComboBox_3.currentIndex()
             settings['banzhuan'] = currentIndex
             gv.banzhuan = currentIndex
-        with open(ini_file_path, 'w') as file:
+        with open(CONFIG_PATH, 'w') as file:
             json.dump(settings, file, indent=4)
 
     def update_settings_group_data(self):
@@ -440,13 +481,13 @@ class AppMain(QMainWindow, Ui_MainWindow):
         if Network == 1:
             try:
                 send_request(f_program_version=f_program_version, state=1)
-                if self.VNC is not None:
-                    pass
-                else:
-                    # 尝试初始化游戏窗口的句柄，并激活该窗口
-                    screenshot_util.init_game_hwnd()
-                    screenshot_util.activate_window_by_handle()
-                    screenshot_util.top_window()
+
+                # 确保显示线程已创建
+                if not self.displaythread:
+                    # 创建新的显示线程
+                    self.displaythread = DisplayThread()
+                    self.displaythread.update_signal.connect(self.update_image)
+                    self.displaythread.start()
                 # 初始化工作线程
                 self.playerThread = PlayerThread(dic=self.dic)  # 初始玩家刷图线程
 
@@ -465,29 +506,16 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
                 return
 
-                # 检查模型加载状态
-            # if self.load_model_status != "Ready":
-            #     # 如果模型未加载，则更新日志并返回
-            #     self.update_log("请先加载模型")
-            #     return
 
             # 设置玩家线程的角色组
             self.playerThread.current_role_group = self.settingsGroupComboBox.currentText()
 
-            # # 将YOLO处理实例赋值给玩家线程
-            # self.playerThread.yolo = self.yoloProcess
-
-            # 启动窗口位置检测线程
-            # self.WindowPositionUpdater.start()
 
             # 初始化玩家线程
             self.playerThread.initialize()
 
             # 启动玩家线程
             self.playerThread.start()
-
-            # 启动卡断检测线程
-            # self.check_player_dynamics.start()
 
             # 启动检查进程（可能是用于检查游戏状态或其他任务的进程）
             self.checkProcess.start()
@@ -496,49 +524,28 @@ class AppMain(QMainWindow, Ui_MainWindow):
             self.startBtn.setEnabled(False)
 
     def stop_clicked(self):
-        """
-        处理停止按钮点击事件的方法。
-
-        此方法首先调用玩家线程的stop方法来停止其执行。
-        然后调用YOLO处理实例的stop方法来停止YOLO相关的处理。
-        启用开始按钮，允许用户重新开始。
-        调用玩家线程的terminate方法来确保线程被正确终止（注意：在某些情况下，直接调用terminate可能不是最佳实践，因为它可能不会清理线程使用的资源）。
-        调用screenshot_util的cancel_window_topping方法来取消窗口置顶（如果之前设置了）。
-        调用yjs.ReleaseAllKey()来释放所有按键（假设yjs是一个处理键盘输入的库或工具）。
-        """
         try:
-            # send_request(f_program_version=f_program_version, state=0)
-            if self.VNC is not None:
-                pass
-            else:
-                screenshot_util.init_game_hwnd()
-            # self.WindowPositionUpdater.stop()  # 停止窗口坐标识别线程
-            # 先停止所有线程（使用安全停止方式）
+            # 安全停止并销毁工作线程
             if self.playerThread:
-                self.playerThread.stop()
-                self.playerThread.wait(2000)  # 等待2秒安全退出
+                self.playerThread.stop()  # 发送停止信号
+                time.sleep(1)
                 self.playerThread.terminate()
+                self.playerThread = None  # 重置引用
+
             if self.checkProcess:
                 self.checkProcess.stop()
-                self.checkProcess.wait(2000)
-                self.displaythread.terminate()
-            if self.displaythread:
-                self.displaythread.stop()
-                self.displaythread.wait(2000)
-                self.displaythread.terminate()
-            # self.yoloProcess.stop()  # 停止YOLO处理
-            self.startBtn.setEnabled(True)  # 启用开始按钮
-            if self.VNC is not None:
-                pass
-            else:
-                screenshot_util.cancel_window_topping()  # 取消窗口置顶
+                time.sleep(1)
+                self.checkProcess.terminate()
+                self.checkProcess = None
+
+
             pyauto.releaseallkey()
+            self.startBtn.setEnabled(True)
             self.update_log("脚本已停止")
 
-            # self.label_7.setText("状态：未连接")
-            # self.label_7.setStyleSheet("color: red;")
+
         except Exception as e:
-            print("callMain_531行异常", e)
+            print("停止操作异常", e)
 
     def open_settings_group_dialog(self):
         """
@@ -568,10 +575,6 @@ class AppMain(QMainWindow, Ui_MainWindow):
         """
         # 调用update_settings_group_data方法来更新设置组数据
         self.update_settings_group_data()
-
-    # 修改update_log方法
-    # def update_player_dynamics_list(self, lis):
-    #     self.check_player_dynamics.player_dynamics_lists.append(lis)
 
     def update_log(self, log):
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
@@ -611,12 +614,6 @@ class AppMain(QMainWindow, Ui_MainWindow):
             if scrollbar.value() < scrollbar.maximum():
                 scrollbar.setValue(scrollbar.maximum())
 
-        # 处理停止条件
-        # if log == '暂无可刷角色,脚本停止':
-        #     self.WindowPositionUpdater.stop()
-
-        # # 获取当前日志框的内容，去掉最旧的日志消息  # current_text = self.logTextBrowser.toPlainText()  # lines = current_text.split("\n")  # if len(lines) > 20:  #     lines = lines[-19:]  # new_text = "\n".join(lines)  # # 添加新的日志消息  # current_time = datetime.datetime.now()  # formatted_time = current_time.strftime("%H:%M:%S")  # if current_text == "":  #     new_text = f"{formatted_time} - {log}"  # else:  #     new_text += f"\n{formatted_time} - {log}"  # self.logTextBrowser.setPlainText(new_text)  # # 滚动到最底部  # self.logTextBrowser.moveCursor(QTextCursor.End)
-
     def closeEvent(self, event):
         try:
             # 如果线程还在运行，等待它结束
@@ -633,20 +630,24 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 self.checkProcess.wait(2000)
 
             if self.displaythread:
-                self.displaythread.stop()
-                self.displaythread.wait(2000)
+                try:
+                    self.displaythread.stop()
+                    self.displaythread.wait(1000)
+                    self.checkProcess.terminate()
+                except:
+                    pass
+                self.displaythread = None
             # 启动卡断检测线程
             # self.check_player_dynamics.stop()
             # 在窗口关闭之前保存设置
-            self.saveSettings("ui_config.json")
+            self.saveSettings("json_resources/ui_config.json")
             if self.p is not None:
                 self.p.terminate()
             if self.playerThread.isRunning():
                 self.playerThread.wait(5)
                 # 继续关闭窗口的过程
                 event.accept()
-            self.VNC.stop()
-            api.shutdown()
+            self.cleanup_vnc()
             exit()
         except Exception as e:
             print("closeEvent", e)
@@ -679,18 +680,27 @@ class AppMain(QMainWindow, Ui_MainWindow):
             return
         image = None
         try:
-            print(gv.vmware_ip, gv.vmware_prot, gv.vmware_password)
-            self.VNC = VNC(gv.vmware_ip, gv.vmware_prot, gv.vmware_password)
-            self.displaythread = DisplayThread()
-            self.displaythread.update_signal.connect(self.update_image)
-            self.displaythread.start()
+            vm_ip = self.lineEdit_3.text().strip()
+            vm_port = self.lineEdit_4.text().strip()
+            vm_pass = self.lineEdit_5.text().strip()
+
+            if not vm_ip or not vm_port:
+                QMessageBox.warning(self, "错误", "IP和端口不能为空")
+                return
+
+            self.VNC = VNC(vm_ip, vm_port, vm_pass)
+
+            # 截图
             image = self.VNC.capture()
+            # 更新共享对象
             pyauto.VNC = self.VNC
             vnc_mm.VNC = self.VNC
             screenshot_util.VNC = self.VNC
 
-
+            # 保存配置
+            self.save_vnc_config(vm_ip, vm_port, vm_pass)
         except Exception as e:
+            self.cleanup_vnc()
             print("connect_to_vnc 连接失败:", e)
 
         if isinstance(image, np.ndarray):
@@ -701,6 +711,26 @@ class AppMain(QMainWindow, Ui_MainWindow):
             self.label_7.setText("状态：连接失败")
             self.label_7.setStyleSheet("color: red;")  # 设置文字为红色
             QMessageBox.information(self, "警告", f"连接失败，请检查ip、端口和密码！")
+
+    def save_vnc_config(self, ip, port, password):
+        """保存VNC配置到文件"""
+        config = get_gui_config()
+        config.update({
+            "vmware_ip": ip,
+            "vmware_prot": port,
+            "vmware_password": password
+        })
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
+            json.dump(config, file, indent=4, ensure_ascii=False)
+
+    def cleanup_vnc(self):
+        """清理VNC资源"""
+        if self.VNC:
+            try:
+                api.shutdown()
+            except:
+                pass
+            self.VNC = None
 
     def update_image(self, qimage):
         pixmap = self.convert_cv_qt(qimage)

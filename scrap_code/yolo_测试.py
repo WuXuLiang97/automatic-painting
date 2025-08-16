@@ -1,5 +1,7 @@
 import os
+import time
 
+import cv2
 import torch
 
 from root_dir import root_path
@@ -34,9 +36,9 @@ class YoloV8:
 
     def loadModel(self):
         from ultralytics import YOLO
-        self.model = YOLO(os.path.join(root_path, "yolo", "model_data", "best.pt"))
-        # path_model = r"D:\server_env\app\yolo\model_data\best.pt"
-        # self.model = YOLO(path_model)
+
+        self.model = YOLO(r"D:\server_env\app\yolo\model_data\best.pt")
+        # self.model = YOLO(os.path.join(root_path, "yolo", "model_data", "best_0605.pt"))
         self.min_map_model = YOLO(os.path.join(root_path, "yolo", "model_data", "min_map_best.pt"))
 
     def detect(self, game_image):
@@ -52,7 +54,7 @@ class YoloV8:
         :return:
         """
         # 模型预测，save=True 的时候表示直接保存yolov8的预测结果
-        metrics = self.model.predict(game_image, show=False, save=False, device=self.device, iou=self.iou_thres, conf=self.conf_thres, verbose=False)
+        metrics = self.model.predict(game_image, show=True, save=False, device=self.device, iou=self.iou_thres, conf=self.conf_thres, verbose=False)
         # 如果想自定义的处理预测结果可以这么操作，遍历每个预测结果分别的去处理
         res = []
         for m in metrics:
@@ -81,7 +83,7 @@ class YoloV8:
         :return:
         """
         # 模型预测，save=True 的时候表示直接保存yolov8的预测结果
-        metrics = self.min_map_model.predict(game_image, show=False, save=False, device=self.device, iou=self.iou_thres, conf=self.min_map_conf_thres, verbose=False)
+        metrics = self.min_map_model.predict(game_image, show=True, save=False, device=self.device, iou=self.iou_thres, conf=self.min_map_conf_thres, verbose=False)
         # 如果想自定义的处理预测结果可以这么操作，遍历每个预测结果分别的去处理
         res = []
         for m in metrics:
@@ -96,6 +98,7 @@ class YoloV8:
                     x1, y1, x2, y2 = det.xyxy[0].tolist()
                     res.append((label, x1, y1, x2, y2, confidence))
         return res
+
 
 # class Yolo:
 #     def __init__(self):
@@ -224,3 +227,30 @@ class YoloV8:
 #         # t = tuple(x / seen * 1E3 for x in dt)  # speeds per image
 #         # print(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS per image at shape {(1, 3, *imgsz)}' % t)
 #         return res
+
+
+if __name__ == '__main__':
+    from core.capture import Capture
+    from mm import get_hwnd
+
+    d_yolo = YoloV8()
+    d_yolo.loadModel()
+    hwnd = get_hwnd()
+    # game_img = Capture(hwnd, 0, 0, 1076, 600)
+    # 将BGR图像转换为RGB图像
+
+    # game_img = cv2.imread(r"D:\automatic-painting\imgs\3548.png")
+    # game_img_rgb = cv2.cvtColor(game_img, cv2.COLOR_BGR2RGB)
+    # d_yolo.detect(r"D:\automatic-painting\imgs\3548.png")
+    # d_yolo.detect(r"D:\automatic-painting\imgs\3815.png")
+    # stat_t = time.time()
+    while True:
+        #
+        #     if time.time() - stat_t > 5:
+        #         game_img = cv2.imread(r"D:\automatic-painting\imgs\3548.png")
+        #         d_yolo.detect(game_img)
+        #     else:
+        game_img = Capture(hwnd, 0, 0, 1076, 600)
+        # 将BGR图像转换为RGB图像
+        # game_img_rgb = cv2.cvtColor(game_img, cv2.COLOR_BGR2RGB)
+        d_yolo.detect(game_img)

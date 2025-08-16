@@ -4,8 +4,8 @@ import time
 # from utils.yjs import yjs
 
 import time
-from utils.pyauto_b import pyauto
-from LogDebug import logger
+from utils.cross_control import pyauto
+from logging_setup import logger
 
 
 class MovementRecorder:
