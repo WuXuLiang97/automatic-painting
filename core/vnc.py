@@ -9,9 +9,7 @@
 
 """
 import ctypes
-import random
 import time
-from logging import shutdown
 
 import cv2, numpy as np
 
@@ -141,7 +139,7 @@ if __name__ == '__main__':
         # api.shutdown()  # 关闭事件循环
     except:
         print(v)
-    from vnc_mm import vnc_mm
+    from utils.cv_recognizer import vnc_mm
 
     vnc_mm.VNC = v
     ret = vnc_mm.FindPic(0, 0, 1067, 600, "移动速度.bmp", 0.9, 1, None, delta_color=([19, 0, 0], [21, 255, 255]))

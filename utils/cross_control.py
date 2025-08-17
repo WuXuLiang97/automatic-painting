@@ -5,7 +5,7 @@ import random
 import pydirectinput
 import time
 from utils.yjs import yjs
-from logging_setup import logger
+from utils.logging_setup import logger
 
 # from utils.config_util import ini_file_path
 # 拼接文件路径

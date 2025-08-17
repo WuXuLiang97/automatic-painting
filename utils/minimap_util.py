@@ -1,20 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-import os
-import time
 
-import cv2
 import numpy as np
 
-from core.capture import Capture
 from core.common import map_pos_info
-from vnc_mm import my_imread
-from logging_setup import logger
+from utils.cv_recognizer import my_imread
+from utils.logging_setup import logger
 from utils.screenshot_util import screenshot_util
-
-current_path = os.path.dirname(os.path.abspath(__file__))
-# 获取项目根目录
-root_path = os.path.abspath(os.path.join(current_path, '../'))
+from root_dir import root_path
 
 
 class MiniMapUtil:

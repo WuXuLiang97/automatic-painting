@@ -1,7 +1,7 @@
 import traceback
 
 import win32gui
-from logging_setup import logger
+from utils.logging_setup import logger
 
 
 def get_hwnd():

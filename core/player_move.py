@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
-import time
 
 # from utils.yjs import yjs
 
 import time
 from utils.cross_control import pyauto
-from logging_setup import logger
+from utils.logging_setup import logger
 
 
 class MovementRecorder:

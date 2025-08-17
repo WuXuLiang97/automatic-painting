@@ -11,7 +11,7 @@ os.makedirs(log_dir, exist_ok=True)  # 如果路径不存在则创建，exist_ok
 # 配置异步文件日志（自动轮转）
 logger.add(
     app_log_path,
-    rotation="1 MB",  # 按大小轮转
+    rotation="2 MB",  # 按大小轮转
     enqueue=True,  # 启用异步队列
     compression="zip",  # 压缩旧日志
     format="{time} - {level} - {message}"

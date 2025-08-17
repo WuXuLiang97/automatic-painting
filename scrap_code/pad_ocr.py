@@ -6,7 +6,7 @@ import traceback
 
 import cv2
 # from rapidocr_onnxruntime import RapidOCR
-from logging_setup import logger
+from utils.logging_setup import logger
 from core import capture
 from core.get_hwnd import hwnd
 
@@ -211,8 +211,6 @@ def has_two_common_chars(input_str, target_set):
 # print(has_two_common_chars("algorithm", "log"))  # True (l, o)
 
 if __name__ == "__main__":
-    import re
-
     image_bgr = capture.Capture(hwnd, 0, 0, 1067, 600)
     results = get_text(498, 548, 582, 576, image_bgr, False)
     # match = int(re.search(r'\d+', results).group(0))

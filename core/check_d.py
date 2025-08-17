@@ -3,14 +3,14 @@ import os
 import time
 
 import cv2
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot, QRunnable, QThread
-from vnc_mm import my_imread, vnc_mm
+from PyQt5.QtCore import pyqtSignal, QThread
+from utils.cv_recognizer import my_imread, vnc_mm
 from utils.cv_util import template_match
 from utils.cross_control import pyauto
 from utils.screenshot_util import screenshot_util
 from root_dir import root_path
 from core import global_variable as gv
-from logging_setup import logger
+from utils.logging_setup import logger
 
 # from utils.yjs import yjs
 

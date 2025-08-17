@@ -8,10 +8,9 @@ import pywintypes
 import win32api
 import win32con
 import win32gui
-import win32ui
 # from mss import mss
 from core import capture
-from logging_setup import logger
+from utils.logging_setup import logger
 
 
 # from yolo.yolo_main import YoloV8

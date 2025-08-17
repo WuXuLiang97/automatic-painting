@@ -2,14 +2,12 @@
 import random
 import sys
 import json
-import os
 import base64
 import logging
-import time
 import string
 from PyQt5.QtWidgets import (QApplication, QWidget, QStackedWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QCheckBox)
 from PyQt5.QtCore import Qt, QTimer
-from api import test_login, test_register, test_change_password  # 添加修改密码API
+from utils.api import test_login, test_register, test_change_password  # 添加修改密码API
 # 这里可以添加跳转到主界面的代码
 from core.callMain import AppMain
 from root_dir import root_path

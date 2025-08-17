@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import datetime
 import math
 import os
 import os.path
@@ -18,7 +17,7 @@ import numpy as np
 import win32gui
 from core.capture import Capture
 from root_dir import root_path
-from logging_setup import logger
+from utils.logging_setup import logger
 
 STOP_EVENT = threading.Event()
 

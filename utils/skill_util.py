@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
-import random
-import time
 
 import cv2
 import numpy as np
 
 from core.capture import Capture
-from vnc_mm import hwnd
+# from utils.cv_recognizer import hwnd
 from utils.screenshot_util import screenshot_util
-from logging_setup import logger
+from utils.logging_setup import logger
 
 
 class SkillUtil:
@@ -473,18 +471,18 @@ class SkillUtil:
 
 
 skill_util = SkillUtil()
-if __name__ == "__main__":
-    img = Capture(hwnd, 0, 0, 1067, 600)
-    skill_util.init(img, "弓箭手-奇美拉")
-    for key, value in skill_util.skill_image_dict.items():
-        logger.info(key)
-        # logger.info(value)
-        # cv2.imwrite(f"{key}.png", value)
-    while True:
-        img = Capture(hwnd, 0, 0, 1067, 600)
-        RET = skill_util.get_release_skill(img)
-        logger.info(RET)
-    # logger.info(skill_util.is_available(skill_util.skill_image_dict["s"]))
-    # time.sleep(5)
-    # img = Capture(hwnd, 0, 0, 1067, 600)
-    # logger.info(skill_util.skill_status(img))
+# if __name__ == "__main__":
+#     img = Capture(hwnd, 0, 0, 1067, 600)
+#     skill_util.init(img, "弓箭手-奇美拉")
+#     for key, value in skill_util.skill_image_dict.items():
+#         logger.info(key)
+#         # logger.info(value)
+#         # cv2.imwrite(f"{key}.png", value)
+#     while True:
+#         img = Capture(hwnd, 0, 0, 1067, 600)
+#         RET = skill_util.get_release_skill(img)
+#         logger.info(RET)
+#     # logger.info(skill_util.is_available(skill_util.skill_image_dict["s"]))
+#     # time.sleep(5)
+#     # img = Capture(hwnd, 0, 0, 1067, 600)
+#     # logger.info(skill_util.skill_status(img))

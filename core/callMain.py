@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
-import configparser
 import datetime
 import json
 import os.path
 import random
 # import pprint
-import socket
 import string
 import threading
 import time
@@ -15,10 +13,9 @@ import cv2
 import numpy as np
 from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import pyqtSignal, QByteArray, QPoint, QSize, QThread, QUrl
-from PyQt5.QtGui import QTextCursor, QPixmap, QImage, QDesktopServices
+from PyQt5.QtGui import QPixmap, QImage, QDesktopServices
 from PyQt5.QtWidgets import QMainWindow, QAbstractItemView, QTableWidgetItem, QHeaderView, QMessageBox
 
-from root_dir import root_path
 from core.KeyboardListenerThread import KeyPressSignal, KeyboardListenerThread
 # from core.check_caton import CheckPlayerDynamics
 from core.check_d import CheckProcess
@@ -38,14 +35,14 @@ from core.device_identity_client import send_request, ret_data
 from core.device_time_utils import get_identity_mark
 # from core.window_position import WindowPositionUpdater
 from core import global_variable as gv
-from api import test_view_subgroups, test_view_subgroup_config
+from utils.api import test_view_subgroups, test_view_subgroup_config
 from core.vnc import VNC, api
-from vnc_mm import vnc_mm
+from utils.cv_recognizer import vnc_mm
 from root_dir import root_path
 
 # 拼接文件路径
 CONFIG_PATH = os.path.join(root_path, "json_resources/config.json")
-f_program_version = '250812'
+f_program_version = '250817'
 Network = 0
 
 
@@ -150,7 +147,6 @@ class AppMain(QMainWindow, Ui_MainWindow):
         # self.check_player_dynamics = CheckPlayerDynamics()  # 人物卡住检测
         # self.WindowPositionUpdater = WindowPositionUpdater()  # 初始化窗口坐标检查进程
         self.yoloProcess = None  # YOLO处理进程初始化为None，后续可能按需加载
-        self.p = None  # 可能用于其他目的，初始化为None
 
         # 标记是否为首次加载模型
         self.is_first_load_model = True
@@ -506,10 +502,8 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
                 return
 
-
             # 设置玩家线程的角色组
             self.playerThread.current_role_group = self.settingsGroupComboBox.currentText()
-
 
             # 初始化玩家线程
             self.playerThread.initialize()
@@ -537,7 +531,6 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 time.sleep(1)
                 self.checkProcess.terminate()
                 self.checkProcess = None
-
 
             pyauto.releaseallkey()
             self.startBtn.setEnabled(True)
@@ -616,6 +609,8 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
     def closeEvent(self, event):
         try:
+            # 关闭登录窗口
+            self.authapp.close()
             # 如果线程还在运行，等待它结束
             try:
                 self.keyboard_thread.stop()  # 停止键盘监听线程
@@ -637,18 +632,12 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 except:
                     pass
                 self.displaythread = None
-            # 启动卡断检测线程
-            # self.check_player_dynamics.stop()
+
             # 在窗口关闭之前保存设置
             self.saveSettings("json_resources/ui_config.json")
-            if self.p is not None:
-                self.p.terminate()
-            if self.playerThread.isRunning():
-                self.playerThread.wait(5)
-                # 继续关闭窗口的过程
-                event.accept()
+
+            event.accept()
             self.cleanup_vnc()
-            exit()
         except Exception as e:
             print("closeEvent", e)
 

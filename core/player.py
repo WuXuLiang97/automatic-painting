@@ -9,7 +9,6 @@ import time
 import traceback
 from copy import deepcopy
 import datetime
-from queue import Queue
 
 import cv2
 import keyboard
@@ -17,14 +16,14 @@ import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from core.directional_astar import a_star, judge_direction  # A星寻路
-from api import test_view_subgroup_config, test_update_subgroup_config
-from core.common import Point, occupationInfoMap, Player, mapLevelDict, MoveInfo, a_mapInfo, a_DictInfo, map_boss_info, pink_goods_info, MAP_MIN_ROOMS
+from utils.api import test_view_subgroup_config, test_update_subgroup_config
+from core.common import Point, occupationInfoMap, Player, MoveInfo, a_mapInfo, a_DictInfo, map_boss_info, MAP_MIN_ROOMS
 from core.operator_module import OperatorModule
 # from core.player_move import left_right_up_down_move_by, already_left_right_move, \
 #     left_right_move, up_down_move,MovementRecorder
 from core.player_move import MovementRecorder
 # from utils.yjs import yjs
-from vnc_mm import vnc_mm
+from utils.cv_recognizer import vnc_mm
 from utils.common_util import sort_points_by_x, get_date
 # from utils.config_util import get_all_role_settings, update_role_brush_date
 from utils.minimap_util import miniMapUtil
@@ -35,7 +34,7 @@ from utils.skill_util import skill_util
 import socket
 from core import global_variable as gv
 
-from logging_setup import logger
+from utils.logging_setup import logger
 
 current_path = os.path.dirname(os.path.abspath(__file__))
 root_path = os.path.abspath(os.path.join(current_path, '../'))
