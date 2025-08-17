@@ -609,6 +609,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
     def closeEvent(self, event):
         try:
+            self.cleanup_vnc()
             # 关闭登录窗口
             self.authapp.close()
             # 如果线程还在运行，等待它结束
@@ -636,8 +637,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
             # 在窗口关闭之前保存设置
             self.saveSettings("json_resources/ui_config.json")
 
-            event.accept()
-            self.cleanup_vnc()
+
         except Exception as e:
             print("closeEvent", e)
 

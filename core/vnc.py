@@ -131,6 +131,7 @@ if __name__ == '__main__':
     try:
         v = VNC("192.168.1.125", "5900", "")
         print(v.client)
+        time.sleep(2)
         # new_image = v.capture(path=None)  # 获取新图像
         # print(type(new_image))
         # cv2.imshow("img", new_image)
@@ -139,24 +140,24 @@ if __name__ == '__main__':
         # api.shutdown()  # 关闭事件循环
     except:
         print(v)
-    from utils.cv_recognizer import vnc_mm
-
-    vnc_mm.VNC = v
-    ret = vnc_mm.FindPic(0, 0, 1067, 600, "移动速度.bmp", 0.9, 1, None, delta_color=([19, 0, 0], [21, 255, 255]))
-    if ret:
-        x1, y1 = ret[0][3] + 60, ret[0][4] - 2
-        x2, y2 = x1 + 55, y1 + 15
-    else:
-        print("没有找到移动坐标")
-    img_dict = {
-        '0': ['0.bmp'], '1': ['1.bmp', '1-1.bmp'], '2': ['2.bmp', '2-1.bmp'],
-        '3': ['3.bmp', '3-1.bmp'], '4': ['4.bmp', '4_1.bmp'],
-        '5': ['5.bmp', '5-1.bmp'], '6': ['6.bmp', '6-1.bmp'], '7': ['7.bmp', '7-1.bmp'],
-        '8': ['8.bmp', '8-1.bmp'], '9': ['9.bmp', '9-1.bmp']
-
-    }
-    results = vnc_mm.screenshot_OCR_str(x1, y1, x2, y2, img_dict, 0.8, get_colour=([62, 130, 159], [65, 141, 163]), drag=None)
-    print(f"移速识别结果：{results}")
+    # from utils.cv_recognizer import vnc_mm
+    #
+    # vnc_mm.VNC = v
+    # ret = vnc_mm.FindPic(0, 0, 1067, 600, "移动速度.bmp", 0.9, 1, None, delta_color=([19, 0, 0], [21, 255, 255]))
+    # if ret:
+    #     x1, y1 = ret[0][3] + 60, ret[0][4] - 2
+    #     x2, y2 = x1 + 55, y1 + 15
+    # else:
+    #     print("没有找到移动坐标")
+    # img_dict = {
+    #     '0': ['0.bmp'], '1': ['1.bmp', '1-1.bmp'], '2': ['2.bmp', '2-1.bmp'],
+    #     '3': ['3.bmp', '3-1.bmp'], '4': ['4.bmp', '4_1.bmp'],
+    #     '5': ['5.bmp', '5-1.bmp'], '6': ['6.bmp', '6-1.bmp'], '7': ['7.bmp', '7-1.bmp'],
+    #     '8': ['8.bmp', '8-1.bmp'], '9': ['9.bmp', '9-1.bmp']
+    #
+    # }
+    # results = vnc_mm.screenshot_OCR_str(x1, y1, x2, y2, img_dict, 0.8, get_colour=([62, 130, 159], [65, 141, 163]), drag=None)
+    # print(f"移速识别结果：{results}")
     # v.key_down(k.right)qqqqqqqqqqqq
     # time.sleep(0.05)
     # v.key_up(k.right)
