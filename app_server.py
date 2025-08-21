@@ -21,7 +21,7 @@ def get_ip_address():
 if __name__ == '__main__':
     ip = get_ip_address()
     root = tk.Tk()
-    root.title(f"服务器日志-{ip}  <--请把这个ip填到<主机IP>的输入框里")
+    root.title(f"服务器日志-<{ip}>  <--请把这个ip填到<主机IP>的输入框里")
     root.geometry("800x600")
 
     text_area = scrolledtext.ScrolledText(root, width=80, height=30)
