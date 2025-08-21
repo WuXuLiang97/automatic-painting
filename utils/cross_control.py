@@ -77,7 +77,7 @@ class PYAUTO:
             pydirectinput.moveTo(x=x, y=y)
         elif self.sign == 1:
             logger.info(f"VNC鼠标移动：{(x, y)}")
-            self.VNC.move(x, y)
+            self.VNC.move(x + random.randint(-5, 5), y + random.randint(-5, 5))
         else:
             yjs.MoveTo(x, y)
 

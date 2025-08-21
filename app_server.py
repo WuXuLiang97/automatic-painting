@@ -2,7 +2,7 @@ import sys
 import threading
 import tkinter as tk
 from tkinter import scrolledtext
-from image_recognition_server.cv_inference_server import ThreadedServer, PrintRedirector
+from image_recognition_server.cv_inference_server_2 import ThreadedServer, PrintRedirector
 import socket
 
 
