@@ -5,6 +5,8 @@ import json
 import base64
 import logging
 import string
+
+from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtWidgets import (QApplication, QWidget, QStackedWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QCheckBox)
 from PyQt5.QtCore import Qt, QTimer
 from utils.api import test_login, test_register, test_change_password  # 添加修改密码API
@@ -104,6 +106,28 @@ def update_remembered_auto_login(username, new_auto_login_state):
     except Exception as e:
         logging.error(f"更新 auto_login 失败: {str(e)}")
         return False
+
+
+def load_application_font(size=10, widget=None):
+    font_path = os.path.join(root_path, "utils", "Arial.ttf")
+    if os.path.exists(font_path):
+        font_id = QtGui.QFontDatabase.addApplicationFont(font_path)
+        if font_id != -1:
+            font_families = QtGui.QFontDatabase.applicationFontFamilies(font_id)
+            if font_families:
+                app_font = QtGui.QFont(font_families[0])
+                app_font.setPointSize(size)
+                if widget is None:
+                    # 设置应用程序全局字体
+                    QtWidgets.QApplication.setFont(app_font)
+                else:
+                    widget.setFont(app_font)
+                return True
+    # 回退到系统字体
+    font = QtGui.QFont("Microsoft YaHei")
+    font.setPointSize(9)
+    QtWidgets.QApplication.setFont(font)
+    return False
 
 
 class LoginPage(QWidget):
@@ -719,6 +743,7 @@ class AuthApp(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    load_application_font()
     window = AuthApp()
     window.show()
     sys.exit(app.exec_())

@@ -122,6 +122,10 @@ class ThreadedServer:
             # text_recognition_model_dir=rec_model_dir,  # 本地模型路径（当前未使用）
             text_detection_model_name='PP-OCRv4_mobile_det',  # 文字检测模型名称（轻量版）
             text_recognition_model_name='PP-OCRv4_mobile_rec',  # 文字识别模型名称（轻量版）
+            # 关闭无用模块（CPU 速度优化核心，源码支持的开关参数）
+            use_doc_orientation_classify=False,  # 关闭文档方向分类（仅扫描件需要，截图/游戏界面无需）
+            use_doc_unwarping=False,  # 关闭文档矫正（同上，非文档场景无需）
+            use_textline_orientation=False,  # 关闭文本行方向分类（文字正向时关闭，节省 10%-20% 耗时）
             # use_gpu=True  # 是否使用GPU加速（当前注释表示使用CPU）
         )
 
@@ -132,8 +136,8 @@ class ThreadedServer:
             # YOLO模型预热（执行一次检测）
             yolo.detect(dummy)
             # OCR模型预热（转换为灰度图后执行一次识别）
-            gray = cv2.cvtColor(dummy, cv2.COLOR_BGR2GRAY)  # BGR转灰度图（OCR常见输入格式）
-            ocr_engine.ocr(gray, det=False, cls=False)  # 执行OCR识别（关闭检测和方向分类）
+            # gray = cv2.cvtColor(dummy, cv2.COLOR_BGR2GRAY)  # BGR转灰度图（OCR常见输入格式）
+            ocr_engine.ocr(dummy, det=False, cls=False)  # 执行OCR识别（关闭检测和方向分类）
 
         # 打印线程初始化完成信息（threading.get_ident()获取线程唯一标识）
         print(f"线程 {threading.get_ident()} 模型初始化完成")
