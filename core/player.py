@@ -2668,29 +2668,46 @@ class PlayerThread(QThread):
             # 使用random.choice()从字符串中随机选择一个字符
             random_char = random.choice("1234")
             pyauto.KeyPressChar(random_char)
-
             time.sleep(0.1)
             pyauto.KeyPressChar("esc")
             time.sleep(0.1)
             self.first_press_to_exit = False
             return False
         # if self.has_continue:
+        # 买门票、玛瑙
+        if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
+            ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
+            if ret:
+                ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp", 0.85, 1)
+                if ret:
+                    for r in ret:
+                        x, y = r[1], r[2]
+                        self.operator_module.move_to(x, y)
+                        pyauto.click()
+                        time.sleep(0.2)
+                        pyauto.click()
+                        time.sleep(0.2)
         if self.player.map_name != "深渊：终末崇拜者":
             ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
             if ret:
                 if self.player.map_name == "风暴逆鳞普通":
                     time.sleep(2.5)
+                # 聚物捡东西
                 self.agg_pick_up_goods()
                 self.send_log(f"当前刷图次数{self.brush_cnt + 1}")
+
                 if self.brush_cnt % 16 == 0 and self.player.map_name not in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
                     self.operator_module.sale_goods(self.sell)
                 pl_value = self.operator_module.ocr_pl(self.get_text, self.send_log)
+                # 识别到疲劳且小于预留
                 if pl_value is not None and isinstance(pl_value, (int, float)) and pl_value <= self.player.pl_value:
-                    if self.brush_cnt % 16 != 0 and self.player.map_name not in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
-                        # 避免重复操作
+
+                    if self.brush_cnt % 16 != 0 and self.player.map_name not in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):  # 这几个图不出售
+                        # 出售装备、材料
                         self.operator_module.sale_goods(self.sell)
                     # update_role_brush_date(self.current_role_group, self.current_role_index)
                     role_settings = self.all_role_settings[self.current_role_index]
+                    # 更新状态到数据库
                     dic_data = {'career': role_settings['career'],
                                 'convert_career': role_settings['convert_career'],
                                 'height': role_settings['height'],
@@ -2721,21 +2738,6 @@ class PlayerThread(QThread):
                     self.direction_dic.clear()
                     self.is_boss = False
                     self.to_door_count = 0
-                    # # 短时间休息
-                    # if random.random() < 0.1:
-                    #     t = random.uniform(3, 25)
-                    #     self.send_log("开始小休息...")
-                    #     self.send_log(f"本次休息时长{int(t)}秒")
-                    #     time.sleep(t)
-                    #     self.send_log("小休息结束...")
-                    # if self.should_take_big_break():
-                    #     self.send_log("开始大休息...")
-                    #     self.send_log(f"距离开始或上次休息已运行{self.big_break_time_text}")
-                    #     max_t = random.uniform(1200, 2100)
-                    #     self.send_log(f"本次休息时长{self.format_time(max_t)}")
-                    #     time.sleep(max_t)
-                    #     self.send_log("大休息结束...")
-                    #     self.set_big_break_time()  # 重置下一次大休息时间
                     return True
                 start_time = time.time()  # 记录当前时间作为开始时间
                 direction = 'left'
@@ -2747,10 +2749,17 @@ class PlayerThread(QThread):
                         self.ghost_state = True  # 设置幽灵状态为True
                         self.send_log("物品没拾取完，再次挑战超时")
                         break  # 退出循环
-                    if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
-                        ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
-                        if ret:
-                            ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp", 0.85, 1)
+                    # 收起结算评分否则如果还有物品可能识别不到
+                    ret = self.mm.FindPic(901, 159, 969, 195, "减号.bmp", 0.85)
+                    if ret:
+                        x, y = ret[0][1], ret[0][2]
+                        self.operator_module.move_to(x, y)
+                        pyauto.click()
+                        time.sleep(0.1)
+                    ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
+                    if ret:
+                        if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
+                            ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp", 0.85, 1)
                             if ret:
                                 for r in ret:
                                     x, y = r[1], r[2]
@@ -2759,44 +2768,15 @@ class PlayerThread(QThread):
                                     time.sleep(0.2)
                                     pyauto.click()
                                     time.sleep(0.2)
-                            pyauto.KeyPressChar("esc")
-                            time.sleep(0.2)
-                            ret = self.mm.FindPic(357, 200, 456, 239, "我的信息.bmp", 0.85, delta_color=([0, 0, 0], [22, 255, 255]))
-                            if ret:
-                                # 点击关闭
-                                self.operator_module.move_to(852, 59)
-                                time.sleep(0.05)
-                                pyauto.click()
-
-                                time.sleep(0.1)
-                    else:
-                        ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
+                        pyauto.KeyPressChar("esc")
+                        time.sleep(0.2)
+                        ret = self.mm.FindPic(357, 200, 456, 239, "我的信息.bmp", 0.85, delta_color=([0, 0, 0], [22, 255, 255]))
                         if ret:
-                            pyauto.KeyPressChar("esc")
-                            time.sleep(0.2)
-                            ret = self.mm.FindPic(357, 200, 456, 239, "我的信息.bmp", 0.85, delta_color=([0, 0, 0], [22, 255, 255]))
-                            if ret:
-                                # 点击关闭
-                                self.operator_module.move_to(852, 59)
-                                time.sleep(0.05)
-                                pyauto.click()
-
-                                time.sleep(0.1)
-                            # if self.should_take_big_break():
-                            #     self.send_log("开始大休息...")
-                            #     self.send_log(f"距离开始或上次休息已运行{self.big_break_time_text}")
-                            #     max_t = random.uniform(1200, 2100)
-                            #     self.send_log(f"本次休息时长{self.format_time(max_t)}")
-                            #     time.sleep(max_t)
-                            #     self.send_log("大休息结束...")
-                            #     self.set_big_break_time()  # 重置下一次大休息时间
-                            # # 短时间休息
-                            # if random.random() < 0.1:
-                            #     t = random.uniform(3, 25)
-                            #     self.send_log("开始小休息...")
-                            #     self.send_log(f"本次休息时长{int(t)}秒")
-                            #     time.sleep(t)
-                            #     self.send_log("小休息结束...")
+                            # 点击关闭
+                            self.operator_module.move_to(852, 59)
+                            time.sleep(0.05)
+                            pyauto.click()
+                            time.sleep(0.1)
                     game_image = screenshot_util.get_game_screenshot()
                     if gv.banzhuan == 0:
                         pyauto.KeyPressChar("f10")
@@ -2881,6 +2861,7 @@ class PlayerThread(QThread):
                 x1, y1, x2, y2 = (899, 77, 964, 96)
                 min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                 ret = self.mm.is_colored(min_img, 30)
+                # 如果体力不为0、小于预留体力、ret是False代表按f10不能再刷
                 if pl_value is not None and isinstance(pl_value, (int, float)) and pl_value <= self.player.pl_value or not ret:
                     role_settings = self.all_role_settings[self.current_role_index]
                     dic_data = {'career': role_settings['career'],
@@ -2893,6 +2874,7 @@ class PlayerThread(QThread):
                     test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.current_role_index, dic_data)
                     self.operator_module.click_menu_item("返回城镇")
                     time.sleep(0.5)
+                    # 0点弹广告
                     ret = self.mm.FindPic(0, 0, 1067, 600, "关闭.bmp", 0.9)
                     if ret:
                         x, y = ret[0][1], ret[0][2]
@@ -2922,9 +2904,16 @@ class PlayerThread(QThread):
                         self.ghost_state = True  # 设置幽灵状态为True
                         self.send_log("物品没拾取完，再次挑战超时")
                         break  # 退出循环
+                    # 收起结算评分否则如果还有物品可能识别不到
+                    ret = self.mm.FindPic(901, 159, 969, 195, "减号.bmp", 0.85)
+                    if ret:
+                        x, y = ret[0][1], ret[0][2]
+                        self.operator_module.move_to(x, y)
+                        pyauto.click()
+                        time.sleep(0.1)
                     ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
                     if ret:
-                        ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp", 0.85, 1)
+                        ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp", 0.85, 1)
                         if ret:
                             for r in ret:
                                 x, y = r[1], r[2]
@@ -2941,23 +2930,7 @@ class PlayerThread(QThread):
                             self.operator_module.move_to(852, 59)
                             time.sleep(0.05)
                             pyauto.click()
-
                             time.sleep(0.1)
-                        # if self.should_take_big_break():
-                        #     self.send_log("开始大休息...")
-                        #     self.send_log(f"距离开始或上次休息已运行{self.big_break_time_text}")
-                        #     max_t = random.uniform(1200, 2100)
-                        #     self.send_log(f"本次休息时长{self.format_time(max_t)}")
-                        #     time.sleep(max_t)
-                        #     self.send_log("大休息结束...")
-                        #     self.set_big_break_time()  # 重置下一次大休息时间
-                        # # 短时间休息
-                        # if random.random() < 0.1:
-                        #     t = random.uniform(3, 25)
-                        #     self.send_log("开始小休息...")
-                        #     self.send_log(f"本次休息时长{int(t)}秒")
-                        #     time.sleep(t)
-                        #     self.send_log("小休息结束...")
                     game_image = screenshot_util.get_game_screenshot()
                     pyauto.KeyPressChar("f10")
                     self.get_yolo_res(game_image)
@@ -2994,7 +2967,6 @@ class PlayerThread(QThread):
                                 if player_pos_none_count > 30:
                                     self.movement_recorder.up_down_move("down", 0.2)
                                     self.player_left_right_move()
-
                     if not self.has_continue:
                         self.get_yolo_res()
                         if not self.has_continue:
