@@ -137,7 +137,7 @@ class ThreadedServer:
             yolo.detect(dummy)
             # OCR模型预热（转换为灰度图后执行一次识别）
             # gray = cv2.cvtColor(dummy, cv2.COLOR_BGR2GRAY)  # BGR转灰度图（OCR常见输入格式）
-            ocr_engine.ocr(dummy)  # 执行OCR识别（关闭检测和方向分类）
+            ocr_engine.predict(dummy)  # 执行OCR识别（关闭检测和方向分类）
 
         # 打印线程初始化完成信息（threading.get_ident()获取线程唯一标识）
         print(f"线程 {threading.get_ident()} 模型初始化完成")
