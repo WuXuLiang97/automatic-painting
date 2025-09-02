@@ -17,6 +17,7 @@ from root_dir import root_path  # 项目根路径配置
 import tkinter as tk  # 用于GUI界面（显示服务器日志）
 from tkinter import scrolledtext
 import sys
+import paddle  # 新增
 
 # 全局配置
 MAX_WORKERS = 4  # 工作线程数量（根据CPU核心数调整，提高并发处理能力）
@@ -24,8 +25,12 @@ TASK_QUEUE_SIZE = 20  # 任务队列最大缓冲量（避免请求堆积溢出�
 MODEL_WARMUP = True  # 模型预热开关（提前加载模型，减少首次推理延迟）
 
 # 模型路径（OCR的检测/识别模型）
-det_model_dir = os.path.join(root_path, 'ch_PP-OCRv4_det_infer')  # OCR检测模型（定位文字区域）
-rec_model_dir = os.path.join(root_path, 'ch_PP-OCRv4_rec_infer')  # OCR识别模型（识别文字内容）
+det_model_dir = os.path.join(
+    root_path, "PP-OCRv5_server_det"
+)  # OCR检测模型（定位文字区域）
+rec_model_dir = os.path.join(
+    root_path, "PP-OCRv5_server_rec"
+)  # OCR识别模型（识别文字内容）
 
 
 class ThreadedServer:
@@ -35,9 +40,14 @@ class ThreadedServer:
           并将结果返回给客户端。支持多客户端并发请求（通过多线程和任务队列实现）。
     """
 
-    def __init__(self, host='0.0.0.0', port=12345):
-        self.server_address = (host, port)  # 服务器监听地址（0.0.0.0表示允许所有IP连接）
-        self.task_queue = Queue(maxsize=TASK_QUEUE_SIZE)  # 任务队列（存储客户端连接任务）
+    def __init__(self, host="0.0.0.0", port=12345):
+        self.server_address = (
+            host,
+            port,
+        )  # 服务器监听地址（0.0.0.0表示允许所有IP连接）
+        self.task_queue = Queue(
+            maxsize=TASK_QUEUE_SIZE
+        )  # 任务队列（存储客户端连接任务）
         self.workers = []  # 工作线程列表
         self.running = False  # 服务器运行状态标志
 
@@ -61,13 +71,17 @@ class ThreadedServer:
         """独立监听线程：持续接收客户端连接，将连接放入任务队列"""
         # 创建TCP socket（流式传输，保证数据顺序和完整性）
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # 允许端口复用（避免服务器重启时端口占用）
+        sock.setsockopt(
+            socket.SOL_SOCKET, socket.SO_REUSEADDR, 1
+        )  # 允许端口复用（避免服务器重启时端口占用）
         sock.bind(self.server_address)
         sock.listen(10)  # 最大等待连接数（超过后新连接会被拒绝）
 
         try:
             while self.running:
-                conn, addr = sock.accept()  # 阻塞等待客户端连接（conn是连接对象，addr是客户端IP:端口）
+                conn, addr = (
+                    sock.accept()
+                )  # 阻塞等待客户端连接（conn是连接对象，addr是客户端IP:端口）
                 self.task_queue.put((conn, addr))  # 将连接放入任务队列，由工作线程处理
         finally:
             sock.close()  # 服务器停止时关闭socket
@@ -78,20 +92,27 @@ class ThreadedServer:
         yolo = YoloV8()
         yolo.loadModel()
 
+        # 判断CUDA是否可用，自动选择GPU或CPU
+        use_gpu = paddle.device.is_compiled_with_cuda()
         # 初始化OCR模型（文字识别，如提取图像中的文字内容）
         ocr_engine = PaddleOCR(
-            lang='ch',  # 支持中文识别
-            det_model_dir=det_model_dir,  # 文字检测模型路径
-            rec_model_dir=rec_model_dir,  # 文字识别模型路径
-            use_gpu=True  # 使用GPU加速（需配置CUDA环境）
+            text_detection_model_dir="PP-OCRv5_server_det",  # 文字检测模型路径
+            text_recognition_model_dir="PP-OCRv5_server_rec",  # 文字识别模型路径
+            use_doc_orientation_classify=False,  # 不使用方向分类
+            use_doc_unwarping=False,  # 不使用文档矫正
+            use_textline_orientation=False,  # 不使用文字方向分类
+            return_word_box=False,  # 不返回单字位置
+            text_rec_score_thresh=0.85,  # 文字检测置信度阈值
+            device="GPU" if use_gpu else "CPU",  # 是否使用GPU
         )
 
         # 模型预热（用空图像触发首次推理，加载权重到内存/GPU，减少后续请求延迟）
         if MODEL_WARMUP:
-            dummy = np.zeros((640, 640, 3), dtype=np.uint8)  # 生成640x640的空图像（模拟输入）
+            dummy = np.zeros(
+                (640, 640, 3), dtype=np.uint8
+            )  # 生成640x640的空图像（模拟输入）
             yolo.detect(dummy)  # YOLO预热
-            gray = cv2.cvtColor(dummy, cv2.COLOR_BGR2GRAY)  # 转为灰度图（OCR常见输入格式）
-            ocr_engine.ocr(gray, det=False, cls=False)  # OCR预热
+            ocr_engine.predict(dummy)  # OCR预热
 
         print(f"线程 {threading.get_ident()} 模型初始化完成")
 
@@ -119,20 +140,20 @@ class ThreadedServer:
                     start_time = time.time()  # 记录处理开始时间（用于计算耗时）
 
                     # 根据请求类型调用对应模型处理
-                    if header['type'] == 'game_windows':
+                    if header["type"] == "game_windows":
                         # 处理"游戏窗口"目标检测（如识别游戏中的角色、道具位置）
                         result = yolo.detect(image)
-                    elif header['type'] == 'min_map':
+                    elif header["type"] == "min_map":
                         # 处理"小地图"目标检测（如识别小地图中的点位、路径）
                         result = yolo.min_map_detect(image)
-                    elif header['type'] == 'ocr':
+                    elif header["type"] == "ocr":
                         # 处理文字识别（如提取游戏中的文字提示、对话框内容）
                         result = self._ocr_process(image, ocr_engine)
                     else:
                         raise ValueError("无效的请求类型")
 
                     # 将处理结果发送给客户端
-                    self._send_response(conn, result, header['type'])
+                    self._send_response(conn, result, header["type"])
 
                     # 计算并打印处理耗时（用于性能监控）
                     latency = (time.time() - start_time) * 1000
@@ -156,12 +177,14 @@ class ThreadedServer:
             if len(header_len) < 4:  # 未收到完整的头长度（客户端断开）
                 return None, None
 
-            header_size = struct.unpack('!I', header_len)[0]  # 解析为无符号整数（!表示网络字节序，大端）
+            header_size = struct.unpack("!I", header_len)[
+                0
+            ]  # 解析为无符号整数（!表示网络字节序，大端）
             header_data = conn.recv(header_size)  # 接收消息头数据
-            header = json.loads(header_data.decode('utf-8'))  # 解码为字典
+            header = json.loads(header_data.decode("utf-8"))  # 解码为字典
 
             # 接收图像数据
-            image_size = header['image_size']  # 从消息头获取图像总大小
+            image_size = header["image_size"]  # 从消息头获取图像总大小
             received = 0
             chunks = []
             while received < image_size:
@@ -173,7 +196,9 @@ class ThreadedServer:
                 received += len(chunk)
 
             # 将二进制数据解码为OpenCV图像（BGR格式）
-            image = cv2.imdecode(np.frombuffer(b''.join(chunks), dtype=np.uint8), cv2.IMREAD_COLOR)
+            image = cv2.imdecode(
+                np.frombuffer(b"".join(chunks), dtype=np.uint8), cv2.IMREAD_COLOR
+            )
             return header, image
 
         except (socket.timeout, ConnectionResetError):
@@ -188,14 +213,20 @@ class ThreadedServer:
         3. 结果数据字节：JSON编码的处理结果
         """
         try:
-            json_data = json.dumps(data).encode('utf-8')  # 结果数据序列化（转为JSON字符串→二进制）
-            header = json.dumps({
-                'type': msg_type,  # 与请求类型一致（便于客户端匹配）
-                'data_size': len(json_data)  # 结果数据大小
-            }).encode('utf-8')  # 响应头序列化
+            json_data = json.dumps(data).encode(
+                "utf-8"
+            )  # 结果数据序列化（转为JSON字符串→二进制）
+            header = json.dumps(
+                {
+                    "type": msg_type,  # 与请求类型一致（便于客户端匹配）
+                    "data_size": len(json_data),  # 结果数据大小
+                }
+            ).encode(
+                "utf-8"
+            )  # 响应头序列化
 
             # 发送响应头长度→响应头→结果数据
-            conn.sendall(struct.pack('!I', len(header)))
+            conn.sendall(struct.pack("!I", len(header)))
             conn.sendall(header)
             conn.sendall(json_data)
         except BrokenPipeError:
@@ -203,10 +234,10 @@ class ThreadedServer:
 
     def _ocr_process(self, image, ocr_engine):
         """OCR处理流程：转为灰度图→调用OCR→拼接识别结果"""
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # 转为灰度图（减少计算量，提高OCR精度）
-        results = ocr_engine.ocr(gray, det=False, cls=False)  # 仅识别（不检测文字区域，假设输入是纯文字图像）
-        # 拼接所有识别结果（PaddleOCR返回格式：[[(文字, 置信度), ...]]）
-        return ''.join(line[0] for page in results for line in page)
+        rec_texts = ocr_engine.predict(image)[0]["rec_texts"]
+        joined_text = "".join(rec_texts)  # 拼接所有文字为字符串
+        print(joined_text)  # 打印识别结果（用于调试）
+        return joined_text  # 返回拼接后的结果
 
 
 class PrintRedirector:
@@ -223,7 +254,8 @@ class PrintRedirector:
         pass  # 实现flush方法（兼容print的flush参数）
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+
     # 创建Tkinter窗口（服务器日志界面）
     root = tk.Tk()
     root.title("服务器日志")
@@ -240,12 +272,10 @@ if __name__ == '__main__':
     server_thread.daemon = True  # 服务器线程随GUI退出
     server_thread.start()
 
-
     # 窗口关闭时的处理（停止服务器）
     def on_closing():
         server.running = False  # 停止服务器运行标志
         root.destroy()  # 关闭GUI窗口
-
 
     root.protocol("WM_DELETE_WINDOW", on_closing)  # 绑定窗口关闭事件
     root.mainloop()  # 启动GUI主循环
