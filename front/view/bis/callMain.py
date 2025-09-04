@@ -677,6 +677,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
             json.dump(config, file, indent=4, ensure_ascii=False)
 
     def cleanup_vnc(self):
+        global VNC_Connection
         """清理VNC资源"""
         if VNC_Connection:
             try:
