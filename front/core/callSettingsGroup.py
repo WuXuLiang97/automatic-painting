@@ -3,8 +3,7 @@ import traceback
 from PyQt5.QtCore import QStringListModel, pyqtSignal
 from PyQt5.QtWidgets import QMainWindow, QMessageBox
 
-from utils.api import test_view_subgroups, test_create_subgroup, test_delete_subgroup
-# from utils.config_util import get_settings_group, save_settings_group, delete_settings_group
+from utils.api import view_subgroups, create_subgroup, delete_subgroup
 from view.settingsGroup import Ui_Form
 
 
@@ -42,7 +41,7 @@ class SettingsGroupWindow(QMainWindow, Ui_Form):
         # self.list_model.setStringList(self.list_data)
         # self.settingsGroupList.setModel(self.list_model)
         try:
-            ret = test_view_subgroups(self.dic.get("cookies"))
+            ret = view_subgroups(self.dic.get("cookies"))
             print("获取配置组")
             print(ret)
             self.list_model.setStringList(ret.get('subgroups'))
@@ -59,7 +58,7 @@ class SettingsGroupWindow(QMainWindow, Ui_Form):
                 QMessageBox.information(self, "警告", "配置组名称不能为空")
                 return
             # 创建配置组
-            ret = test_create_subgroup(self.dic.get("cookies"), self.settingsGroupName.text())
+            ret = create_subgroup(self.dic.get("cookies"), self.settingsGroupName.text())
             # 更新配置组信息
             self.update_settings_group_list_data()
             self.send_update_settings_group_signal.emit()
@@ -79,7 +78,7 @@ class SettingsGroupWindow(QMainWindow, Ui_Form):
             if self.settingsGroupName.text() == "":
                 QMessageBox.information(self, "警告", "配置组名称不能为空")
                 return
-            ret = test_delete_subgroup(self.dic.get("cookies"), self.settingsGroupName.text())
+            ret = delete_subgroup(self.dic.get("cookies"), self.settingsGroupName.text())
             if ret.get("message"):
                 QMessageBox.information(self, "提示", ret.get("message"))
             else:

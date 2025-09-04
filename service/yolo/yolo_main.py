@@ -2,6 +2,7 @@ import os
 import torch
 from root_dir import root_path
 import onnxruntime as ort
+import platform
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # 分布式训练相关，默认-1
 MODEL_PATH = os.path.join(root_path, "yolo", "model_data", "yolov8n.onnx")
@@ -23,6 +24,28 @@ class YoloV8:
         self.min_map_conf_thres = 0.5  # 小地图检测置信度阈值
         self.conf_thres = 0.3  # 常规检测置信度阈值
         self.iou_thres = 0.5  # IOU阈值
+
+    def _detect_hardware(self):
+        """检测硬件环境，返回最优推理引擎"""
+        # 检查是否有GPU
+        if torch.cuda.is_available():
+            return "onnx", ["CUDAExecutionProvider", "CPUExecutionProvider"]
+
+        # 检查是否为Intel CPU
+        cpu_info = platform.processor().lower()
+        if "intel" in cpu_info:
+            # 检查OpenVINO模型是否存在
+            if os.path.exists(OPENVINO_MODEL_PATH) and os.path.exists(
+                OPENVINO_MIN_MAP_MODEL_PATH
+            ):
+                return "openvino", None
+            else:
+                print(
+                    f"⚠️ OpenVINO模型文件不存在，将使用ONNX Runtime。请先转换模型: {OPENVINO_MODEL_PATH}"
+                )
+
+        # 其他CPU情况
+        return "onnx", ["CPUExecutionProvider"]
 
     def loadModel(self):
         """

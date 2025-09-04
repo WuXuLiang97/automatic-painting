@@ -3,8 +3,8 @@
 # from utils.yjs import yjs
 
 import time
-from utils.cross_control import pyauto
-from utils.logging_setup import logger
+from utils.common.auto_key import pyauto
+from utils.log.logging_setup import logger
 
 
 class MovementRecorder:

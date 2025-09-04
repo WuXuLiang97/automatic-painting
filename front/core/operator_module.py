@@ -2,14 +2,15 @@
 import re
 import time
 
-from utils.cross_control import pyauto
+from global_fields import VNC_Connection
+from utils.common.image import FindPic
+from utils.common.load_image import read_from_path
+from utils.common.auto_key import pyauto
 from root_dir import root_path
 from core.common import occupationInfoMap
-# from dnf_ocr import recognize_text
-from utils.cv_recognizer import vnc_mm, my_imread
 import random
-from core import global_variable as gv
-from utils.logging_setup import logger
+from utils.log.logging_setup import logger
+from global_fields import last_position
 
 
 # from utils.yjs import yjs
@@ -39,12 +40,10 @@ class OperatorModule:
         self.weakness_template = None  # 弱点模板
         self.back_down_template = None  # 返回城镇模板
         # self.filter = []
-        self.mm = vnc_mm
 
     def initialize(self):
-        self.weakness_template = my_imread(root_path + "/res/xuruo.png")
-        self.back_down_template = my_imread(
-            root_path + "/res/back_down.png")  # logger.info("game_x:", self.game_x, "game_y:", self.game_y)  # for idx, my_char in enumerate(template):  #     img = my_imread(root_path + f"/map_depot/{template[my_char]}")  #     mask = self.mm.get_mask(img, ([92, 128, 0], [96, 150, 255]))  #     # # 创建SIFT对象  #     # sift = cv2.SIFT_create()  # SIFT算法不需要设置阈值参数（或者你可以查看文档以了解是否有可选参数）  #     # # 检测关键点和描述符  #     # keypoints1, descriptors1 = sift.detectAndCompute(mask, None)  #     self.filter.append(mask)
+        self.weakness_template = read_from_path(root_path + "/res/xuruo.png")
+        self.back_down_template = read_from_path(root_path + "/res/back_down.png")
 
     def select_role(self, fun, cur_index):
         """
@@ -66,7 +65,7 @@ class OperatorModule:
                 pyauto.click()
                 time.sleep(0.3)
                 for i in range(7):
-                    pyauto.KeyPressChar('up')
+                    pyauto.KeyPressChar("up")
                     time.sleep(0.1)
                 time.sleep(0.2)
                 self.move_to(245, 235)
@@ -90,34 +89,30 @@ class OperatorModule:
         if cur_index != -1:
             # 模拟按键操作
             for _ in range(down_count):
-                pyauto.KeyPressChar('down')
+                pyauto.KeyPressChar("down")
                 time.sleep(0.1)  # 假设yjs是一个可以模拟按键的库，time用于添加延迟
             for _ in range(right_count):
-                pyauto.KeyPressChar('right')
+                pyauto.KeyPressChar("right")
                 time.sleep(0.1)
-        pyauto.KeyPressChar('space')
+        pyauto.KeyPressChar("space")
         time.sleep(2)
         for i in range(5):
             if self.is_celia_room(fun):
                 return True
             else:
-                pyauto.KeyPressChar('space')
+                pyauto.KeyPressChar("space")
                 time.sleep(2)
         return False
 
     def is_start_game_interface(self):
         text = self.player_instance.get_text(490, 552, 588, 575)
-        chinese_only = re.sub(r'[^\u4e00-\u9fff]', '', text)
+        chinese_only = re.sub(r"[^\u4e00-\u9fff]", "", text)
         if self.player_instance.similarity(chinese_only, "游戏开始") >= 0.7:
             return True
         return False
-        # ret = self.mm.FindPic(447, 539, 635, 597, "开始游戏.bmp", 0.9)
-        # if ret:
-        #     return True
-        # return False
 
     def is_celia_room(self, fun):
-        ret = fun([758, 566, 815, 588], '商城', r'[\u4e00-\u9fa5]+', 2)
+        ret = fun([758, 566, 815, 588], "商城", r"[\u4e00-\u9fa5]+", 2)
         if ret:
             return True
         else:
@@ -129,14 +124,30 @@ class OperatorModule:
         :return:
         """
         for i in range(5):
-            ret = self.mm.FindPic(725, 462, 972, 558, "虚弱.bmp", 0.9)
+            ret = FindPic(
+                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                725,
+                462,
+                972,
+                558,
+                "虚弱.bmp",
+                0.9,
+            )
             if ret:
                 x, y = ret[0][1], ret[0][2]
                 self.move_to(x, y)
                 pyauto.click()
 
                 time.sleep(0.5)
-                ret = self.mm.FindPic(398, 154, 670, 435, "契约恢复.bmp", 0.9)
+                ret = FindPic(
+                    VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    398,
+                    154,
+                    670,
+                    435,
+                    "契约恢复.bmp",
+                    0.9,
+                )
                 if ret:
                     x, y = ret[0][1], ret[0][2]
                     self.move_to(x, y)
@@ -145,9 +156,17 @@ class OperatorModule:
                     time.sleep(0.1)
                 else:
                     continue
-                ret = self.mm.FindPic(406, 150, 651, 424, "是.bmp", 0.9)
+                ret = FindPic(
+                    VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    406,
+                    150,
+                    651,
+                    424,
+                    "是.bmp",
+                    0.9,
+                )
                 if ret:
-                    pyauto.KeyPressChar('esc')
+                    pyauto.KeyPressChar("esc")
 
                     time.sleep(0.1)
                     break
@@ -161,41 +180,53 @@ class OperatorModule:
         try:
             for _ in range(5):
                 if window_name == "个人信息":
-                    pyauto.KeyPressChar('m')
+                    pyauto.KeyPressChar("m")
                     time.sleep(0.1)
-                    ret = self.mm.FindPic_sleep(239, 39, 548, 135, "个人信息.bmp", 0.9, delta_color=([0, 0, 0], [179, 255, 255]), time_s=0.5, my_sleep=0.1)
+                    ret = self.mm.FindPic_sleep(
+                        239,
+                        39,
+                        548,
+                        135,
+                        "个人信息.bmp",
+                        0.9,
+                        delta_color=([0, 0, 0], [179, 255, 255]),
+                        time_s=0.5,
+                        my_sleep=0.1,
+                    )
                     if ret:
                         logger.info("已打开个人信息")
                         return True
                 if window_name == "选择菜单":
 
-                    pyauto.KeyPressChar('esc')
+                    pyauto.KeyPressChar("esc")
                     time.sleep(0.2)
                     if self.is_esc_menu_open():
                         return True
                 if window_name == "世界地图":
-                    ret = self.mm.FindPic_sleep(463, 0, 607, 43, "世界地图.bmp", 0.9, time_s=0.5, my_sleep=0.1)
+                    ret = self.mm.FindPic_sleep(
+                        463, 0, 607, 43, "世界地图.bmp", 0.9, time_s=0.5, my_sleep=0.1
+                    )
                     if ret:
                         logger.info("已打开世界地图")
                         return True
                     else:
-                        pyauto.KeyPressChar('n')
+                        pyauto.KeyPressChar("n")
                         time.sleep(0.1)
 
             return False
         except Exception as e:
-            logger.info(f'open_window方法报错：{e}')
+            logger.info(f"open_window方法报错：{e}")
 
     def close_all_window(self):
         """
         关闭所有窗口
         :return:
         """
-        pyauto.KeyPressChar('esc')
+        pyauto.KeyPressChar("esc")
 
         for i in range(5):
             if self.is_esc_menu_open():
-                pyauto.KeyPressChar('esc')
+                pyauto.KeyPressChar("esc")
             else:
                 break
 
@@ -204,7 +235,15 @@ class OperatorModule:
         检查是否打开了选择菜单
         :return: bool
         """
-        ret = self.mm.FindPic(0, 0, 1067, 600, "关闭.bmp", 0.9)
+        ret = FindPic(
+            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            0,
+            0,
+            1067,
+            600,
+            "关闭.bmp",
+            0.9,
+        )
         if ret:
             x, y = ret[0][1], ret[0][2]
             self.move_to(x, y)
@@ -212,20 +251,13 @@ class OperatorModule:
             pyauto.click()
             time.sleep(0.5)
         text = self.player_instance.get_text(484, 45, 584, 75)
-        chinese_only = re.sub(r'[^\u4e00-\u9fff]', '', text)
+        chinese_only = re.sub(r"[^\u4e00-\u9fff]", "", text)
         if self.player_instance.similarity(chinese_only, "选择菜单") >= 0.7:
             logger.info("选择菜单已打开")
             return True
         else:
             logger.info("选择菜单未打开")
         return False
-        # ret = self.mm.FindPic(454, 17, 623, 101, "选择菜单.bmp", 0.9)
-        # if ret:
-        #     logger.info("选择菜单已打开")
-        #     return True
-        # else:
-        #     logger.info("选择菜单未打开")
-        # return False
 
     def has_two_common_chars(self, input_str, target_set):
 
@@ -259,29 +291,23 @@ class OperatorModule:
         销售货物
         :return:
         """
-        pyauto.KeyPressChar('a')
+        pyauto.KeyPressChar("a")
 
         time.sleep(0.5)
-        # pyauto.KeyPressChar('a')
-        #
-        # time.sleep(0.2)
-        # pyauto.KeyPressChar('space')
-        #
-        # time.sleep(0.2)
-        # pyauto.KeyPressChar('left')
-        # time.sleep(0.2)
-        # pyauto.KeyPressChar('space')
-        #
-        # time.sleep(0.2)
-        # self.move_to(561, 228)
-        # time.sleep(0.2)
-        # pyauto.click()
         # 识别并操作出售装备
         sell()
         time.sleep(0.2)
 
         # 点击材料
-        ret = self.mm.FindPic(595, 278, 875, 317, "材料.bmp", 0.85)
+        ret = FindPic(
+            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            595,
+            278,
+            875,
+            317,
+            "材料.bmp",
+            0.85,
+        )
         if ret:
             x, y = ret[0][1], ret[0][2]
             self.move_to(x, y)
@@ -299,7 +325,16 @@ class OperatorModule:
 
         time.sleep(0.2)
         xy = []
-        ret = self.mm.FindPic(606, 302, 864, 566, "风化的碎骨.bmp|生锈的铁片.bmp|最下级砥石.bmp|破旧的皮革.bmp|生锈的铁片.bmp|碎布片.bmp|最下级硬化剂.bmp", 0.85, 1)
+        ret = FindPic(
+            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            606,
+            302,
+            864,
+            566,
+            "风化的碎骨.bmp|生锈的铁片.bmp|最下级砥石.bmp|破旧的皮革.bmp|生锈的铁片.bmp|碎布片.bmp|最下级硬化剂.bmp",
+            0.85,
+            1,
+        )
         if ret:
             logger.info(ret)
             for det in ret:
@@ -319,7 +354,17 @@ class OperatorModule:
             time.sleep(0.2)
 
     def find_pic_sleep(self, pic_name, x1, y1, x2, y2):
-        return self.mm.FindPic_sleep(x1, y1, x2, y2, pic_name, 0.9, drag=None, delta_color=([20, 0, 0], [23, 255, 255]), time_s=2)
+        return self.mm.FindPic_sleep(
+            x1,
+            y1,
+            x2,
+            y2,
+            pic_name,
+            0.9,
+            drag=None,
+            delta_color=([20, 0, 0], [23, 255, 255]),
+            time_s=2,
+        )
 
     def get_menu_item_coordinates(self, item_name):
         x, y = 640, 40
@@ -393,7 +438,17 @@ class OperatorModule:
             time.sleep(0.2)
             pyauto.KeyPressChar("esc")
             time.sleep(0.2)
-            ret = self.mm.FindPic(0, 0, 1067, 600, "金币寄售.bmp", 0.9, drag=None, delta_color=([20, 0, 0], [23, 255, 255]))
+            ret = FindPic(
+                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                0,
+                0,
+                1067,
+                600,
+                "金币寄售.bmp",
+                0.9,
+                drag=None,
+                delta_color=([20, 0, 0], [23, 255, 255]),
+            )
             if ret:
                 pyauto.KeyPressChar("esc")
                 time.sleep(0.2)
@@ -409,7 +464,16 @@ class OperatorModule:
                 time.sleep(0.2)
                 self.move_to(x + 100, y + 50)
                 time.sleep(0.1)
-                ret = self.mm.FindPic(408, 205, 670, 405, "确认.bmp", 0.9, drag=None)
+                ret = FindPic(
+                    VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    408,
+                    205,
+                    670,
+                    405,
+                    "确认.bmp",
+                    0.9,
+                    drag=None,
+                )
                 if ret:
                     pyauto.KeyPressChar("space")
                     time.sleep(0.2)
@@ -420,19 +484,21 @@ class OperatorModule:
             time.sleep(0.5)
         st = time.time()
         while True:
-            ret = self.mm.FindPic(463, 0, 607, 43, "世界地图.bmp", 0.9, drag=None)
+            ret = FindPic(
+                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                463,
+                0,
+                607,
+                43,
+                "世界地图.bmp",
+                0.9,
+                drag=None,
+            )
             if ret:
                 pyauto.KeyPressChar("f2")
                 time.sleep(0.1)
                 pyauto.KeyPressChar("f2")
                 time.sleep(0.5)
-                # 不关这个会卡图
-                # ret = self.mm.FindPic(55, 57, 210, 113, "进行栏位操作.bmp", 0.9, drag=None)
-                # if ret:
-                #     self.move_to(1002, 41)
-                #     time.sleep(0.1)
-                #     pyauto.click()
-                #     time.sleep(0.2)
                 return True
             else:
                 pyauto.KeyPressChar("n")
@@ -449,10 +515,18 @@ class OperatorModule:
         """
 
         def contains_digit(s):
-            pattern = r'\d'
+            pattern = r"\d"
             return bool(re.search(pattern, s))
 
-        ret = self.mm.FindPic(718, 30, 897, 107, "叉.bmp", 0.9)
+        ret = FindPic(
+            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            718,
+            30,
+            897,
+            107,
+            "叉.bmp",
+            0.9,
+        )
         if ret:
             x, y = ret[0][1], ret[0][2]
             self.move_to(x, y)
@@ -465,10 +539,8 @@ class OperatorModule:
                 time.sleep(0.1)
                 # 用传进来的方法识别
                 results = func(824, 570, 930, 589, amplify=True)
-                # results = self.mm.screenshot_OCR_str(824, 570, 930, 589, '0.png|1.png|2.png|3.png|4.png|5.png|6.png|7.png|8.png|9.png', 0.99, get_colour=([0, 0, 0], [0, 0, 255]))
-                # results = recognize_text(933, 690, 1033, 709)
                 if contains_digit(results):
-                    pl_int = re.search(r'(\d+)/', results).group(1)
+                    pl_int = re.search(r"(\d+)/", results).group(1)
                     # pl_int = int(results[:-3])
                     if pl_int:
                         pl_int = int(pl_int)
@@ -480,11 +552,8 @@ class OperatorModule:
                         continue
                 else:
                     # 用传进来的方法识别
-                    # results = self.mm.screenshot_OCR_str(641, 518, 762, 537, '0.png|1.png|2.png|3.png|4.png|5.png|6.png|7.png|8.png|9.png', 0.99, get_colour=([0, 0, 0], [0, 0, 255]))
                     results = func(641, 518, 762, 533, amplify=True)
-                    # results = recognize_text(770, 638, 864, 655)
-                    # pl_int = int(results[:-3])
-                    pl_int = re.search(r'(\d+)/', results).group(1)
+                    pl_int = re.search(r"(\d+)/", results).group(1)
                     if pl_int:
                         pl_int = int(pl_int)
                         logger.info(f"当前疲劳值：{pl_int}")
@@ -544,9 +613,13 @@ class OperatorModule:
         :param y:
         :return:
         """
-        x = gv.last_position[0] + x
-        y = gv.last_position[1] + y
-        logger.info("move_to:窗口左上角x = {}\t窗口左上角y = {}\tx={}\ty={}".format(gv.last_position[0], gv.last_position[1], x, y))
+        x = last_position[0] + x
+        y = last_position[1] + y
+        logger.info(
+            "move_to:窗口左上角x = {}\t窗口左上角y = {}\tx={}\ty={}".format(
+                last_position[0], last_position[1], x, y
+            )
+        )
         pyauto.moveTo(x, y)
         # yjs.MoveTo(x, y)
         time.sleep(0.2)

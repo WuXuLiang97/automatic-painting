@@ -4,9 +4,8 @@ import cv2
 import numpy as np
 
 from core.capture import Capture
-# from utils.cv_recognizer import hwnd
-from utils.screenshot_util import screenshot_util
-from utils.logging_setup import logger
+from global_fields import screenshot_util
+from utils.log.logging_setup import logger
 
 
 class SkillUtil:

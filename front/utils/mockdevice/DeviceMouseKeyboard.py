@@ -1,175 +1,8 @@
-# -*- coding: utf-8 -*-
 import ctypes
-import os
-import time
+from static_fields import KEY_CODE_DICT, MSDK_DLL_PATH
 from ctypes import wintypes
-from root_dir import root_path
-import win32api
 
-code_dict = {
-    "1": 49,
-
-    "2": 50,
-
-    "3": 51,
-
-    "4": 52,
-
-    "5": 53,
-
-    "6": 54,
-
-    "7": 55,
-
-    "8": 56,
-
-    "9": 57,
-
-    "0": 48,
-
-    "-": 189,
-
-    "=": 187,
-
-    "back": 8,
-
-    "a": 65,
-
-    "b": 66,
-
-    "c": 67,
-
-    "d": 68,
-
-    "e": 69,
-
-    "f": 70,
-
-    "g": 71,
-
-    "h": 72,
-
-    "i": 73,
-
-    "j": 74,
-
-    "k": 75,
-
-    "l": 76,
-
-    "m": 77,
-
-    "n": 78,
-
-    "o": 79,
-
-    "p": 80,
-
-    "q": 81,
-
-    "r": 82,
-
-    "s": 83,
-
-    "t": 84,
-
-    "u": 85,
-
-    "v": 86,
-
-    "w": 87,
-
-    "x": 88,
-
-    "y": 89,
-
-    "z": 90,
-
-    "ctrl": 17,
-
-    "alt": 18,
-
-    "shift": 16,
-
-    "win": 91,
-
-    "space": 32,
-
-    "cap": 20,
-
-    "tab": 9,
-
-    "~": 192,
-
-    "esc": 27,
-
-    "enter": 13,
-
-    "up": 38,
-
-    "down": 40,
-
-    "left": 37,
-
-    "right": 39,
-
-    "option": 93,
-
-    "print": 44,
-
-    "delete": 46,
-
-    "home": 36,
-
-    "end": 35,
-
-    "pgup": 33,
-    "pgdn": 34,
-
-    "f1": 112,
-
-    "f2": 113,
-
-    "f3": 114,
-
-    "f4": 115,
-
-    "f5": 116,
-
-    "f6": 117,
-
-    "f7": 118,
-
-    "f8": 119,
-
-    "f9": 120,
-
-    "f10": 121,
-
-    "f11": 122,
-
-    "f12": 123,
-
-    "[": 219,
-
-    "]": 221,
-
-    "\\": 220,
-
-    ";": 186,
-
-    "'": 222,
-
-    ",": 188,
-
-    ".": 190,
-
-    "/": 191,
-
-}
-
-
-class YJS():
+class DeviceMouseKeyboard():
     def __init__(self, w, h, move_flag=1, KeyDelay=None):
         # 初始化参数
         self.w, self.h = w, h
@@ -178,9 +11,7 @@ class YJS():
 
         # 初始化易建鼠dll
         VID, PID = 0xC216, 0x0301
-        __path = os.path.join(root_path, "utils/msdk.dll")
-        # __path = os.getcwd() + os.path.sep + "msdk.dll"
-        self.objdll = ctypes.windll.LoadLibrary(__path)  # 注册dll
+        self.objdll = ctypes.windll.LoadLibrary(MSDK_DLL_PATH)  # 注册dll
         self.objdll.M_Open_VidPid.restype = wintypes.LPHANDLE
         self.hdl = self.objdll.M_Open_VidPid(VID, PID)  # 获取usb键鼠
         self.__ResolutionUsed()
@@ -199,7 +30,6 @@ class YJS():
     def __ResolutionUsed(self):
         # 如果使用绝对移动,则需要初始化分辨率
         if self.move_flag == 1:
-            # hdl = ctypes.c_int(self.hdl)
             self.objdll.M_ResolutionUsed(self.hdl, self.w, self.h)
 
     def GetSn(self):
@@ -227,7 +57,7 @@ class YJS():
         self.objdll.M_KeyPress2(self.hdl, code, 1)
 
     def KeyPressChar(self, __str):
-        self.KeyPress(code_dict[__str])
+        self.KeyPress(KEY_CODE_DICT[__str])
 
     def KeyDown(self, code):
         self.objdll.M_KeyDown2(self.hdl, code, 1)
@@ -236,16 +66,16 @@ class YJS():
         self.objdll.M_KeyUp2(self.hdl, code, 1)
 
     def KeyDownChar(self, __str):
-        self.KeyDown(code_dict[__str])
+        self.KeyDown(KEY_CODE_DICT[__str])
 
     def KeyUpChar(self, __str):
-        self.KeyUp(code_dict[__str])
+        self.KeyUp(KEY_CODE_DICT[__str])
 
     def KeyState(self, code):
         self.objdll.M_KeyState2(self.hdl, code)
 
     def KeyStateChar(self, __str):
-        self.KeyState(code_dict[__str])
+        self.KeyState(KEY_CODE_DICT[__str])
 
     def MoveTo(self, x: int, y: int):
         # 瞬间移动
@@ -289,22 +119,3 @@ class YJS():
 
     def ReleaseAllKey(self):
         self.objdll.M_ReleaseAllKey(self.hdl)
-
-
-# 获取屏幕的宽度和高度
-screen_width = win32api.GetSystemMetrics(0)
-screen_height = win32api.GetSystemMetrics(1)
-yjs = YJS(screen_width, screen_height, 1)
-
-if __name__ == '__main__':
-    time.sleep(1)
-    # yjs.KeyDown('esc')
-    # yjs.KeyUp('esc')
-    # yj11111s.LeftDoubleClick()
-    # yjs.GetSn()
-    # yjs.MoveTo(500, 500)
-    # yjs.KeyPressStr("11111")
-    yjs.KeyPressChar("left")
-    # yjs.KeyDownChar("left")
-    # time.sleep(1)
-    # yjs.MoveTo(1027, 728)

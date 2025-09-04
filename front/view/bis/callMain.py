@@ -3,102 +3,41 @@ import datetime
 import json
 import os.path
 import random
-# import pprint
 import string
-import threading
+
 import time
 import traceback
-
 import cv2
 import numpy as np
 from PyQt5 import QtGui, QtCore
-from PyQt5.QtCore import pyqtSignal, QByteArray, QPoint, QSize, QThread, QUrl
+from PyQt5.QtCore import pyqtSignal, QByteArray, QPoint, QSize, QUrl
 from PyQt5.QtGui import QPixmap, QImage, QDesktopServices
-from PyQt5.QtWidgets import QMainWindow, QAbstractItemView, QTableWidgetItem, QHeaderView, QMessageBox
-
+from PyQt5.QtWidgets import (
+    QMainWindow,
+    QAbstractItemView,
+    QTableWidgetItem,
+    QHeaderView,
+    QMessageBox,
+)
+from config import CONFIG_PATH,f_program_version
 from core.KeyboardListenerThread import KeyPressSignal, KeyboardListenerThread
-# from core.check_caton import CheckPlayerDynamics
 from core.check_d import CheckProcess
-from core.global_variable import display_queue
 from core.player import PlayerThread
-# from core.yolo_process import YoloProcess
-
-from utils.common_util import get_date
-# from utils.config_util import get_settings_group, get_all_role_settings, get_gui_config, set_ip, ini_file_path
+from view.bis.DisplayThread import DisplayThread
+from view.bis.GUI import get_gui_config
+from utils.common.time import get_date
 from core.callRoleSettings import RoleSettingsWindow
 from core.callSettingsGroup import SettingsGroupWindow
-from utils.screenshot_util import screenshot_util
-# from utils.yjs import yjs
-from utils.cross_control import pyauto
+from utils.common.auto_key import pyauto
 from view.main import Ui_MainWindow
 from core.device_identity_client import send_request, ret_data
 from core.device_time_utils import get_identity_mark
-# from core.window_position import WindowPositionUpdater
-from core import global_variable as gv
-from utils.api import test_view_subgroups, test_view_subgroup_config
-from core.vnc import VNC, api
-from utils.cv_recognizer import vnc_mm
+from utils.api import view_subgroups, view_subgroup_config
+from utils.mockdevice.vnc import VNC, api
 from root_dir import root_path
 
 # 拼接文件路径
-CONFIG_PATH = os.path.join(root_path, "json_resources/config.json")
-f_program_version = '250824'
 Network = 0
-
-
-def get_gui_config():
-    """获取GUI配置"""
-    # 默认配置
-    default_config = {
-        "ip": "127.0.0.1",
-        "yjs": 0,
-        "banzhuan": 0,
-        "vmware_ip": "127.0.0.1",
-        "vmware_prot": "5900",
-        "vmware_password": "",
-    }
-
-    try:
-        # 如果配置文件存在，读取它
-        if os.path.exists(CONFIG_PATH):
-            with open(CONFIG_PATH, 'r', encoding='utf-8') as file:
-                file_config = json.load(file)
-                # 合并默认配置和文件配置
-                return {**default_config, **file_config}
-
-        # 如果配置文件不存在，创建默认配置
-        with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
-            json.dump(default_config, file, indent=4, ensure_ascii=False)
-        return default_config
-
-    except json.JSONDecodeError:
-        print("Warning: Config file is corrupted or not in JSON format.")
-        return default_config
-    except Exception as e:
-        print(f"Error loading config: {e}")
-        return default_config
-
-
-class DisplayThread(QThread):
-    """专用展示线程"""
-    update_signal = pyqtSignal(np.ndarray)  # 图像更新信号
-
-    def __init__(self):
-        super().__init__()
-        self.running = True
-        self.lock = threading.Lock()  # 添加线程锁
-
-    def run(self):
-        while self.running:
-            with self.lock:  # 使用锁保护共享资源
-                if not display_queue.empty():
-                    frame = display_queue.get()
-                    self.update_signal.emit(frame)
-            time.sleep(0.033)
-
-    def stop(self):
-        with self.lock:
-            self.running = False
 
 
 class AppMain(QMainWindow, Ui_MainWindow):
@@ -108,7 +47,9 @@ class AppMain(QMainWindow, Ui_MainWindow):
     该类负责初始化主窗口，启动工作线程，处理信号连接，并管理其他子窗口。
     """
 
-    stop_message = pyqtSignal()  # 定义一个自定义信号stop_message，用于在需要时停止某些操作或线程。
+    stop_message = (
+        pyqtSignal()
+    )  # 定义一个自定义信号stop_message，用于在需要时停止某些操作或线程。
 
     def __init__(self, parent=None, dic=None):
         """
@@ -121,7 +62,6 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.displaythread = None
         self.checkProcess = None
         self.playerThread = None
-        self.VNC = None
         self.heartbeat_socket = None
         self.heartbeat_thread = None
         self.server_ip = None
@@ -129,8 +69,9 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.dic = dic
         self.authapp = None
         self.role_settings = {}
-        # self.sock = None
-        self.setupUi(self)  # 假设这个方法是在某个UI文件中通过pyuic生成的，用于设置窗口的UI界面
+        self.setupUi(
+            self
+        )  # 假设这个方法是在某个UI文件中通过pyuic生成的，用于设置窗口的UI界面
         self.action12.triggered.connect(self.show_login)
         self.loadSettings("json_resources/ui_config.json")
         self.lineEdit.textChanged.connect(self.on_text_changed)
@@ -144,8 +85,6 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.init_content()  # 初始化窗口内容，可能是设置一些初始值或UI组件的状态
 
         self.key_press_signal = KeyPressSignal()  # 键盘检测线程
-        # self.check_player_dynamics = CheckPlayerDynamics()  # 人物卡住检测
-        # self.WindowPositionUpdater = WindowPositionUpdater()  # 初始化窗口坐标检查进程
         self.yoloProcess = None  # YOLO处理进程初始化为None，后续可能按需加载
 
         # 标记是否为首次加载模型
@@ -157,18 +96,30 @@ class AppMain(QMainWindow, Ui_MainWindow):
         # self.playerThread.sock_connect_message.connect(self.sock_connect)  # 连接角色表更新信号
 
         # 设置窗体禁止最大化
-        self.setFixedSize(self.width(), self.height())  # 设置窗口为固定大小，防止用户最大化
+        self.setFixedSize(
+            self.width(), self.height()
+        )  # 设置窗口为固定大小，防止用户最大化
 
         # 初始化设置窗口
-        self.settings_group_window = SettingsGroupWindow(dic=self.dic)  # 初始化设置组窗口
-        self.role_settings_window = RoleSettingsWindow(dic=self.dic)  # 初始化角色设置窗口
+        self.settings_group_window = SettingsGroupWindow(
+            dic=self.dic
+        )  # 初始化设置组窗口
+        self.role_settings_window = RoleSettingsWindow(
+            dic=self.dic
+        )  # 初始化角色设置窗口
 
         # 连接设置组窗口的信号
-        self.settings_group_window.send_update_settings_group_signal.connect(self.role_settings_window.receive_update_settings_group_signal)  # 连接设置组更新信号到角色设置窗口
-        self.settings_group_window.send_update_settings_group_signal.connect(self.receive_update_settings_group_signal)  # 连接设置组更新信号到当前窗口的接收方法
+        self.settings_group_window.send_update_settings_group_signal.connect(
+            self.role_settings_window.receive_update_settings_group_signal
+        )  # 连接设置组更新信号到角色设置窗口
+        self.settings_group_window.send_update_settings_group_signal.connect(
+            self.receive_update_settings_group_signal
+        )  # 连接设置组更新信号到当前窗口的接收方法
 
         # 连接下拉框激活信号到更新角色表数据的方法
-        self.settingsGroupComboBox.activated.connect(self.update_roles_table_data)  # 假设settingsGroupComboBox是UI中的某个下拉框
+        self.settingsGroupComboBox.activated.connect(
+            self.update_roles_table_data
+        )  # 假设settingsGroupComboBox是UI中的某个下拉框
 
         # 创建并启动键盘监听线程
         self.keyboard_thread = KeyboardListenerThread(self.key_press_signal)
@@ -186,7 +137,16 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.rolesTable.setColumnCount(8)
 
         # 设置角色表格的水平头部标签
-        header_labels = ['位置', '职业类型', '转职职业', '身高', '地图名称', '难度', '刷完？', '预留疲劳']
+        header_labels = [
+            "位置",
+            "职业类型",
+            "转职职业",
+            "身高",
+            "地图名称",
+            "难度",
+            "刷完？",
+            "预留疲劳",
+        ]
         self.rolesTable.setHorizontalHeaderLabels(header_labels)
 
         # 获取水平头部
@@ -196,10 +156,18 @@ class AppMain(QMainWindow, Ui_MainWindow):
         header.setSectionResizeMode(QHeaderView.Interactive)  # 改为交互模式
 
         # 设置特定列的自适应策略
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # 位置 - 按内容调整
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # 身高 - 按内容调整
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # 难度 - 按内容调整
-        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # 刷完？ - 按内容调整
+        header.setSectionResizeMode(
+            0, QHeaderView.ResizeToContents
+        )  # 位置 - 按内容调整
+        header.setSectionResizeMode(
+            3, QHeaderView.ResizeToContents
+        )  # 身高 - 按内容调整
+        header.setSectionResizeMode(
+            5, QHeaderView.ResizeToContents
+        )  # 难度 - 按内容调整
+        header.setSectionResizeMode(
+            6, QHeaderView.ResizeToContents
+        )  # 刷完？ - 按内容调整
 
         # 设置长文本列的初始宽度和最大宽度
         self.rolesTable.setColumnWidth(1, 80)  # 角色职业类型
@@ -221,27 +189,26 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.update_roles_table_data()
         gui_config = get_gui_config()
         # 初始化ui的主机地址
-        self.lineEdit.setText(str(gui_config['ip']))
-        gv.server_ip = gui_config['ip']
+        self.lineEdit.setText(str(gui_config["ip"]))
+        server_ip = gui_config["ip"]
         # 初始化ui的虚拟机ip地址
-        self.lineEdit_3.setText(str(gui_config['vmware_ip']))
-        gv.vmware_ip = gui_config['vmware_ip']
+        self.lineEdit_3.setText(str(gui_config["vmware_ip"]))
+        vmware_ip = gui_config["vmware_ip"]
         # 初始化ui的虚拟机端口
-        self.lineEdit_4.setText(str(gui_config['vmware_prot']))
-        gv.vmware_prot = gui_config['vmware_prot']
+        self.lineEdit_4.setText(str(gui_config["vmware_prot"]))
+        vmware_prot = gui_config["vmware_prot"]
         # 初始化ui的虚拟机vnc密码
-        self.lineEdit_5.setText(str(gui_config['vmware_password']))
-        gv.vmware_password = gui_config['vmware_password']
+        self.lineEdit_5.setText(str(gui_config["vmware_password"]))
+        vmware_password = gui_config["vmware_password"]
 
         # 初始化ui的主机地址
-        # self.ComboBox_2.setCurrentIndex(int(gui_config['yjs']))
         # 初始化ui的功能（搬砖还是半自动剧情）
-        self.ComboBox_3.setCurrentIndex(int(gui_config['banzhuan']))
-        gv.banzhuan = gui_config['banzhuan']
+        self.ComboBox_3.setCurrentIndex(int(gui_config["banzhuan"]))
+        banzhuan = gui_config["banzhuan"]
         # 初始化ui的机器码
         self.lineEdit_2.setText(get_identity_mark())
         chars = string.ascii_letters + string.digits  # 大小写字母+数字
-        random_string = ''.join(random.choices(chars, k=10))
+        random_string = "".join(random.choices(chars, k=10))
         self.setWindowTitle(random_string)
 
         # 启动显示线程
@@ -257,11 +224,15 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 return_data_1 = ret_data(ret)
                 if return_data_1.response == 200 or return_data_1.response == 201:
                     if return_data_1.response == 201:
-                        self.update_log(return_data_1.msg)  # my_print('亲爱的用户们：\n\t我们软件已推出新版本，增加了新功能并优化了现有功能。为方便您更新，我们已在Q群提供更新文件。请您自行进入Q群下载并安装新版本。如遇问题，请随时在Q群反馈。感谢您的支持！\n祝您使用愉快')
+                        self.update_log(
+                            return_data_1.msg
+                        )  # my_print('亲爱的用户们：\n\t我们软件已推出新版本，增加了新功能并优化了现有功能。为方便您更新，我们已在Q群提供更新文件。请您自行进入Q群下载并安装新版本。如遇问题，请随时在Q群反馈。感谢您的支持！\n祝您使用愉快')
 
                     else:
-                        self.update_log(f'已连接到网络')
-                    self.setWindowTitle(f'工具人({str(f_program_version)})    {return_data_1.msg}')
+                        self.update_log(f"已连接到网络")
+                    self.setWindowTitle(
+                        f"工具人({str(f_program_version)})    {return_data_1.msg}"
+                    )
                     global Network
                     Network = 1
                     break
@@ -283,31 +254,31 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
     def on_text_changed(self):
         """
-            处理文本输入框内容变化的事件。
-            根据发送信号的文本输入框控件，更新配置字典中相应的键值对，并保存配置文件。
-            同时，打印输出文本输入框的名称及其当前内容。
-            """
-        text = ''
-        with open(CONFIG_PATH, 'r') as file:
+        处理文本输入框内容变化的事件。
+        根据发送信号的文本输入框控件，更新配置字典中相应的键值对，并保存配置文件。
+        同时，打印输出文本输入框的名称及其当前内容。
+        """
+        text = ""
+        with open(CONFIG_PATH, "r") as file:
             settings = json.load(file)
         sender_obj = self.sender()  # 使用 self.sender() 获取发送者
         if sender_obj == self.lineEdit:
             text = self.lineEdit.text()  # 读取 self.lineEdit 的内容
-            gv.server_ip = text
+            server_ip = text
             settings["ip"] = text
         if sender_obj == self.lineEdit_3:
             text = self.lineEdit_3.text()  # 读取 self.lineEdit 的内容
-            gv.vmware_ip = text
+            vmware_ip = text
             settings["vmware_ip"] = text
         if sender_obj == self.lineEdit_4:
             text = self.lineEdit_4.text()  # 读取 self.lineEdit 的内容
-            gv.vmware_prot = text
+            vmware_prot = text
             settings["vmware_prot"] = text
         if sender_obj == self.lineEdit_5:
             text = self.lineEdit_5.text()  # 读取 self.lineEdit 的内容
-            gv.vmware_ip = text
+            vmware_ip = text
             settings["vmware_password"] = text
-        with open(CONFIG_PATH, 'w') as file:
+        with open(CONFIG_PATH, "w") as file:
             json.dump(settings, file, indent=4)
 
     def on_combobox_changed(self):
@@ -315,7 +286,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         处理下拉框选择项变化的事件。
         根据发送信号的下拉框控件，更新配置字典中相应的键值对。
         """
-        with open(CONFIG_PATH, 'r') as file:
+        with open(CONFIG_PATH, "r") as file:
             settings = json.load(file)
         currentIndex = None
         sender_obj = self.sender()  # 使用 self.sender() 获取发送者
@@ -326,9 +297,9 @@ class AppMain(QMainWindow, Ui_MainWindow):
         #     pyauto.sign = currentIndex
         if sender_obj == self.ComboBox_3:
             currentIndex = self.ComboBox_3.currentIndex()
-            settings['banzhuan'] = currentIndex
-            gv.banzhuan = currentIndex
-        with open(CONFIG_PATH, 'w') as file:
+            settings["banzhuan"] = currentIndex
+            banzhuan = currentIndex
+        with open(CONFIG_PATH, "w") as file:
             json.dump(settings, file, indent=4)
 
     def update_settings_group_data(self):
@@ -340,18 +311,11 @@ class AppMain(QMainWindow, Ui_MainWindow):
         最后，它将获取到的设置组列表中的每个项目添加到组合框中，以便用户可以从中选择。
         """
         try:
-            ret = test_view_subgroups(self.dic.get("cookies"))
+            ret = view_subgroups(self.dic.get("cookies"))
             print(ret)
             self.settingsGroupComboBox.clear()
             # # 将获取到的设置组列表中的每个项目添加到组合框中
-            self.settingsGroupComboBox.addItems(ret.get('subgroups'))
-            # # 调用get_settings_group()函数获取最新的设置组列表
-            # settings_group_list = get_settings_group()
-            # print(f"settings_group_list:{settings_group_list}")
-            # # 清除设置组组合框中现有的所有项
-            # self.settingsGroupComboBox.clear()
-            # # # 将获取到的设置组列表中的每个项目添加到组合框中
-            # self.settingsGroupComboBox.addItems(settings_group_list)
+            self.settingsGroupComboBox.addItems(ret.get("subgroups"))
         except Exception as e:
             print("update_settings_group_data:", e)
             print("完整堆栈：")
@@ -363,30 +327,6 @@ class AppMain(QMainWindow, Ui_MainWindow):
         更新角色表数据
         :return:
         """
-
-        # role_list = get_all_role_settings(self.settingsGroupComboBox.currentText())
-        # print(f"role_list:{role_list}")
-        # if role_list is None:
-        #     return
-        # self.rolesTable.setRowCount(len(role_list))
-        # index = 0
-        # today = get_date()
-        # for role in role_list:
-        #     self.rolesTable.setItem(index, 0, QTableWidgetItem(role_list[role]['role_index']))
-        #     self.rolesTable.setItem(index, 1, QTableWidgetItem(role_list[role]['role_occupation']))
-        #     self.rolesTable.setItem(index, 2, QTableWidgetItem(role_list[role]['height']))
-        #     self.rolesTable.setItem(index, 3, QTableWidgetItem(role_list[role]['map_name']))
-        #     self.rolesTable.setItem(index, 4, QTableWidgetItem(role_list[role]['map_level']))
-        #     if today != role_list[role]['finished_time']:
-        #         self.rolesTable.setItem(index, 5, QTableWidgetItem("否"))
-        #     else:
-        #         self.rolesTable.setItem(index, 5, QTableWidgetItem("是"))
-        #     index = index + 1
-
-        """
-        更新角色表数据
-        :return:
-        """
         try:
             # 重置内部数据结构
             self.role_settings = {}
@@ -394,20 +334,19 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 return
             # 获取新数据
             list_data = []
-            ret = test_view_subgroup_config(self.dic.get("cookies"), self.settingsGroupComboBox.currentText())
-            # print(f"update_roles_table_data:")
-            # pprint.pprint(ret)
+            ret = view_subgroup_config(
+                self.dic.get("cookies"), self.settingsGroupComboBox.currentText()
+            )
             # 检查是否有配置数据
-            if not ret or 'configs' not in ret or not ret['configs']:
+            if not ret or "configs" not in ret or not ret["configs"]:
                 # 如果没有数据，清空表格
                 self.rolesTable.setRowCount(0)
                 return
 
             # 处理数据
-            for item in ret['configs']:
-                # pprint.pprint(item)
-                list_data.append(str(item['brush_order']))
-                self.role_settings[str(item['brush_order'])] = item
+            for item in ret["configs"]:
+                list_data.append(str(item["brush_order"]))
+                self.role_settings[str(item["brush_order"])] = item
 
             # 设置表格行数
             self.rolesTable.setRowCount(len(self.role_settings))
@@ -426,19 +365,33 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
                 # 填充每一列数据
                 self.rolesTable.setItem(index, 0, QTableWidgetItem(str(role_id)))
-                self.rolesTable.setItem(index, 1, QTableWidgetItem(role_data.get('career', '')))
-                self.rolesTable.setItem(index, 2, QTableWidgetItem(role_data.get('convert_career', '')))
-                self.rolesTable.setItem(index, 3, QTableWidgetItem(str(role_data.get('height', ''))))
-                self.rolesTable.setItem(index, 4, QTableWidgetItem(role_data.get('map', '')))
-                self.rolesTable.setItem(index, 5, QTableWidgetItem(str(role_data.get('difficulty', ''))))
-                self.rolesTable.setItem(index, 7, QTableWidgetItem(str(role_data.get('leave_pl', ''))))
+                self.rolesTable.setItem(
+                    index, 1, QTableWidgetItem(role_data.get("career", ""))
+                )
+                self.rolesTable.setItem(
+                    index, 2, QTableWidgetItem(role_data.get("convert_career", ""))
+                )
+                self.rolesTable.setItem(
+                    index, 3, QTableWidgetItem(str(role_data.get("height", "")))
+                )
+                self.rolesTable.setItem(
+                    index, 4, QTableWidgetItem(role_data.get("map", ""))
+                )
+                self.rolesTable.setItem(
+                    index, 5, QTableWidgetItem(str(role_data.get("difficulty", "")))
+                )
+                self.rolesTable.setItem(
+                    index, 7, QTableWidgetItem(str(role_data.get("leave_pl", "")))
+                )
 
                 # 检查是否刷完
-                expire_time = role_data.get('brush_map_expire_time', '')
+                expire_time = role_data.get("brush_map_expire_time", "")
                 if expire_time:
                     try:
                         # 转换为日期对象进行比较
-                        expire_date = datetime.datetime.strptime(expire_time, '%Y-%m-%d %H:%M:%S')
+                        expire_date = datetime.datetime.strptime(
+                            expire_time, "%Y-%m-%d %H:%M:%S"
+                        )
                         if expire_date.hour < 6:
                             previous_day = expire_date - datetime.timedelta(days=1)
                             expire_date = previous_day.strftime("%Y-%m-%d")
@@ -489,12 +442,19 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
                 self.checkProcess = CheckProcess()  # 初始化检查进程
                 # 连接播放器线程的信号
-                self.playerThread.message.connect(self.update_log)  # 连接消息信号到更新日志的方法
-                # self.playerThread.player_dynamics_tuple.connect(self.update_player_dynamics_list)
-                self.playerThread.role_table_message.connect(self.update_roles_table_data)  # 连接角色表更新信号
-                self.key_press_signal.mouse_moved.connect(self.playerThread.handle_mouse_press)
+                self.playerThread.message.connect(
+                    self.update_log
+                )  # 连接消息信号到更新日志的方法
+                self.playerThread.role_table_message.connect(
+                    self.update_roles_table_data
+                )  # 连接角色表更新信号
+                self.key_press_signal.mouse_moved.connect(
+                    self.playerThread.handle_mouse_press
+                )
 
-                self.checkProcess.ghost_state_message.connect(self.playerThread.receive_ghost_state_message)
+                self.checkProcess.ghost_state_message.connect(
+                    self.playerThread.receive_ghost_state_message
+                )
 
             except Exception as e:
                 # 如果在初始化游戏窗口时发生异常，则更新日志并返回
@@ -503,7 +463,9 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 return
 
             # 设置玩家线程的角色组
-            self.playerThread.current_role_group = self.settingsGroupComboBox.currentText()
+            self.playerThread.current_role_group = (
+                self.settingsGroupComboBox.currentText()
+            )
 
             # 初始化玩家线程
             self.playerThread.initialize()
@@ -535,7 +497,6 @@ class AppMain(QMainWindow, Ui_MainWindow):
             pyauto.releaseallkey()
             self.startBtn.setEnabled(True)
             self.update_log("脚本已停止")
-
 
         except Exception as e:
             print("停止操作异常", e)
@@ -637,18 +598,19 @@ class AppMain(QMainWindow, Ui_MainWindow):
             # 在窗口关闭之前保存设置
             self.saveSettings("json_resources/ui_config.json")
 
-
         except Exception as e:
             print("closeEvent", e)
 
     def loadSettings(self, filename):
         # 尝试从文件中加载窗口的设置
         try:
-            with open(filename, 'r') as file:
+            with open(filename, "r") as file:
                 settings = json.load(file)
-                self.restoreGeometry(QByteArray.fromBase64(settings['geometry'].encode()))
-                self.move(QPoint(settings['x'], settings['y']))
-                self.resize(QSize(settings['width'], settings['height']))
+                self.restoreGeometry(
+                    QByteArray.fromBase64(settings["geometry"].encode())
+                )
+                self.move(QPoint(settings["x"], settings["y"]))
+                self.resize(QSize(settings["width"], settings["height"]))
         except FileNotFoundError:
             # 如果文件不存在，则使用默认设置
             pass
@@ -659,12 +621,18 @@ class AppMain(QMainWindow, Ui_MainWindow):
     def saveSettings(self, filename):
         # 保存窗口的设置到文件
         geometry = self.saveGeometry().toBase64().data().decode()
-        settings = {'geometry': geometry, 'x': self.x(), 'y': self.y(), 'width': self.width(), 'height': self.height()}
-        with open(filename, 'w') as file:
+        settings = {
+            "geometry": geometry,
+            "x": self.x(),
+            "y": self.y(),
+            "width": self.width(),
+            "height": self.height(),
+        }
+        with open(filename, "w") as file:
             json.dump(settings, file, indent=4)
 
     def connect_to_vnc(self):
-        if self.VNC is not None:
+        if VNC_Connection is not None:
             QMessageBox.information(self, "提示", f"连接状态：已连接成功")
             return
         image = None
@@ -677,14 +645,10 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 QMessageBox.warning(self, "错误", "IP和端口不能为空")
                 return
 
-            self.VNC = VNC(vm_ip, vm_port, vm_pass)
+            VNC_Connection = VNC(vm_ip, vm_port, vm_pass)
 
             # 截图
-            image = self.VNC.capture()
-            # 更新共享对象
-            pyauto.VNC = self.VNC
-            vnc_mm.VNC = self.VNC
-            screenshot_util.VNC = self.VNC
+            image = VNC_Connection.capture()
 
             # 保存配置
             self.save_vnc_config(vm_ip, vm_port, vm_pass)
@@ -696,7 +660,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
             self.label_7.setText("已连接成功")
             self.label_7.setStyleSheet("color: green;")  # 设置文字为红色
         else:
-            self.VNC = None
+            VNC_Connection = None
             self.label_7.setText("状态：连接失败")
             self.label_7.setStyleSheet("color: red;")  # 设置文字为红色
             QMessageBox.information(self, "警告", f"连接失败，请检查ip、端口和密码！")
@@ -704,22 +668,20 @@ class AppMain(QMainWindow, Ui_MainWindow):
     def save_vnc_config(self, ip, port, password):
         """保存VNC配置到文件"""
         config = get_gui_config()
-        config.update({
-            "vmware_ip": ip,
-            "vmware_prot": port,
-            "vmware_password": password
-        })
-        with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
+        config.update(
+            {"vmware_ip": ip, "vmware_prot": port, "vmware_password": password}
+        )
+        with open(CONFIG_PATH, "w", encoding="utf-8") as file:
             json.dump(config, file, indent=4, ensure_ascii=False)
 
     def cleanup_vnc(self):
         """清理VNC资源"""
-        if self.VNC:
+        if VNC_Connection:
             try:
                 api.shutdown()
             except:
                 pass
-            self.VNC = None
+            VNC_Connection = None
 
     def update_image(self, qimage):
         pixmap = self.convert_cv_qt(qimage)
@@ -748,7 +710,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         # 替换为你的本地HTML文件路径
         # 可以是绝对路径，例如：C:/projects/help/index.html
         # 也可以是相对路径（相对于当前Python文件）
-        local_html_path = os.path.join(root_path, 'help.html')
+        local_html_path = os.path.join(root_path, "help.html")
 
         # 将本地路径转换为QUrl
         url = QUrl.fromLocalFile(local_html_path)
