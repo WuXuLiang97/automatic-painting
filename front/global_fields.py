@@ -27,7 +27,7 @@ display_queue = queue.Queue(maxsize=2)  # 展示专用队列
 import utils.mockdevice.vnc as VNC
 
 # 创建一个全局的VNC连接对象
-VNC_Connection: VNC = None
+VNC_Connection = None
 
 from utils.screen.screenshot_util import ScreenshotUtil
 

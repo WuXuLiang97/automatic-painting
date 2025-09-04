@@ -35,6 +35,7 @@ from core.device_time_utils import get_identity_mark
 from utils.api import view_subgroups, view_subgroup_config
 from utils.mockdevice.vnc import VNC, api
 from root_dir import root_path
+from global_fields import VNC_Connection  # 确保VNC_Connection为全局变量
 
 # 拼接文件路径
 Network = 0
@@ -632,6 +633,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
             json.dump(settings, file, indent=4)
 
     def connect_to_vnc(self):
+        global VNC_Connection
         if VNC_Connection is not None:
             QMessageBox.information(self, "提示", f"连接状态：已连接成功")
             return
