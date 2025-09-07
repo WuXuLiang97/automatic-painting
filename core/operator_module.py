@@ -150,7 +150,9 @@ class OperatorModule:
                     pyauto.KeyPressChar('esc')
 
                     time.sleep(0.1)
-                    break
+                    return True
+        return False
+
 
     def open_window(self, window_name):
         """

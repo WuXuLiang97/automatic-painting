@@ -204,7 +204,7 @@ class ThreadedServer:
 
                     # 计算并打印处理耗时（毫秒）
                     latency = (time.time() - start_time) * 1000
-                    print(f"请求处理完成 耗时: {latency:.2f}ms")
+                    print(f"{header['type']} 请求处理完成 耗时: {latency:.2f}ms")
 
         except Exception as e:
             # 捕获并打印异常信息（便于调试）

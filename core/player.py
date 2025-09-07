@@ -636,7 +636,10 @@ class PlayerThread(QThread):
                     pyauto.click()
                     time.sleep(0.5)
                 time.sleep(2)
-                self.operator_module.remove_weakness()  # 移除虚弱
+                if self.operator_module.remove_weakness():  # 移除虚弱
+                    _sleep = random.randint(300,360)
+                    self.send_log(f"虚弱，休息{_sleep}秒")
+                    time.sleep(_sleep)
                 time.sleep(2)
                 self.select_role()  # 选择角色
                 time.sleep(2)
@@ -2750,7 +2753,7 @@ class PlayerThread(QThread):
                         self.send_log("物品没拾取完，再次挑战超时")
                         break  # 退出循环
                     # 收起结算评分否则如果还有物品可能识别不到
-                    ret = self.mm.FindPic(901, 159, 969, 195, "减号.bmp", 0.85)
+                    ret = self.mm.FindPic(901, 159, 969, 195, "减号.bmp", 0.95)
                     if ret:
                         x, y = ret[0][1], ret[0][2]
                         self.operator_module.move_to(x, y)
@@ -2905,7 +2908,7 @@ class PlayerThread(QThread):
                         self.send_log("物品没拾取完，再次挑战超时")
                         break  # 退出循环
                     # 收起结算评分否则如果还有物品可能识别不到
-                    ret = self.mm.FindPic(901, 159, 969, 195, "减号.bmp", 0.85)
+                    ret = self.mm.FindPic(901, 159, 969, 195, "减号.bmp", 0.95)
                     if ret:
                         x, y = ret[0][1], ret[0][2]
                         self.operator_module.move_to(x, y)

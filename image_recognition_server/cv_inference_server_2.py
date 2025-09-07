@@ -136,7 +136,7 @@ class ThreadedServer:
 
                     # 计算并打印处理耗时（用于性能监控）
                     latency = (time.time() - start_time) * 1000
-                    print(f"请求处理完成 耗时: {latency:.2f}ms")
+                    print(f"{header['type']} 请求处理完成 耗时: {latency:.2f}ms")
 
         except Exception as e:
             traceback.print_exc()  # 打印异常堆栈（便于调试）
