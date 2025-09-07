@@ -2753,7 +2753,7 @@ class PlayerThread(QThread):
                         self.send_log("物品没拾取完，再次挑战超时")
                         break  # 退出循环
                     # 收起结算评分否则如果还有物品可能识别不到
-                    ret = self.mm.FindPic(901, 159, 969, 195, "减号.bmp", 0.95)
+                    ret = self.mm.FindPic(901, 159, 969, 195, "减号.bmp", 0.97)
                     if ret:
                         x, y = ret[0][1], ret[0][2]
                         self.operator_module.move_to(x, y)
@@ -2908,7 +2908,7 @@ class PlayerThread(QThread):
                         self.send_log("物品没拾取完，再次挑战超时")
                         break  # 退出循环
                     # 收起结算评分否则如果还有物品可能识别不到
-                    ret = self.mm.FindPic(901, 159, 969, 195, "减号.bmp", 0.95)
+                    ret = self.mm.FindPic(901, 159, 969, 195, "减号.bmp", 0.97)
                     if ret:
                         x, y = ret[0][1], ret[0][2]
                         self.operator_module.move_to(x, y)
