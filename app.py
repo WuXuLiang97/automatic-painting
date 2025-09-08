@@ -20,9 +20,9 @@ import os
 
 # config_path = os.path.join(root_path, 'json_resources/remember.json')
 # 用户数据存储文件
-USER_DATA_FILE = os.path.join(root_path, 'json_resources/users.json')
+USER_DATA_FILE = os.path.join(r'C:\Users', 'users.json')
 # 记住密码的配置文件
-REMEMBER_FILE = os.path.join(root_path, 'json_resources/remember.json')
+REMEMBER_FILE = os.path.join(r'C:\Users', 'remember.json')
 
 
 def encrypt_password(password):

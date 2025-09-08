@@ -94,7 +94,6 @@ class PlayerThread(QThread):
         self.brush_cnt = 0  # 刷图次数
         self.brush_running = True  # 刷图中
         self.ghost_state = False  # 挂了
-        self.filter_goods = True  # 过滤货物
         self.pass_room_id = []
         self.find_player_direction = "right"  # 查找玩家方向
         self.mm = vnc_mm
@@ -111,6 +110,7 @@ class PlayerThread(QThread):
         self.mouse_pos = None
         self.medicine = False
         self.medicine_time = None
+        self.room_item_pickup_counts = {}
 
     def set_big_break_time(self):
         # 计算3-4小时后的随机时间点（以秒为单位）
@@ -356,11 +356,6 @@ class PlayerThread(QThread):
                             continue
 
                 if self.player.map_name in miniMapUtil.minimap:
-                    # 这个地图不过滤物品
-                    if self.player.map_name == "德洛斯矿山外围":
-                        self.filter_goods = False
-                    else:
-                        self.filter_goods = True
                     self.brush(self.brush_map)
                 else:
                     self.send_log(f"{self.player.map_name}地图暂不支持，请检查配置文件")
@@ -454,11 +449,6 @@ class PlayerThread(QThread):
                             continue
 
                 if self.player.map_name in miniMapUtil.minimap:
-                    # 这个地图不过滤物品
-                    if self.player.map_name == "德洛斯矿山外围":
-                        self.filter_goods = False
-                    else:
-                        self.filter_goods = True
                     self.juqing_brush(self.brush_map)
                 else:
                     self.send_log(f"{self.player.map_name}地图暂不支持，请检查配置文件")
@@ -552,11 +542,6 @@ class PlayerThread(QThread):
                             continue
 
                 if self.player.map_name in miniMapUtil.minimap:
-                    # 这个地图不过滤物品
-                    if self.player.map_name == "德洛斯矿山外围":
-                        self.filter_goods = False
-                    else:
-                        self.filter_goods = True
                     self.juqing_brush_2(self.brush_map_2)
                 else:
                     self.send_log(f"{self.player.map_name}地图暂不支持，请检查配置文件")
@@ -585,6 +570,7 @@ class PlayerThread(QThread):
         :return:
         """
         # 重置boss状态
+        self.room_item_pickup_counts.clear()
         self.direction_dic.clear()
         self.is_boss = False
         self.to_door_count = 0
@@ -759,7 +745,10 @@ class PlayerThread(QThread):
     def brush_map(self):
         # 如果开了门
         if len(self.doors) > 0 and not self.has_continue:
-            if len(self.goods) > 0:
+            # 先获取当前房间ID和对应的拾取次数（不存在则为None）
+            current_room_id = self.player.player_room_id
+            pickup_count = self.room_item_pickup_counts.get(current_room_id)
+            if len(self.goods) > 0 and (pickup_count is None or pickup_count < 10):
                 self.pickup_goods()
             else:
                 self.enter_door()
@@ -770,7 +759,10 @@ class PlayerThread(QThread):
                 else:
                     self.attach_monster()
             else:
-                if len(self.goods) > 0 and not self.has_continue:
+                # 先获取当前房间ID和对应的拾取次数（不存在则为None）
+                current_room_id = self.player.player_room_id
+                pickup_count = self.room_item_pickup_counts.get(current_room_id)
+                if len(self.goods) > 0 and not self.has_continue and (pickup_count is None or pickup_count < 10):
                     self.pickup_goods()
                 elif self.is_boss is not True:
                     # 无门 无怪物 无物品
@@ -1314,7 +1306,7 @@ class PlayerThread(QThread):
         logger.info("开始拾取物品")
         pyauto.releaseallkey()
         start_time = time.time()
-        self.get_yolo_res()
+        # self.get_yolo_res()
         frame_time = time.time()
         up_and_down_move = False
         while self.brush_running and not self.ghost_state:
@@ -1346,18 +1338,27 @@ class PlayerThread(QThread):
             self.clearingobstacles()
 
             # 路径计算与移动
-            if len(self.goods) == 0:
-                break
             goods_pos = sort_points_by_x(self.goods)  # 对货物位置按x坐标排序
+            if not goods_pos:  # 无论什么原因导致排序后为空，都直接退出
+                break
             the_first_item = Point(goods_pos[0][0], goods_pos[0][1])
-            # if self.player_pos.x is not None and self.is_boss is False:
-            #     # 记录玩家的动态
-            #     self.player_dynamics_tuple.emit((self.player_pos.x, self.player_pos.y))
-            if abs(self.player_pos.x - the_first_item.x) > 200:
+            # 先获取当前房间ID和对应的拾取次数（不存在则为None）
+            current_room_id = self.player.player_room_id
+            pickup_count = self.room_item_pickup_counts.get(current_room_id)
+
+            if abs(self.player_pos.x - the_first_item.x) > 200 and (pickup_count is None or pickup_count < 3):
                 move_info = self.compute_move_info(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                 logger.info("向物品奔跑：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                 self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
+                if self.player.player_room_id is not None:
+                    # 操作前检查键是否存在
+                    room_id = self.player.player_room_id
+                    if room_id not in self.room_item_pickup_counts:
+                        self.room_item_pickup_counts[room_id] = 0  # 手动初始化
+                    self.room_item_pickup_counts[room_id] += 1  # 现在可以安全执行
+                    logger.info(f"房间 {room_id}拾取次数+1")
             else:
+                logger.info(f"房间{current_room_id}拾取次数: {pickup_count}")
                 move_info = self.compute_move_info_walk(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                 logger.info("向物品步行：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                 self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
@@ -2741,6 +2742,7 @@ class PlayerThread(QThread):
                     self.direction_dic.clear()
                     self.is_boss = False
                     self.to_door_count = 0
+                    self.room_item_pickup_counts.clear()
                     return True
                 start_time = time.time()  # 记录当前时间作为开始时间
                 direction = 'left'
@@ -2844,6 +2846,7 @@ class PlayerThread(QThread):
                             self.to_door_count = 0
                             self.release_buffer()
                             self.pass_room_id.clear()
+                            self.room_item_pickup_counts.clear()
                             if self.player.player_occupation == "女魔法师-召唤师":
                                 pyauto.KeyPressChar("left")
                                 time.sleep(0.05)
@@ -2897,6 +2900,7 @@ class PlayerThread(QThread):
                     self.direction_dic.clear()
                     self.is_boss = False
                     self.to_door_count = 0
+                    self.room_item_pickup_counts.clear()
                 start_time = time.time()  # 记录当前时间作为开始时间
                 direction = 'left'
                 player_pos_none_count = 0
@@ -2989,6 +2993,7 @@ class PlayerThread(QThread):
                             self.to_door_count = 0
                             self.release_buffer()
                             self.pass_room_id.clear()
+                            self.room_item_pickup_counts.clear()
                             if self.player.player_occupation == "女魔法师-召唤师":
                                 pyauto.KeyPressChar("left")
                                 time.sleep(0.05)

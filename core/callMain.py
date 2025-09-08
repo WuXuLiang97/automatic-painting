@@ -42,7 +42,7 @@ from root_dir import root_path
 
 # 拼接文件路径
 CONFIG_PATH = os.path.join(root_path, "json_resources/config.json")
-f_program_version = '250824'
+f_program_version = '250908'
 Network = 0
 
 
