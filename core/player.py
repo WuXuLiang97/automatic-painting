@@ -110,7 +110,8 @@ class PlayerThread(QThread):
         self.mouse_pos = None
         self.medicine = False
         self.medicine_time = None
-        self.room_item_pickup_counts = {}
+        self.room_item_pickup_counts = {}  # 记录每个房间拾取次数
+        self.doorOpenState = {}  # 记录每个房间开门状态
 
     def set_big_break_time(self):
         # 计算3-4小时后的随机时间点（以秒为单位）
@@ -571,6 +572,7 @@ class PlayerThread(QThread):
         """
         # 重置boss状态
         self.room_item_pickup_counts.clear()
+        self.doorOpenState.clear()
         self.direction_dic.clear()
         self.is_boss = False
         self.to_door_count = 0
@@ -623,7 +625,7 @@ class PlayerThread(QThread):
                     time.sleep(0.5)
                 time.sleep(2)
                 if self.operator_module.remove_weakness():  # 移除虚弱
-                    _sleep = random.randint(300,360)
+                    _sleep = random.randint(300, 360)
                     self.send_log(f"虚弱，休息{_sleep}秒")
                     time.sleep(_sleep)
                 time.sleep(2)
@@ -1350,18 +1352,106 @@ class PlayerThread(QThread):
                 move_info = self.compute_move_info(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                 logger.info("向物品奔跑：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                 self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
-                if self.player.player_room_id is not None:
-                    # 操作前检查键是否存在
-                    room_id = self.player.player_room_id
-                    if room_id not in self.room_item_pickup_counts:
-                        self.room_item_pickup_counts[room_id] = 0  # 手动初始化
-                    self.room_item_pickup_counts[room_id] += 1  # 现在可以安全执行
-                    logger.info(f"房间 {room_id}拾取次数+1")
+
             else:
-                logger.info(f"房间{current_room_id}拾取次数: {pickup_count}")
                 move_info = self.compute_move_info_walk(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                 logger.info("向物品步行：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                 self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
+            if self.player.player_room_id is not None:
+                # 操作前检查键是否存在
+                room_id = self.player.player_room_id
+                if room_id not in self.room_item_pickup_counts:
+                    self.room_item_pickup_counts[room_id] = 0  # 手动初始化
+                self.room_item_pickup_counts[room_id] += 1  # 现在可以安全执行
+                logger.info(f"房间 {room_id}拾取次数+1")
+                logger.info(f"房间{current_room_id}拾取次数: {pickup_count}")
+            pickup_count = self.room_item_pickup_counts.get(current_room_id)
+            if isinstance(pickup_count, int) and pickup_count > 5:
+                logger.info(f"房间{current_room_id}拾取次数大于或等于5次，重新识别移速")
+                if self.player_pos.x:
+                    # 重新识别移速
+                    self.get_move_speed()
+                    # 实时移动
+                    # # 处理X方向移动：添加按键状态标记
+                    # x_reached = False
+                    # x_pressed_key = None  # 记录当前按下的X方向键（None表示未按下）
+                    # while not x_reached and self.brush_running and not self.ghost_state:
+                    #     # 实时更新状态和目标
+                    #     self.get_yolo_res()
+                    #     if len(self.goods) == 0 or self.player_pos.x is None:
+                    #         break
+                    #     goods_pos = sort_points_by_x(self.goods)
+                    #     if not goods_pos:
+                    #         break
+                    #     the_first_item = Point(goods_pos[0][0], goods_pos[0][1])
+                    #
+                    #     x_diff = abs(self.player_pos.x - the_first_item.x)
+                    #     if x_diff <= 15:
+                    #         x_reached = True
+                    #         break
+                    #
+                    #     # 确定需要按下的方向键
+                    #     target_key = "left" if self.player_pos.x > the_first_item.x else "right"
+                    #
+                    #     # 只有当未按下目标键时，才执行按下操作（避免重复按下）
+                    #     if x_pressed_key != target_key:
+                    #         # 先释放可能按下的另一个方向键（比如从左移切换到右移时）
+                    #         if x_pressed_key is not None:
+                    #             pyauto.KeyUpChar(x_pressed_key)
+                    #         # 按下目标键并更新标记
+                    #         pyauto.KeyDownChar(target_key)
+                    #         x_pressed_key = target_key
+                    #
+                    #     time.sleep(0.01)
+                    #
+                    # # 释放X方向按键（无论是否按下，确保最终释放）
+                    # if x_pressed_key is not None:
+                    #     pyauto.KeyUpChar(x_pressed_key)
+                    #     x_pressed_key = None  # 清空标记
+                    # # 额外保险：释放左右键（防止标记异常时按键未释放）
+                    # pyauto.KeyUpChar("left")
+                    # pyauto.KeyUpChar("right")
+                    #
+                    # # 处理Y方向移动：同理添加按键状态标记
+                    # y_reached = False
+                    # y_pressed_key = None  # 记录当前按下的Y方向键（None表示未按下）
+                    # while not y_reached and self.brush_running and not self.ghost_state:
+                    #     # 实时更新状态和目标
+                    #     self.get_yolo_res()
+                    #     if len(self.goods) == 0 or self.player_pos.x is None:
+                    #         break
+                    #     goods_pos = sort_points_by_x(self.goods)
+                    #     if not goods_pos:
+                    #         break
+                    #     the_first_item = Point(goods_pos[0][0], goods_pos[0][1])
+                    #
+                    #     y_diff = abs(self.player_pos.y - the_first_item.y)
+                    #     if y_diff <= 15:
+                    #         y_reached = True
+                    #         break
+                    #
+                    #     # 确定需要按下的方向键
+                    #     target_key = "up" if self.player_pos.y > the_first_item.y else "down"
+                    #
+                    #     # 只有当未按下目标键时，才执行按下操作
+                    #     if y_pressed_key != target_key:
+                    #         # 先释放可能按下的另一个方向键（比如从上移切换到下移时）
+                    #         if y_pressed_key is not None:
+                    #             pyauto.KeyUpChar(y_pressed_key)
+                    #         # 按下目标键并更新标记
+                    #         pyauto.KeyDownChar(target_key)
+                    #         y_pressed_key = target_key
+                    #
+                    #     time.sleep(0.01)
+                    #
+                    # # 释放Y方向按键
+                    # if y_pressed_key is not None:
+                    #     pyauto.KeyUpChar(y_pressed_key)
+                    #     y_pressed_key = None  # 清空标记
+                    # # 额外保险：释放上下键
+                    # pyauto.KeyUpChar("up")
+                    # pyauto.KeyUpChar("down")  # 修正之前的笔误（原代码是KeyDownChar）
+
             if '金币' in goods_pos[0][2]:
                 pass
             else:
@@ -2183,13 +2273,18 @@ class PlayerThread(QThread):
         # 如果存在门、继续选项或奖励，则清除怪物列表（可能为了优化或逻辑需要）
         # if len(self.goods) > 0 or self.has_continue or self.has_rewards:
         #     self.doors.clear()
+        room_id = self.player.player_room_id
         if gv.banzhuan == 0:
             should_process = (len(self.doors) > 0 or self.has_continue or self.has_rewards)
             if should_process:
                 self.monsters.clear()
+                if room_id not in self.doorOpenState:
+                    self.doorOpenState[room_id] = True  # 记录已开门
         else:
             should_process = (not self.monsters or self.has_continue or self.has_rewards)
-        if should_process:
+        # 调试输出：打印两个条件的值
+        logger.info(f"拾取物品的条件：should_process = {should_process}, self.doorOpenState.get(room_id) = {self.doorOpenState.get(room_id)}")
+        if should_process or self.doorOpenState.get(room_id):
             # 公共的商品处理逻辑
             filtered_goods = []
             for dx, dy, dx1, dy1 in goods:
@@ -2743,6 +2838,7 @@ class PlayerThread(QThread):
                     self.is_boss = False
                     self.to_door_count = 0
                     self.room_item_pickup_counts.clear()
+                    self.doorOpenState.clear()
                     return True
                 start_time = time.time()  # 记录当前时间作为开始时间
                 direction = 'left'
@@ -2847,6 +2943,7 @@ class PlayerThread(QThread):
                             self.release_buffer()
                             self.pass_room_id.clear()
                             self.room_item_pickup_counts.clear()
+                            self.doorOpenState.clear()
                             if self.player.player_occupation == "女魔法师-召唤师":
                                 pyauto.KeyPressChar("left")
                                 time.sleep(0.05)
@@ -2901,6 +2998,7 @@ class PlayerThread(QThread):
                     self.is_boss = False
                     self.to_door_count = 0
                     self.room_item_pickup_counts.clear()
+                    self.doorOpenState.clear()
                 start_time = time.time()  # 记录当前时间作为开始时间
                 direction = 'left'
                 player_pos_none_count = 0
@@ -2994,6 +3092,7 @@ class PlayerThread(QThread):
                             self.release_buffer()
                             self.pass_room_id.clear()
                             self.room_item_pickup_counts.clear()
+                            self.doorOpenState.clear()
                             if self.player.player_occupation == "女魔法师-召唤师":
                                 pyauto.KeyPressChar("left")
                                 time.sleep(0.05)
