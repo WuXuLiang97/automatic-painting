@@ -2860,7 +2860,7 @@ class PlayerThread(QThread):
                     ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
                     if ret:
                         if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
-                            ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp", 0.85, 1)
+                            ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp", 0.85, 1)
                             if ret:
                                 for r in ret:
                                     x, y = r[1], r[2]
