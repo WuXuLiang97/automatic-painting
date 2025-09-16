@@ -66,7 +66,7 @@ class OperatorModule:
                 pyauto.click()
                 time.sleep(0.3)
                 for i in range(7):
-                    pyauto.KeyPressChar('up')
+                    pyauto.keyPressChar('up')
                     time.sleep(0.1)
                 time.sleep(0.2)
                 self.move_to(245, 235)
@@ -90,18 +90,18 @@ class OperatorModule:
         if cur_index != -1:
             # 模拟按键操作
             for _ in range(down_count):
-                pyauto.KeyPressChar('down')
+                pyauto.keyPressChar('down')
                 time.sleep(0.1)  # 假设yjs是一个可以模拟按键的库，time用于添加延迟
             for _ in range(right_count):
-                pyauto.KeyPressChar('right')
+                pyauto.keyPressChar('right')
                 time.sleep(0.1)
-        pyauto.KeyPressChar('space')
+        pyauto.keyPressChar('space')
         time.sleep(2)
         for i in range(5):
             if self.is_celia_room(fun):
                 return True
             else:
-                pyauto.KeyPressChar('space')
+                pyauto.keyPressChar('space')
                 time.sleep(2)
         return False
 
@@ -147,7 +147,7 @@ class OperatorModule:
                     continue
                 ret = self.mm.FindPic(406, 150, 651, 424, "是.bmp", 0.9)
                 if ret:
-                    pyauto.KeyPressChar('esc')
+                    pyauto.keyPressChar('esc')
 
                     time.sleep(0.1)
                     return True
@@ -163,7 +163,7 @@ class OperatorModule:
         try:
             for _ in range(5):
                 if window_name == "个人信息":
-                    pyauto.KeyPressChar('m')
+                    pyauto.keyPressChar('m')
                     time.sleep(0.1)
                     ret = self.mm.FindPic_sleep(239, 39, 548, 135, "个人信息.bmp", 0.9, delta_color=([0, 0, 0], [179, 255, 255]), time_s=0.5, my_sleep=0.1)
                     if ret:
@@ -171,7 +171,7 @@ class OperatorModule:
                         return True
                 if window_name == "选择菜单":
 
-                    pyauto.KeyPressChar('esc')
+                    pyauto.keyPressChar('esc')
                     time.sleep(0.2)
                     if self.is_esc_menu_open():
                         return True
@@ -181,7 +181,7 @@ class OperatorModule:
                         logger.info("已打开世界地图")
                         return True
                     else:
-                        pyauto.KeyPressChar('n')
+                        pyauto.keyPressChar('n')
                         time.sleep(0.1)
 
             return False
@@ -193,11 +193,11 @@ class OperatorModule:
         关闭所有窗口
         :return:
         """
-        pyauto.KeyPressChar('esc')
+        pyauto.keyPressChar('esc')
 
         for i in range(5):
             if self.is_esc_menu_open():
-                pyauto.KeyPressChar('esc')
+                pyauto.keyPressChar('esc')
             else:
                 break
 
@@ -261,7 +261,7 @@ class OperatorModule:
         销售货物
         :return:
         """
-        pyauto.KeyPressChar('a')
+        pyauto.keyPressChar('a')
 
         time.sleep(0.5)
         # pyauto.KeyPressChar('a')
@@ -361,9 +361,9 @@ class OperatorModule:
                     open_status = self.open_window("选择菜单")
                     if not open_status:  # 如果没打开
                         continue
-                    pyauto.KeyPressChar("esc")
+                    pyauto.keyPressChar("esc")
                     time.sleep(0.2)
-                    pyauto.KeyPressChar("esc")
+                    pyauto.keyPressChar("esc")
                     time.sleep(0.2)
                 self.move_to(x, y)
                 time.sleep(0.5)
@@ -372,7 +372,7 @@ class OperatorModule:
                 self.move_to(x + 100, y + 50)
                 time.sleep(0.1)
                 if not self.find_pic_sleep("选择角色.bmp", 344, 468, 733, 549):
-                    pyauto.KeyPressChar("esc")
+                    pyauto.keyPressChar("esc")
                     time.sleep(0.2)
                     continue
             if item_name == "返回城镇":
@@ -391,13 +391,13 @@ class OperatorModule:
             if not open_status:  # 如果没打开
                 continue
             """下面这两个退出是为了更新界面"""
-            pyauto.KeyPressChar("esc")
+            pyauto.keyPressChar("esc")
             time.sleep(0.2)
-            pyauto.KeyPressChar("esc")
+            pyauto.keyPressChar("esc")
             time.sleep(0.2)
             ret = self.mm.FindPic(0, 0, 1067, 600, "金币寄售.bmp", 0.9, drag=None, delta_color=([20, 0, 0], [23, 255, 255]))
             if ret:
-                pyauto.KeyPressChar("esc")
+                pyauto.keyPressChar("esc")
                 time.sleep(0.2)
                 logger.info("退出返回城镇(handle_return_to_town)")
                 return True
@@ -407,26 +407,26 @@ class OperatorModule:
                 time.sleep(0.5)
                 pyauto.click()
                 time.sleep(0.2)
-                pyauto.KeyPressChar("f12")
+                pyauto.keyPressChar("f12")
                 time.sleep(0.2)
                 self.move_to(x + 100, y + 50)
                 time.sleep(0.1)
                 ret = self.mm.FindPic(408, 205, 670, 405, "确认.bmp", 0.9, drag=None)
                 if ret:
-                    pyauto.KeyPressChar("space")
+                    pyauto.keyPressChar("space")
                     time.sleep(0.2)
 
     def handle_transfer_matrix(self):
         if self.is_esc_menu_open():
-            pyauto.KeyPressChar("esc")
+            pyauto.keyPressChar("esc")
             time.sleep(0.5)
         st = time.time()
         while True:
             ret = self.mm.FindPic(463, 0, 607, 43, "世界地图.bmp", 0.9, drag=None)
             if ret:
-                pyauto.KeyPressChar("f2")
+                pyauto.keyPressChar("f2")
                 time.sleep(0.1)
-                pyauto.KeyPressChar("f2")
+                pyauto.keyPressChar("f2")
                 time.sleep(0.5)
                 # 不关这个会卡图
                 # ret = self.mm.FindPic(55, 57, 210, 113, "进行栏位操作.bmp", 0.9, drag=None)
@@ -437,7 +437,7 @@ class OperatorModule:
                 #     time.sleep(0.2)
                 return True
             else:
-                pyauto.KeyPressChar("n")
+                pyauto.keyPressChar("n")
                 time.sleep(0.5)
 
             if time.time() - st >= 10:

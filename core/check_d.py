@@ -41,9 +41,9 @@ class CheckProcess(QThread):
                 ret = self.mm.FindPic(824, 446, 937, 500, "huiguduihua.bmp", 0.9)
                 if ret:
                     logger.info(f"check_d.py：{ret}")
-                    pyauto.KeyPressChar('esc')
+                    pyauto.keyPressChar('esc')
                     time.sleep(0.2)
-                    pyauto.KeyPressChar('space')
+                    pyauto.keyPressChar('space')
                     time.sleep(0.2)
             game_image = self.su.get_game_screenshot()
             ghost_trait_img = game_image[404:464, 474:593]
@@ -57,9 +57,9 @@ class CheckProcess(QThread):
                 continue
             if gv.sy:
                 logger.info(f"check_d.py:深渊人物挂掉了用复活币")
-                pyauto.KeyPressChar('x')
+                pyauto.keyPressChar('x')
                 time.sleep(0.2)
-                pyauto.KeyPressChar('space')
+                pyauto.keyPressChar('space')
                 time.sleep(0.2)
             else:
                 logger.info(f"check_d.py:人物挂掉了")

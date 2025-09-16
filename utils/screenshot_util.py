@@ -190,7 +190,7 @@ class ScreenshotUtil:
                 # logger.info(self.game_hwnd, 0, 0, 1280,  720)
                 if self.VNC is not None:
                     logger.info("VNC截图")
-                    screenshot = self.VNC.capture()[0:600, 0:1067]
+                    screenshot = self.VNC.capture()
                 else:
                     screenshot = capture.Capture(self.game_hwnd, 0, 0, 1067, 600)
                     screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGRA2BGR)

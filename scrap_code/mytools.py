@@ -555,7 +555,7 @@ def move_and_click(x, y, button="left", delay=0.3):
 def dnf_key():
     """执行DNF技能导入操作"""
     try:
-        pyauto.KeyPressChar('k')
+        pyauto.keyPressChar('k')
         time.sleep(0.3)
         move_and_click(277, 150)  # 点菜单
         move_and_click(295, 214)  # 点导入
@@ -563,14 +563,14 @@ def dnf_key():
         time.sleep(0.3)
         move_and_click(641, 424)  # 点确定
         time.sleep(0.3)
-        pyauto.KeyPressChar('space')
+        pyauto.keyPressChar('space')
         time.sleep(0.3)
         move_and_click(641, 424, delay=0.2)  # 点确定
         move_and_click(491, 593)  # 点学习
-        pyauto.KeyPressChar('space')
+        pyauto.keyPressChar('space')
         time.sleep(0.3)
         move_and_click(491, 593)  # 点学习
-        pyauto.KeyPressChar('esc')
+        pyauto.keyPressChar('esc')
         time.sleep(0.3)
         logger.info("技能导入操作完成")
     except Exception as e:
@@ -580,7 +580,7 @@ def dnf_key():
 def dnf_称号():
     """执行DNF称号替换操作"""
     try:
-        pyauto.KeyPressChar('f9')
+        pyauto.keyPressChar('f9')
         time.sleep(0.3)
         move_and_click(711, 598)  # 点替换
         move_and_click(427, 227)  # 点特殊成就

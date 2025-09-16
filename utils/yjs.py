@@ -170,14 +170,21 @@ code_dict = {
 
 
 class YJS():
-    def __init__(self, w, h, move_flag=1, KeyDelay=None):
+    def __init__(self):
+        self.w, self.h = None, None
+        self.move_flag = 1
+        self.KeyDelay = None
+        self.objdll = None
+        self.hdl = None
+
+    def init(self, w, h, vid, pid, move_flag=1, KeyDelay=None):
         # 初始化参数
         self.w, self.h = w, h
         self.move_flag = move_flag
         self.KeyDelay = KeyDelay
 
         # 初始化易建鼠dll
-        VID, PID = 0xC216, 0x0301
+        VID, PID = vid, pid
         __path = os.path.join(root_path, "utils/msdk.dll")
         # __path = os.getcwd() + os.path.sep + "msdk.dll"
         self.objdll = ctypes.windll.LoadLibrary(__path)  # 注册dll
@@ -291,10 +298,10 @@ class YJS():
         self.objdll.M_ReleaseAllKey(self.hdl)
 
 
-# 获取屏幕的宽度和高度
-screen_width = win32api.GetSystemMetrics(0)
-screen_height = win32api.GetSystemMetrics(1)
-yjs = YJS(screen_width, screen_height, 1)
+# # 获取屏幕的宽度和高度
+# screen_width = win32api.GetSystemMetrics(0)
+# screen_height = win32api.GetSystemMetrics(1)
+# yjs = YJS(screen_width, screen_height, 1)
 
 if __name__ == '__main__':
     time.sleep(1)
@@ -304,7 +311,7 @@ if __name__ == '__main__':
     # yjs.GetSn()
     # yjs.MoveTo(500, 500)
     # yjs.KeyPressStr("11111")
-    yjs.KeyPressChar("left")
+    # yjs.KeyPressChar("left")
     # yjs.KeyDownChar("left")
     # time.sleep(1)
     # yjs.MoveTo(1027, 728)

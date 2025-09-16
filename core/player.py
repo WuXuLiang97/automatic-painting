@@ -310,13 +310,13 @@ class PlayerThread(QThread):
                     # 打开金绿盒子
                     self.access_0()
                 if self.player.map_name == "跌宕群岛":
-                    pyauto.KeyPressChar('f2')
+                    pyauto.keyPressChar('f2')
                     time.sleep(0.1)
                     ret = self.mm.FindPic_sleep(185, 401, 350, 482, "每日_跌宕群岛.bmp", 0.9, time_s=1, my_sleep=0.2)
                     if ret:
                         self.player.map_name = "风暴逆鳞普通"
                         self.player.map_level = 3
-                    pyauto.KeyPressChar('esc')
+                    pyauto.keyPressChar('esc')
                     time.sleep(0.1)
                 # 存、取
                 self.access()
@@ -651,13 +651,13 @@ class PlayerThread(QThread):
                     # 打开金绿盒子
                     self.access_0()
                 if self.player.map_name == "跌宕群岛":
-                    pyauto.KeyPressChar('f2')
+                    pyauto.keyPressChar('f2')
                     time.sleep(0.1)
                     ret = self.mm.FindPic_sleep(185, 401, 350, 482, "每日_跌宕群岛.bmp", 0.9, time_s=1, my_sleep=0.2)
                     if ret:
                         self.player.map_name = "风暴逆鳞普通"
                         self.player.map_level = 3
-                    pyauto.KeyPressChar('esc')
+                    pyauto.keyPressChar('esc')
                     time.sleep(0.1)
                 # 存、取
                 self.access()
@@ -918,9 +918,9 @@ class PlayerThread(QThread):
                 time.sleep(0.1)
                 pyauto.click()
                 time.sleep(1)
-                pyauto.KeyPressChar('space')
+                pyauto.keyPressChar('space')
                 time.sleep(0.1)
-                pyauto.KeyPressChar('space')
+                pyauto.keyPressChar('space')
                 time.sleep(0.1)
                 self.operator_module.move_to(870, 593)
                 time.sleep(0.1)
@@ -954,7 +954,7 @@ class PlayerThread(QThread):
                                 # # 输出结果
                                 # logger.info(random_number_str)
                                 for st in random_number_str:
-                                    pyauto.KeyPressChar(st)
+                                    pyauto.keyPressChar(st)
                                     time.sleep(random.uniform(0.1, 0.15))
                                 # keyboard.write(random_number_str, delay=random.uniform(0.1, 0.15))
                                 time.sleep(0.1)
@@ -964,7 +964,7 @@ class PlayerThread(QThread):
                                 pyauto.click()
                                 time.sleep(1)
                                 # 按下esc
-                                pyauto.KeyPressChar("esc")
+                                pyauto.keyPressChar("esc")
                                 time.sleep(0.1)  # # 回车  # pyauto.KeyPressChar("enter")  # time.sleep(0.1)
         else:
             # 点箱子
@@ -998,15 +998,15 @@ class PlayerThread(QThread):
                 time.sleep(0.1)
                 pyauto.click()
                 time.sleep(1)
-                pyauto.KeyPressChar('space')
+                pyauto.keyPressChar('space')
                 time.sleep(0.1)
-                pyauto.KeyPressChar('space')
+                pyauto.keyPressChar('space')
                 time.sleep(0.1)
                 self.operator_module.move_to(870, 593)
                 time.sleep(0.1)
             self.operator_module.open_window("选择菜单")
             # 按下esc
-            pyauto.KeyPressChar("esc")
+            pyauto.keyPressChar("esc")
             time.sleep(0.1)
 
     def enter_door(self):
@@ -1034,73 +1034,93 @@ class PlayerThread(QThread):
             if time.time() - start_time > 30:
                 self.ghost_state = True
                 return
-            if time.time() - start_time > 10 and not attack:
-                attack = True
-                game_img = screenshot_util.get_game_screenshot()  # 获取当前游戏屏幕的截图
-                logger.info("找门超时，随便放个技能把怪清理掉")
-                skill = skill_util.get_release_skill(game_img)  # 获取释放普通怪物的技能
-                if skill == "x":  # 如果技能是"x"（平a）
-                    pyauto.KeyDownChar("x")
-                    time.sleep(random.uniform(0.9, 1.2))
-                    pyauto.KeyUpChar("x")
-                    time.sleep(0.05)
-                    # pyauto.KeyPressChar(skill)
-                    # game_img = screenshot_util.get_game_screenshot()  # 重新截图
-                    continue  # 跳过后续代码，继续下一次循环
-                if skill is not None:  # 如果技能不是None
-                    if self.player.player_occupation == "弓箭手-缪斯" and skill == "q":
-                        pyauto.releaseallkey()
-                        time.sleep(0.05)
-                        if random.random() < 0.5:
-                            if random.random() < 0.5:
-                                pyauto.KeyPressChar("q")
-                                time.sleep(0.1)
-                                pyauto.KeyPressChar("a")
-                                time.sleep(0.1)
-                            else:
-                                pyauto.KeyPressChar("w")
-                                time.sleep(0.1)
-                                pyauto.KeyPressChar("a")
-                                time.sleep(0.1)
-                        else:
-                            if random.random() < 0.5:
-                                pyauto.KeyPressChar("e")
-                                time.sleep(0.1)
-                            else:
-                                pyauto.KeyPressChar("a")
-                                time.sleep(0.1)
-                    else:
-                        logger.info(f"使用技能：{skill}")
-                        pyauto.KeyPressChar(skill)
-                        time.sleep(0.1)
-
-                    start_time_k = time.time()  # 记录当前时间作为开始时间
-                    while self.brush_running and not self.ghost_state:  # 进入内层循环等待技能释放完成
-                        end_time = time.time()  # 记录当前时间作为结束时间
-                        execution_time = end_time - start_time_k  # 计算从开始到当前的执行时间
-                        if execution_time > 5 and skill != "ctrl":  # 如果执行时间超过5秒
-                            logger.info(f"等待技能释放结束超时")
-                            while self.brush_running and not self.ghost_state:
-                                logger.info("技能初始化")
-                                init_status = skill_util.init(screenshot_util.get_game_screenshot(), self.player.player_occupation)
-                                if init_status:
-                                    break
-                            break  # 退出循环
-                        elif execution_time > 10 and skill == "ctrl":
-                            logger.info(f"等待技能释放大招结束超时")
-                            break  # 退出循环
-                        # logger.info('进入内层循环等待技能释放完成')
-                        game_img = screenshot_util.get_game_screenshot()  # 更新截图
-                        # self.get_yolo_res(game_img)  # 使用技能的时候也推理
-                        if self.has_rewards:
-                            break  # 退出内层循环
-                        release_completed = skill_util.skill_status(game_img)
-                        # logger.info("进入内层循环等待技能释放完成,是否已经释放完毕：{}".format(release_completed))
-                        if release_completed:  # 检查技能是否已释放完成
-                            time.sleep(0.2)  # 稍微等待一下以确保技能确实释放完成
-                            break  # 退出内层循环
-                        time.sleep(0.2)  # 注意：这里没有else语句来处理技能为None的情况，因为前面的if skill is not None已经涵盖了这种情况
             self.get_yolo_res()  # enter_door获取YOLO检测结果
+            if time.time() - start_time > 10 and not attack:
+                if self.player_pos is None:
+                    continue
+
+                move_info = self.compute_move_info(self.player_pos, Point(562,392), 0, 0)
+                if move_info is None:
+                    continue
+                # 移动人物
+                self.movement_recorder.left_right_up_down_move_by(move_info, already_move)
+                attack = True
+                for bj in range(2):
+                    if bj == 0:
+                        pyauto.keyDownChar("right")
+                        time.sleep(0.05)
+                        pyauto.keyUpChar("right")
+                        time.sleep(0.05)
+                    else:
+                        pyauto.keyDownChar("left")
+                        time.sleep(0.05)
+                        pyauto.keyUpChar("left")
+                        time.sleep(0.05)
+                    game_img = screenshot_util.get_game_screenshot()  # 获取当前游戏屏幕的截图
+                    logger.info("找门超时，随便放个技能把怪清理掉")
+                    skill = skill_util.get_release_skill(game_img)  # 获取释放普通怪物的技能
+                    if skill == "x":  # 如果技能是"x"（平a）
+                        pyauto.keyDownChar("x")
+                        time.sleep(random.uniform(0.9, 1.2))
+                        pyauto.keyUpChar("x")
+                        time.sleep(0.05)
+                        # pyauto.KeyPressChar(skill)
+                        # game_img = screenshot_util.get_game_screenshot()  # 重新截图
+                        continue  # 跳过后续代码，继续下一次循环
+                    if skill is not None:  # 如果技能不是None
+                        if self.player.player_occupation == "弓箭手-缪斯" and skill == "q":
+                            pyauto.releaseallkey()
+                            time.sleep(0.05)
+                            if random.random() < 0.5:
+                                if random.random() < 0.5:
+                                    pyauto.keyPressChar("q")
+                                    time.sleep(0.1)
+                                    pyauto.keyPressChar("a")
+                                    time.sleep(0.1)
+                                else:
+                                    pyauto.keyPressChar("w")
+                                    time.sleep(0.1)
+                                    pyauto.keyPressChar("a")
+                                    time.sleep(0.1)
+                            else:
+                                if random.random() < 0.5:
+                                    pyauto.keyPressChar("e")
+                                    time.sleep(0.1)
+                                else:
+                                    pyauto.keyPressChar("a")
+                                    time.sleep(0.1)
+                        else:
+                            logger.info(f"使用技能：{skill}")
+                            pyauto.keyPressChar(skill)
+                            time.sleep(0.1)
+
+                        start_time_k = time.time()  # 记录当前时间作为开始时间
+                        while self.brush_running and not self.ghost_state:  # 进入内层循环等待技能释放完成
+                            end_time = time.time()  # 记录当前时间作为结束时间
+                            execution_time = end_time - start_time_k  # 计算从开始到当前的执行时间
+                            if execution_time > 5 and skill != "ctrl":  # 如果执行时间超过5秒
+                                logger.info(f"等待技能释放结束超时")
+                                while self.brush_running and not self.ghost_state:
+                                    logger.info("技能初始化")
+                                    init_status = skill_util.init(screenshot_util.get_game_screenshot(), self.player.player_occupation)
+                                    if init_status:
+                                        break
+                                break  # 退出循环
+                            elif execution_time > 10 and skill == "ctrl":
+                                logger.info(f"等待技能释放大招结束超时")
+                                break  # 退出循环
+                            # logger.info('进入内层循环等待技能释放完成')
+                            game_img = screenshot_util.get_game_screenshot()  # 更新截图
+                            # self.get_yolo_res(game_img)  # 使用技能的时候也推理
+                            if self.has_rewards:
+                                break  # 退出内层循环
+                            release_completed = skill_util.skill_status(game_img)
+                            # logger.info("进入内层循环等待技能释放完成,是否已经释放完毕：{}".format(release_completed))
+                            if release_completed:  # 检查技能是否已释放完成
+                                time.sleep(0.2)  # 稍微等待一下以确保技能确实释放完成
+                                break  # 退出内层循环
+                            time.sleep(0.2)  # 注意：这里没有else语句来处理技能为None的情况，因为前面的if skill is not None已经涵盖了这种情况
+
             # 如果检测到怪物、物品或满足特定条件，则处理
             logger.info("确定门检查怪物数量：{}\t金币数量：{}\t是否有奖励：{}\t是否有继续：{}"
                         "".format(len(self.monsters), len(self.goods), self.has_rewards, self.has_continue))
@@ -1149,9 +1169,15 @@ class PlayerThread(QThread):
                 if abs(self.player_pos.x - door_pos.x) < 40:
                     self.player_left_right_move()
                     continue
+                if 0 < door_pos.x < 150:
+                    door_pos.x = 1
+                elif 1067 > door_pos.x > 1067 - 150:
+                    door_pos.x = 1100
+
                 move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)
                 if move_info is None:
                     continue
+
                 # self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
                 # if self.player_pos is None:
                 #     continue
@@ -1221,6 +1247,10 @@ class PlayerThread(QThread):
                             # else:
                             #     logger.info("人物位置在下面卡住了")
                             #     self.movement_recorder.up_down_move("up", 1)
+
+            if isinstance(door_pos,str)and door_pos =="down":
+                logger.info("门在下面，往下移动1秒")
+                self.movement_recorder.up_down_move("down", 1)
             else:
                 frame1_detections = (self.player_pos.x, self.player_pos.y)
                 if next_direction == "right" and self.player_pos.x > 750:
@@ -1456,7 +1486,7 @@ class PlayerThread(QThread):
                 pass
             else:
                 time.sleep(0.1)
-                pyauto.KeyPressChar("x")
+                pyauto.keyPressChar("x")
                 time.sleep(0.05)
             # move_info = self.compute_move_info(self.player_pos, the_first_item, 0, 0)
             # self.movement_recorder.left_right_up_down_move_by(move_info, False)
@@ -1546,7 +1576,7 @@ class PlayerThread(QThread):
         self.get_yolo_res()
         if len(self.goods) > 0:
             for i in range(random.randint(2, 3)):
-                pyauto.KeyPressChar("x")
+                pyauto.keyPressChar("x")
                 time.sleep(0.05)
         if len(self.goods) < pre_count:
             logger.info(f"成功捡取{pre_count - len(self.goods)}件货物")
@@ -1675,7 +1705,7 @@ class PlayerThread(QThread):
                                         self.medicine = True
                                         logger.info(f"当前血量低于50%使用技能1的药品")
                                         self.send_log(f"当前血量低于50%使用技能1的药品")
-                                        pyauto.KeyPressChar("1")
+                                        pyauto.keyPressChar("1")
                                         time.sleep(0.05)
                                     else:
                                         logger.info(f"在药品冷却时间，等待药品冷却")
@@ -1704,9 +1734,9 @@ class PlayerThread(QThread):
                 logger.info("当前怪物是普通怪物,释放打普通怪物的技能")
                 skill = skill_util.get_release_skill(game_img)  # 获取释放普通怪物的技能
             if skill == "x":  # 如果技能是"x"（平a）
-                pyauto.KeyDownChar("x")
+                pyauto.keyDownChar("x")
                 time.sleep(random.uniform(0.9, 1.2))
-                pyauto.KeyUpChar("x")
+                pyauto.keyUpChar("x")
                 time.sleep(0.05)
                 # pyauto.KeyPressChar(skill)
                 # game_img = screenshot_util.get_game_screenshot()  # 重新截图
@@ -1717,21 +1747,21 @@ class PlayerThread(QThread):
                     time.sleep(0.05)
                     if random.random() < 0.7:
                         if random.random() < 0.7:
-                            pyauto.KeyPressChar("q")
+                            pyauto.keyPressChar("q")
                             time.sleep(0.1)
-                            pyauto.KeyPressChar("a")
+                            pyauto.keyPressChar("a")
                             time.sleep(0.1)
                         else:
-                            pyauto.KeyPressChar("w")
+                            pyauto.keyPressChar("w")
                             time.sleep(0.1)
-                            pyauto.KeyPressChar("s")
+                            pyauto.keyPressChar("s")
                             time.sleep(0.1)
                     else:
-                        pyauto.KeyPressChar("x")
+                        pyauto.keyPressChar("x")
 
                 else:
                     logger.info(f"使用技能：{skill}")
-                    pyauto.KeyPressChar(skill)
+                    pyauto.keyPressChar(skill)
                     time.sleep(0.1)
 
                 start_time = time.time()  # 记录当前时间作为开始时间
@@ -1776,17 +1806,17 @@ class PlayerThread(QThread):
                 for buff in buffs:
                     key = buff.split(",")
                     for k in key:
-                        pyauto.KeyPressChar(k)
+                        pyauto.keyPressChar(k)
                         # yjs.KeyPressChar(k)
                         time.sleep(0.05)
             if self.player.player_occupation == "女魔法师-召唤师":
-                pyauto.KeyPressChar("left")
+                pyauto.keyPressChar("left")
                 time.sleep(0.05)
-                pyauto.KeyPressChar("up")
+                pyauto.keyPressChar("up")
                 time.sleep(0.05)
-                pyauto.KeyPressChar("right")
+                pyauto.keyPressChar("right")
                 time.sleep(0.05)
-                pyauto.KeyPressChar("space")
+                pyauto.keyPressChar("space")
                 time.sleep(0.05)
         self.buffer_is_release = True
 
@@ -1881,7 +1911,7 @@ class PlayerThread(QThread):
             logger.info("没筛选出门，给一个往下的坐标")
             # logger.info("朝下走0.5秒")
             # self.movement_recorder.up_down_move("down", 0.5)
-            return Point(random.randint(500, 650), 530)
+            # return Point(random.randint(500, 650), 530)
         logger.info("结束找门,没有找到门")
         return map_direction  # 如果没有找到符合条件的门，则返回None
 
@@ -1895,7 +1925,7 @@ class PlayerThread(QThread):
     def get_move_speed(self):
         def open_window():
             for _ in range(5):
-                pyauto.KeyPressChar('m')
+                pyauto.keyPressChar('m')
                 time.sleep(0.1)
                 ret_t = self.waiting_for_the_text_to_appear([353, 58, 424, 79], "个人信息", r'[\u4e00-\u9fa5]+', 0.5)
                 logger.info("OCR: " + ret_t)
@@ -2041,13 +2071,24 @@ class PlayerThread(QThread):
             return False
         # 清除障碍
         self.clearingobstacles()
-        monster_points = sort_points_by_x(self.monsters)
+        # 按x坐标排序的怪物列表
+        sorted_monsters_by_x = sorted(self.monsters, key=lambda x: x[0])
+        # 按y坐标排序的怪物列表
+        sorted_monsters_by_y = sorted(self.monsters, key=lambda x: x[1])
+        n = len(sorted_monsters_by_y)
+        if n % 2 == 1:
+            # 奇数长度：取正中间的元素
+            median_y = sorted_monsters_by_y[n // 2][1]
+        else:
+            # 偶数长度：取中间两个元素的平均值
+            median_y = (sorted_monsters_by_y[n // 2 - 1][1] + sorted_monsters_by_y[n // 2][1]) / 2  # 可用//取整数
+        # monster_points = sort_points_by_x(self.monsters)
         # 调用sort_points_by_x函数，根据怪物的x坐标对怪物进行排序，并获取排序后的怪物列表
 
-        monster_point = Point(monster_points[0][0], monster_points[0][1])
+        monster_point = Point(sorted_monsters_by_x[0][0], median_y)
         # 选择排序后的第一个怪物（即x坐标最小的怪物），作为玩家要接近的目标
 
-        max_monster_point = Point(monster_points[-1][0], monster_points[-1][1])
+        max_monster_point = Point(sorted_monsters_by_x[-1][0], median_y)
         # 选择排序后的最后一个怪物（即x坐标最大的怪物），作为玩家要接近的目标
 
         if self.is_first_attack_monster:
@@ -2100,7 +2141,7 @@ class PlayerThread(QThread):
         #     self.player_dynamics_tuple.emit((self.player_pos.x, self.player_pos.y))
         self.movement_recorder.left_right_up_down_move_by(move_info, False)
         # 根据计算出的移动信息，控制玩家移动（不改变高度，仅左右移动）
-        pyauto.KeyPressChar(monster_direction)
+        pyauto.keyPressChar(monster_direction)
         # yjs.KeyPressChar(monster_direction)
         # 发送键盘指令，控制怪物面向玩家
         logger.info("结束向怪物移动")
@@ -2687,9 +2728,9 @@ class PlayerThread(QThread):
             return
         logger.info("回赛丽亚旅馆存金币")
         self.send_log("回赛丽亚旅馆存金币")
-        pyauto.KeyPressChar("delete")
+        pyauto.keyPressChar("delete")
         time.sleep(0.2)
-        pyauto.KeyPressChar("space")
+        pyauto.keyPressChar("space")
         time.sleep(1)
         start_time = time.time()
         r = 1
@@ -2746,13 +2787,13 @@ class PlayerThread(QThread):
             time.sleep(0.1)
             pyauto.click()
             time.sleep(1)
-            pyauto.KeyPressChar('space')
+            pyauto.keyPressChar('space')
             time.sleep(0.1)
-            pyauto.KeyPressChar('space')
+            pyauto.keyPressChar('space')
             time.sleep(0.1)
             self.operator_module.move_to(870, 593)
             time.sleep(0.1)
-            pyauto.KeyPressChar("esc")
+            pyauto.keyPressChar("esc")
             time.sleep(0.1)
 
     def process_pass(self):
@@ -2766,9 +2807,9 @@ class PlayerThread(QThread):
             time.sleep(0.5)
             # 使用random.choice()从字符串中随机选择一个字符
             random_char = random.choice("1234")
-            pyauto.KeyPressChar(random_char)
+            pyauto.keyPressChar(random_char)
             time.sleep(0.1)
-            pyauto.KeyPressChar("esc")
+            pyauto.keyPressChar("esc")
             time.sleep(0.1)
             self.first_press_to_exit = False
             return False
@@ -2777,7 +2818,7 @@ class PlayerThread(QThread):
         if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
             ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
             if ret:
-                ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp", 0.85, 1)
+                ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp", 0.85, 1)
                 if ret:
                     for r in ret:
                         x, y = r[1], r[2]
@@ -2860,7 +2901,7 @@ class PlayerThread(QThread):
                     ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
                     if ret:
                         if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
-                            ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp", 0.85, 1)
+                            ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp", 0.85, 1)
                             if ret:
                                 for r in ret:
                                     x, y = r[1], r[2]
@@ -2869,7 +2910,7 @@ class PlayerThread(QThread):
                                     time.sleep(0.2)
                                     pyauto.click()
                                     time.sleep(0.2)
-                        pyauto.KeyPressChar("esc")
+                        pyauto.keyPressChar("esc")
                         time.sleep(0.2)
                         ret = self.mm.FindPic(357, 200, 456, 239, "我的信息.bmp", 0.85, delta_color=([0, 0, 0], [22, 255, 255]))
                         if ret:
@@ -2880,9 +2921,9 @@ class PlayerThread(QThread):
                             time.sleep(0.1)
                     game_image = screenshot_util.get_game_screenshot()
                     if gv.banzhuan == 0:
-                        pyauto.KeyPressChar("f10")
+                        pyauto.keyPressChar("f10")
                     else:
-                        pyauto.KeyPressChar("space")
+                        pyauto.keyPressChar("space")
                     self.get_yolo_res(game_image)
                     # 再次检查是否还有物品
                     if len(self.goods) > 0:
@@ -2905,9 +2946,9 @@ class PlayerThread(QThread):
                             time.sleep(0.05)  # 暂停0.02秒
                             pyauto.releaseallkey()
                             time.sleep(0.05)
-                            pyauto.KeyDownChar('x')
+                            pyauto.keyDownChar('x')
                             time.sleep(random.uniform(1.5, 2.0))
-                            pyauto.KeyUpChar('x')
+                            pyauto.keyUpChar('x')
                             time.sleep(0.05)
                         else:
                             self.send_log("boss房物品没拾取完，未识别到人物位置")
@@ -2945,13 +2986,13 @@ class PlayerThread(QThread):
                             self.room_item_pickup_counts.clear()
                             self.doorOpenState.clear()
                             if self.player.player_occupation == "女魔法师-召唤师":
-                                pyauto.KeyPressChar("left")
+                                pyauto.keyPressChar("left")
                                 time.sleep(0.05)
-                                pyauto.KeyPressChar("up")
+                                pyauto.keyPressChar("up")
                                 time.sleep(0.05)
-                                pyauto.KeyPressChar("right")
+                                pyauto.keyPressChar("right")
                                 time.sleep(0.05)
-                                pyauto.KeyPressChar("space")
+                                pyauto.keyPressChar("space")
                                 time.sleep(0.05)
                             return True
                 return True
@@ -3018,7 +3059,7 @@ class PlayerThread(QThread):
                         time.sleep(0.1)
                     ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
                     if ret:
-                        ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp", 0.85, 1)
+                        ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp", 0.85, 1)
                         if ret:
                             for r in ret:
                                 x, y = r[1], r[2]
@@ -3027,7 +3068,7 @@ class PlayerThread(QThread):
                                 time.sleep(0.2)
                                 pyauto.click()
                                 time.sleep(0.2)
-                        pyauto.KeyPressChar("esc")
+                        pyauto.keyPressChar("esc")
                         time.sleep(0.2)
                         ret = self.mm.FindPic(357, 200, 456, 239, "我的信息.bmp", 0.85, delta_color=([0, 0, 0], [22, 255, 255]))
                         if ret:
@@ -3037,7 +3078,7 @@ class PlayerThread(QThread):
                             pyauto.click()
                             time.sleep(0.1)
                     game_image = screenshot_util.get_game_screenshot()
-                    pyauto.KeyPressChar("f10")
+                    pyauto.keyPressChar("f10")
                     self.get_yolo_res(game_image)
                     # 再次检查是否还有物品
                     if len(self.goods) > 0:
@@ -3060,9 +3101,9 @@ class PlayerThread(QThread):
                             time.sleep(0.05)  # 暂停0.02秒
                             pyauto.releaseallkey()
                             time.sleep(0.05)
-                            pyauto.KeyDownChar('x')
+                            pyauto.keyDownChar('x')
                             time.sleep(random.uniform(1.5, 2.0))
-                            pyauto.KeyUpChar('x')
+                            pyauto.keyUpChar('x')
                             time.sleep(0.05)
                         else:
                             self.send_log("boss房物品没拾取完，未识别到人物位置")
@@ -3094,13 +3135,13 @@ class PlayerThread(QThread):
                             self.room_item_pickup_counts.clear()
                             self.doorOpenState.clear()
                             if self.player.player_occupation == "女魔法师-召唤师":
-                                pyauto.KeyPressChar("left")
+                                pyauto.keyPressChar("left")
                                 time.sleep(0.05)
-                                pyauto.KeyPressChar("up")
+                                pyauto.keyPressChar("up")
                                 time.sleep(0.05)
-                                pyauto.KeyPressChar("right")
+                                pyauto.keyPressChar("right")
                                 time.sleep(0.05)
-                                pyauto.KeyPressChar("space")
+                                pyauto.keyPressChar("space")
                                 time.sleep(0.05)
                             return True
                 return True
@@ -3114,28 +3155,28 @@ class PlayerThread(QThread):
         logger.info("boss房聚物拾取")
         pyauto.releaseallkey()
         time.sleep(0.05)
-        pyauto.KeyDownChar('up')
+        pyauto.keyDownChar('up')
         time.sleep(0.4)
-        pyauto.KeyUpChar('up')
+        pyauto.keyUpChar('up')
         time.sleep(0.05)
         for i in range(random.randint(3, 5)):
-            pyauto.KeyPressChar('tab')
+            pyauto.keyPressChar('tab')
             time.sleep(0.05)
         time.sleep(random.uniform(1, 1.5))
         start_time = time.time()
         while time.time() - start_time < 2.5:
-            pyauto.KeyDownChar('x')
+            pyauto.keyDownChar('x')
             time.sleep(random.uniform(0.05, 0.07))
-            pyauto.KeyUpChar('x')
+            pyauto.keyUpChar('x')
             time.sleep(random.uniform(0.05, 0.07))
             self.get_yolo_res()
             if not self.goods:
                 break
         self.get_yolo_res()
         if len(self.goods) > 0:
-            pyauto.KeyDownChar('x')
+            pyauto.keyDownChar('x')
             time.sleep(random.uniform(2, 2.5))
-            pyauto.KeyUpChar('x')
+            pyauto.keyUpChar('x')
         time.sleep(0.05)
 
     def sell(self):
@@ -3217,11 +3258,11 @@ class PlayerThread(QThread):
                 # time.sleep(0.05)
                 # pyauto.click()
                 time.sleep(0.1)
-            pyauto.KeyPressChar("enter")
+            pyauto.keyPressChar("enter")
             time.sleep(0.1)
-            pyauto.KeyPressChar("space")
+            pyauto.keyPressChar("space")
             time.sleep(0.1)
-            pyauto.KeyPressChar("esc")
+            pyauto.keyPressChar("esc")
             time.sleep(0.1)
             return
 
@@ -3328,7 +3369,7 @@ class PlayerThread(QThread):
             return shuffled_lst
 
         for _ in range(2):
-            pyauto.KeyPressChar("f2")
+            pyauto.keyPressChar("f2")
             # yjs.KeyPressChar("f2")
             time.sleep(0.2)
             xy_list = [(492, 361), (497, 293), (492, 227)]
@@ -3347,7 +3388,7 @@ class PlayerThread(QThread):
                     time.sleep(0.1)
                     pyauto.click()
 
-                    pyauto.KeyPressChar("space")
+                    pyauto.keyPressChar("space")
                     time.sleep(0.1)
 
                 time.sleep(0.1)
@@ -3364,11 +3405,11 @@ class PlayerThread(QThread):
                 time.sleep(1)
                 break
             else:
-                pyauto.KeyPressChar("esc")
+                pyauto.keyPressChar("esc")
                 time.sleep(0.2)
 
     def access_0(self):
-        pyauto.KeyPressChar("i")
+        pyauto.keyPressChar("i")
         time.sleep(0.2)
         ret = self.mm.FindPic(609, 218, 861, 342, "消耗品.bmp", 0.9, 1)
         if ret:
@@ -3387,7 +3428,7 @@ class PlayerThread(QThread):
                     for _ in range(3):
                         pyauto.click(input_char='right')
                         time.sleep(0.2)
-                        pyauto.KeyPressChar("space")
+                        pyauto.keyPressChar("space")
                         time.sleep(0.2)
 
     def auto_pick(self):
@@ -3443,36 +3484,36 @@ class PlayerThread(QThread):
 
                 time.sleep(0.5)
 
-                pyauto.KeyDownChar("right")
+                pyauto.keyDownChar("right")
                 while self.brush_running:
                     time.sleep(0.1)
                     ret = self.mm.FindPic(963, 536, 1066, 570, "返回城镇.bmp", 0.9)
                     if ret:
-                        pyauto.KeyUpChar("right")
+                        pyauto.keyUpChar("right")
 
                     else:
                         continue
                     ret = self.mm.FindPic(78, 277, 233, 329, "风暴幽城.bmp", 0.9)
                     if ret:
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("shift")
+                        pyauto.keyDownChar("shift")
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("left")
+                        pyauto.keyDownChar("left")
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("left")
+                        pyauto.keyUpChar("left")
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("shift")
+                        pyauto.keyUpChar("shift")
                         time.sleep(0.05)
                         for i in range(1, self.player.map_level, 1):
-                            pyauto.KeyPressChar("right")
+                            pyauto.keyPressChar("right")
                             time.sleep(0.2)
-                        pyauto.KeyPressChar("space")
+                        pyauto.keyPressChar("space")
                         time.sleep(0.1)
-                        pyauto.KeyPressChar("space")
+                        pyauto.keyPressChar("space")
                         time.sleep(0.5)
                         break
                     else:
-                        pyauto.KeyPressChar("down")
+                        pyauto.keyPressChar("down")
                         continue
 
             elif self.player.map_name == "风暴逆鳞普通":
@@ -3482,11 +3523,11 @@ class PlayerThread(QThread):
                     min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                     ret = self.mm.is_colored(min_img, 50)
                     if ret:
-                        pyauto.KeyPressChar("space")
+                        pyauto.keyPressChar("space")
                         time.sleep(0.2)
                         break
                     else:
-                        pyauto.KeyPressChar("up")
+                        pyauto.keyPressChar("up")
                         time.sleep(0.2)
                     if time.time() - stat_time > 10:
                         break
@@ -3512,11 +3553,11 @@ class PlayerThread(QThread):
                             min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                             ret = self.mm.is_colored(min_img, 50)
                             if ret:
-                                pyauto.KeyPressChar("space")
+                                pyauto.keyPressChar("space")
                                 time.sleep(0.2)
                                 break
                             else:
-                                pyauto.KeyPressChar("up")
+                                pyauto.keyPressChar("up")
                                 time.sleep(0.2)
                             if time.time() - stat_time > 10:
                                 break
@@ -3530,15 +3571,15 @@ class PlayerThread(QThread):
                     time.sleep(0.2)
                     pyauto.click()
                     time.sleep(1)
-                    pyauto.KeyPressChar("n")
+                    pyauto.keyPressChar("n")
                     time.sleep(0.1)
                     ret = self.mm.FindPic_sleep(883, 25, 970, 50, "艾尔罗斯.bmp", 0.9, time_s=1, my_sleep=0.1)
                     if ret:
                         break
-                pyauto.KeyDownChar("right")
+                pyauto.keyDownChar("right")
                 ret = self.mm.FindPic_sleep(963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20)
                 if ret:
-                    pyauto.KeyUpChar("right")
+                    pyauto.keyUpChar("right")
                     time.sleep(0.1)
                 while self.brush_running:
                     ret = self.mm.FindPic(78, 277, 233, 329, "风暴逆鳞普通.bmp", 0.9)
@@ -3549,24 +3590,24 @@ class PlayerThread(QThread):
                         matches = re.findall(pattern, text)
                         t = ''.join(matches)
                         if t and int(''.join(t)) < 900:
-                            pyauto.KeyPressChar("f12")
+                            pyauto.keyPressChar("f12")
                             time.sleep(0.05)
                             return 0
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("shift")
+                        pyauto.keyDownChar("shift")
 
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("left")
+                        pyauto.keyDownChar("left")
 
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("left")
+                        pyauto.keyUpChar("left")
 
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("shift")
+                        pyauto.keyUpChar("shift")
                         # yjs.KeyUpChar("shift")
                         time.sleep(0.05)
                         for i in range(1, self.player.map_level, 1):
-                            pyauto.KeyPressChar("right")
+                            pyauto.keyPressChar("right")
 
                             time.sleep(0.2)
                         # 初始化地图
@@ -3592,12 +3633,12 @@ class PlayerThread(QThread):
                                 break
                             else:
                                 self.send_log("未检测到在图中,等待...")
-                                pyauto.KeyPressChar("space")
+                                pyauto.keyPressChar("space")
                                 time.sleep(0.5)
                                 continue
                         break
                     else:
-                        pyauto.KeyPressChar("down")
+                        pyauto.keyPressChar("down")
                         time.sleep(0.1)
                         continue
 
@@ -3611,40 +3652,40 @@ class PlayerThread(QThread):
 
                 time.sleep(0.5)
 
-                pyauto.KeyDownChar("right")
+                pyauto.keyDownChar("right")
                 # yjs.KeyDownChar("right")
                 while self.brush_running:
                     time.sleep(0.1)
                     ret = self.mm.FindPic(963, 536, 1066, 570, "返回城镇.bmp", 0.9)
                     if ret:
-                        pyauto.KeyUpChar("right")
+                        pyauto.keyUpChar("right")
 
                     else:
                         continue
                     ret = self.mm.FindPic(78, 277, 233, 329, "流雨瀑布.bmp", 0.9)
                     if ret:
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("shift")
+                        pyauto.keyDownChar("shift")
 
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("left")
+                        pyauto.keyDownChar("left")
 
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("left")
+                        pyauto.keyUpChar("left")
 
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("shift")
+                        pyauto.keyUpChar("shift")
                         time.sleep(0.05)
                         for i in range(1, self.player.map_level, 1):
-                            pyauto.KeyPressChar("right")
+                            pyauto.keyPressChar("right")
 
                             time.sleep(0.2)
-                        pyauto.KeyPressChar("space")
+                        pyauto.keyPressChar("space")
 
                         time.sleep(0.5)
                         break
                     else:
-                        pyauto.KeyPressChar("down")
+                        pyauto.keyPressChar("down")
                         time.sleep(0.1)
                         continue
 
@@ -3658,39 +3699,39 @@ class PlayerThread(QThread):
 
                 time.sleep(0.5)
 
-                pyauto.KeyDownChar("right")
+                pyauto.keyDownChar("right")
                 while self.brush_running:
                     time.sleep(0.1)
                     ret = self.mm.FindPic(963, 536, 1066, 570, "返回城镇.bmp", 0.9)
                     if ret:
-                        pyauto.KeyUpChar("right")
+                        pyauto.keyUpChar("right")
 
                     else:
                         continue
                     ret = self.mm.FindPic(78, 277, 233, 329, "海伯伦的预言所.bmp", 0.9)
                     if ret:
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("shift")
+                        pyauto.keyDownChar("shift")
 
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("left")
+                        pyauto.keyDownChar("left")
 
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("left")
+                        pyauto.keyUpChar("left")
 
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("shift")
+                        pyauto.keyUpChar("shift")
                         time.sleep(0.05)
                         for i in range(1, self.player.map_level, 1):
-                            pyauto.KeyPressChar("right")
+                            pyauto.keyPressChar("right")
 
                             time.sleep(0.2)
-                        pyauto.KeyPressChar("space")
+                        pyauto.keyPressChar("space")
 
                         time.sleep(0.5)
                         break
                     else:
-                        pyauto.KeyPressChar("down")
+                        pyauto.keyPressChar("down")
                         time.sleep(0.1)
                         continue
 
@@ -3702,11 +3743,11 @@ class PlayerThread(QThread):
 
                     ret = self.mm.is_colored(min_img, 50)
                     if ret:
-                        pyauto.KeyPressChar("space")
+                        pyauto.keyPressChar("space")
                         time.sleep(0.2)
                         break
                     else:
-                        pyauto.KeyPressChar("up")
+                        pyauto.keyPressChar("up")
                         time.sleep(0.2)
                     if time.time() - stat_time > 10:
                         break
@@ -3732,11 +3773,11 @@ class PlayerThread(QThread):
                             min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                             ret = self.mm.is_colored(min_img, 50)
                             if ret:
-                                pyauto.KeyPressChar("space")
+                                pyauto.keyPressChar("space")
                                 time.sleep(0.2)
                                 break
                             else:
-                                pyauto.KeyPressChar("up")
+                                pyauto.keyPressChar("up")
                                 time.sleep(0.2)
                             if time.time() - stat_time > 10:
                                 break
@@ -3755,14 +3796,14 @@ class PlayerThread(QThread):
                     ret = self.mm.FindPic_sleep(883, 25, 970, 50, "红矿村.bmp", 0.9, time_s=1, my_sleep=0.1)
                     if ret:
                         break
-                pyauto.KeyDownChar("right")
+                pyauto.keyDownChar("right")
                 time.sleep(random.uniform(0.8, 1.1))
-                pyauto.KeyUpChar("right")
+                pyauto.keyUpChar("right")
                 time.sleep(0.1)
-                pyauto.KeyDownChar("left")
+                pyauto.keyDownChar("left")
                 ret = self.mm.FindPic_sleep(963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20)
                 if ret:
-                    pyauto.KeyUpChar("left")
+                    pyauto.keyUpChar("left")
                     time.sleep(0.1)
                 while self.brush_running:
                     ret = self.mm.FindPic(78, 277, 233, 329, "深渊.bmp", 0.9)
@@ -3828,12 +3869,12 @@ class PlayerThread(QThread):
                                 break
                             else:
                                 self.send_log("深渊图检测2——未检测到在图中,等待...")
-                                pyauto.KeyPressChar("space")
+                                pyauto.keyPressChar("space")
                                 time.sleep(0.5)
                                 continue
                         break
                     else:
-                        pyauto.KeyPressChar("down")
+                        pyauto.keyPressChar("down")
                         time.sleep(0.2)
                         continue
             elif self.player.map_name == "跌宕群岛":
@@ -3843,11 +3884,11 @@ class PlayerThread(QThread):
                     min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                     ret = self.mm.is_colored(min_img, 50)
                     if ret:
-                        pyauto.KeyPressChar("space")
+                        pyauto.keyPressChar("space")
                         time.sleep(0.2)
                         break
                     else:
-                        pyauto.KeyPressChar("up")
+                        pyauto.keyPressChar("up")
                         time.sleep(0.2)
                     if time.time() - stat_time > 10:
                         break
@@ -3873,11 +3914,11 @@ class PlayerThread(QThread):
                             min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                             ret = self.mm.is_colored(min_img, 50)
                             if ret:
-                                pyauto.KeyPressChar("space")
+                                pyauto.keyPressChar("space")
                                 time.sleep(0.2)
                                 break
                             else:
-                                pyauto.KeyPressChar("up")
+                                pyauto.keyPressChar("up")
                                 time.sleep(0.2)
                             if time.time() - stat_time > 10:
                                 break
@@ -3896,34 +3937,34 @@ class PlayerThread(QThread):
                     ret = self.mm.FindPic_sleep(883, 25, 970, 50, "红矿村.bmp", 0.9, time_s=1, my_sleep=0.1)
                     if ret:
                         break
-                pyauto.KeyDownChar("right")
+                pyauto.keyDownChar("right")
                 time.sleep(random.uniform(0.8, 1.1))
-                pyauto.KeyUpChar("right")
+                pyauto.keyUpChar("right")
                 time.sleep(0.1)
-                pyauto.KeyDownChar("left")
+                pyauto.keyDownChar("left")
                 ret = self.mm.FindPic_sleep(963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20)
                 if ret:
-                    pyauto.KeyUpChar("left")
+                    pyauto.keyUpChar("left")
                     time.sleep(0.1)
                 while self.brush_running:
                     ret = self.mm.FindPic(78, 277, 233, 329, "跌宕群岛.bmp", 0.9)
                     if ret:
 
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("shift")
+                        pyauto.keyDownChar("shift")
 
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("left")
+                        pyauto.keyDownChar("left")
 
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("left")
+                        pyauto.keyUpChar("left")
 
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("shift")
+                        pyauto.keyUpChar("shift")
                         # yjs.KeyUpChar("shift")
                         time.sleep(0.05)
                         for i in range(1, self.player.map_level, 1):
-                            pyauto.KeyPressChar("right")
+                            pyauto.keyPressChar("right")
 
                             time.sleep(0.2)
                         # 初始化地图
@@ -3949,12 +3990,12 @@ class PlayerThread(QThread):
                                 break
                             else:
                                 self.send_log("未检测到在图中,等待...")
-                                pyauto.KeyPressChar("space")
+                                pyauto.keyPressChar("space")
                                 time.sleep(0.5)
                                 continue
                         break
                     else:
-                        pyauto.KeyPressChar("down")
+                        pyauto.keyPressChar("down")
                         time.sleep(0.2)
                         continue
             elif self.player.map_name == "妖气追踪":
@@ -3964,11 +4005,11 @@ class PlayerThread(QThread):
                     min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                     ret = self.mm.is_colored(min_img, 50)
                     if ret:
-                        pyauto.KeyPressChar("space")
+                        pyauto.keyPressChar("space")
                         time.sleep(0.2)
                         break
                     else:
-                        pyauto.KeyPressChar("up")
+                        pyauto.keyPressChar("up")
                         time.sleep(0.2)
                     if time.time() - stat_time > 10:
                         break
@@ -3994,11 +4035,11 @@ class PlayerThread(QThread):
                             min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                             ret = self.mm.is_colored(min_img, 50)
                             if ret:
-                                pyauto.KeyPressChar("space")
+                                pyauto.keyPressChar("space")
                                 time.sleep(0.2)
                                 break
                             else:
-                                pyauto.KeyPressChar("up")
+                                pyauto.keyPressChar("up")
                                 time.sleep(0.2)
                             if time.time() - stat_time > 10:
                                 break
@@ -4017,34 +4058,34 @@ class PlayerThread(QThread):
                     ret = self.mm.FindPic_sleep(883, 25, 970, 50, "红矿村.bmp", 0.9, time_s=1, my_sleep=0.1)
                     if ret:
                         break
-                pyauto.KeyDownChar("right")
+                pyauto.keyDownChar("right")
                 time.sleep(random.uniform(0.8, 1.1))
-                pyauto.KeyUpChar("right")
+                pyauto.keyUpChar("right")
                 time.sleep(0.1)
-                pyauto.KeyDownChar("left")
+                pyauto.keyDownChar("left")
                 ret = self.mm.FindPic_sleep(963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20)
                 if ret:
-                    pyauto.KeyUpChar("left")
+                    pyauto.keyUpChar("left")
                     time.sleep(0.1)
                 while self.brush_running:
                     ret = self.mm.FindPic(78, 277, 233, 329, "妖气追踪.bmp", 0.9)
                     if ret:
 
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("shift")
+                        pyauto.keyDownChar("shift")
 
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("left")
+                        pyauto.keyDownChar("left")
 
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("left")
+                        pyauto.keyUpChar("left")
 
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("shift")
+                        pyauto.keyUpChar("shift")
                         # yjs.KeyUpChar("shift")
                         time.sleep(0.05)
                         for i in range(1, self.player.map_level, 1):
-                            pyauto.KeyPressChar("right")
+                            pyauto.keyPressChar("right")
 
                             time.sleep(0.2)
                         # 初始化地图
@@ -4070,12 +4111,12 @@ class PlayerThread(QThread):
                                 break
                             else:
                                 self.send_log("未检测到在图中,等待...")
-                                pyauto.KeyPressChar("space")
+                                pyauto.keyPressChar("space")
                                 time.sleep(0.5)
                                 continue
                         break
                     else:
-                        pyauto.KeyPressChar("down")
+                        pyauto.keyPressChar("down")
                         time.sleep(0.2)
                         continue
             if self.player.map_name == "德洛斯矿山外围":
@@ -4085,11 +4126,11 @@ class PlayerThread(QThread):
                     min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                     ret = self.mm.is_colored(min_img, 50)
                     if ret:
-                        pyauto.KeyPressChar("space")
+                        pyauto.keyPressChar("space")
                         time.sleep(0.2)
                         break
                     else:
-                        pyauto.KeyPressChar("up")
+                        pyauto.keyPressChar("up")
                         time.sleep(0.2)
                     if time.time() - stat_time > 10:
                         break
@@ -4112,11 +4153,11 @@ class PlayerThread(QThread):
                             min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                             ret = self.mm.is_colored(min_img, 50)
                             if ret:
-                                pyauto.KeyPressChar("space")
+                                pyauto.keyPressChar("space")
                                 time.sleep(0.2)
                                 break
                             else:
-                                pyauto.KeyPressChar("up")
+                                pyauto.keyPressChar("up")
                                 time.sleep(0.2)
                             if time.time() - stat_time > 10:
                                 break
@@ -4135,16 +4176,16 @@ class PlayerThread(QThread):
                     time.sleep(0.1)
                     pyauto.click()
                     time.sleep(3)
-                    pyauto.KeyPressChar("n")
+                    pyauto.keyPressChar("n")
                     # ret = self.waiting_for_the_text_to_appear([337, 124, 488, 179], '分解修理机', r'[\u4e00-\u9fa5]+', 20)
                     ret = self.mm.FindPic_sleep(264, 85, 540, 218, "分解修理机.bmp", 0.9, time_s=20, delta_color=([15, 0, 0], [27, 255, 255]))
                     if ret:
                         logger.info(ret)
                         break
-                pyauto.KeyDownChar("right")
+                pyauto.keyDownChar("right")
                 ret = self.mm.FindPic_sleep(963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20)
                 if ret:
-                    pyauto.KeyUpChar("right")
+                    pyauto.keyUpChar("right")
                     time.sleep(0.1)
                 while self.brush_running:
                     time.sleep(0.1)
@@ -4152,24 +4193,24 @@ class PlayerThread(QThread):
                     # ret = self.waiting_for_the_text_to_appear([76, 276, 222, 312], '德洛斯矿山外围', r'[\u4e00-\u9fa5]+', 0.3)
                     if ret:
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("shift")
+                        pyauto.keyDownChar("shift")
                         time.sleep(0.05)
-                        pyauto.KeyDownChar("left")
+                        pyauto.keyDownChar("left")
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("left")
+                        pyauto.keyUpChar("left")
                         time.sleep(0.05)
-                        pyauto.KeyUpChar("shift")
+                        pyauto.keyUpChar("shift")
                         time.sleep(1)
                         for i in range(1, self.player.map_level, 1):
-                            pyauto.KeyPressChar("right")
+                            pyauto.keyPressChar("right")
                             time.sleep(0.2)
-                        pyauto.KeyPressChar("space")
+                        pyauto.keyPressChar("space")
                         time.sleep(0.1)
-                        pyauto.KeyPressChar("space")
+                        pyauto.keyPressChar("space")
                         time.sleep(0.5)
                         break
                     else:
-                        pyauto.KeyPressChar("down")
+                        pyauto.keyPressChar("down")
                         time.sleep(0.1)
                         continue
 

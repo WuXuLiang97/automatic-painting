@@ -5,6 +5,7 @@ import os.path
 import random
 # import pprint
 import string
+import sys
 import threading
 import time
 import traceback
@@ -30,13 +31,14 @@ from core.callSettingsGroup import SettingsGroupWindow
 from utils.screenshot_util import screenshot_util
 # from utils.yjs import yjs
 from utils.cross_control import pyauto
-from view.main import Ui_MainWindow
+from view.main0914 import Ui_MainWindow
 from core.device_identity_client import send_request, ret_data
 from core.device_time_utils import get_identity_mark
 # from core.window_position import WindowPositionUpdater
 from core import global_variable as gv
 from utils.api import test_view_subgroups, test_view_subgroup_config
 from core.vnc import VNC, api
+from core.capturecardconnection import CaptureCardConnection
 from utils.cv_recognizer import vnc_mm
 from root_dir import root_path
 
@@ -50,12 +52,16 @@ def get_gui_config():
     """获取GUI配置"""
     # 默认配置
     default_config = {
-        "ip": "127.0.0.1",
+        "ip": "192.168.1.1",
         "yjs": 0,
         "banzhuan": 0,
         "vmware_ip": "127.0.0.1",
         "vmware_prot": "5900",
         "vmware_password": "",
+        "tab_index": 0,
+        'vid': '',
+        'pid': '',
+        'identifier': "0",
     }
 
     try:
@@ -122,6 +128,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.checkProcess = None
         self.playerThread = None
         self.VNC = None
+        self.identifier = None
         self.heartbeat_socket = None
         self.heartbeat_thread = None
         self.server_ip = None
@@ -137,7 +144,15 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.lineEdit_3.textChanged.connect(self.on_text_changed)
         self.lineEdit_4.textChanged.connect(self.on_text_changed)
         self.lineEdit_5.textChanged.connect(self.on_text_changed)
+        self.lineEdit_10.textChanged.connect(self.on_text_changed)
+        self.lineEdit_9.textChanged.connect(self.on_text_changed)
+        # self.lineEdit_8.textChanged.connect(self.on_text_changed)
+        self.comboBox.addItems(self.list_capture_devices())
+
+        self.tabWidget.currentChanged.connect(self.on_tab_changed)
+        self.comboBox.currentTextChanged.connect(self.on_combobox_changed)
         self.startBtn_2.clicked.connect(self.connect_to_vnc)
+        self.startBtn_4.clicked.connect(self.connect_to_vnc)
         self.helpBtn.clicked.connect(self.open_local_webpage)
         # self.ComboBox_2.currentIndexChanged.connect(self.on_combobox_changed)
         self.ComboBox_3.currentIndexChanged.connect(self.on_combobox_changed)
@@ -164,8 +179,10 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.role_settings_window = RoleSettingsWindow(dic=self.dic)  # 初始化角色设置窗口
 
         # 连接设置组窗口的信号
-        self.settings_group_window.send_update_settings_group_signal.connect(self.role_settings_window.receive_update_settings_group_signal)  # 连接设置组更新信号到角色设置窗口
-        self.settings_group_window.send_update_settings_group_signal.connect(self.receive_update_settings_group_signal)  # 连接设置组更新信号到当前窗口的接收方法
+        self.settings_group_window.send_update_settings_group_signal.connect(
+            self.role_settings_window.receive_update_settings_group_signal)  # 连接设置组更新信号到角色设置窗口
+        self.settings_group_window.send_update_settings_group_signal.connect(
+            self.receive_update_settings_group_signal)  # 连接设置组更新信号到当前窗口的接收方法
 
         # 连接下拉框激活信号到更新角色表数据的方法
         self.settingsGroupComboBox.activated.connect(self.update_roles_table_data)  # 假设settingsGroupComboBox是UI中的某个下拉框
@@ -219,19 +236,47 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
         # 调用方法更新角色表格数据，展示当前的角色信息
         self.update_roles_table_data()
+
         gui_config = get_gui_config()
+
+        # 获取保存的索引（默认值为0，即第一个标签页）
+        saved_index = gui_config.get("tab_index", 0)
+
+        # 检查索引是否有效（必须在标签页数量范围内）
+        tab_count = self.tabWidget.count()
+        if 0 <= saved_index < tab_count:
+            # 通过索引切换标签页
+            self.tabWidget.setCurrentIndex(saved_index)
+            gv.tab_index = gui_config['tab_index']
+            print(f"已恢复到标签页索引：{saved_index}")
+
         # 初始化ui的主机地址
         self.lineEdit.setText(str(gui_config['ip']))
         gv.server_ip = gui_config['ip']
+
         # 初始化ui的虚拟机ip地址
         self.lineEdit_3.setText(str(gui_config['vmware_ip']))
         gv.vmware_ip = gui_config['vmware_ip']
+
         # 初始化ui的虚拟机端口
         self.lineEdit_4.setText(str(gui_config['vmware_prot']))
         gv.vmware_prot = gui_config['vmware_prot']
+
         # 初始化ui的虚拟机vnc密码
         self.lineEdit_5.setText(str(gui_config['vmware_password']))
         gv.vmware_password = gui_config['vmware_password']
+
+        # 初始化ui的主控vid
+        self.lineEdit_10.setText(str(gui_config['vid']))
+        gv.vid = gui_config['vid']
+
+        # 初始化ui的主控pid
+        self.lineEdit_9.setText(str(gui_config['pid']))
+        gv.pid = gui_config['pid']
+
+        # # 初始化ui的主控采集卡编号
+        # self.lineEdit_8.setText(str(gui_config['identifier']))
+        # gv.identifier = gui_config['identifier']
 
         # 初始化ui的主机地址
         # self.ComboBox_2.setCurrentIndex(int(gui_config['yjs']))
@@ -257,7 +302,8 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 return_data_1 = ret_data(ret)
                 if return_data_1.response == 200 or return_data_1.response == 201:
                     if return_data_1.response == 201:
-                        self.update_log(return_data_1.msg)  # my_print('亲爱的用户们：\n\t我们软件已推出新版本，增加了新功能并优化了现有功能。为方便您更新，我们已在Q群提供更新文件。请您自行进入Q群下载并安装新版本。如遇问题，请随时在Q群反馈。感谢您的支持！\n祝您使用愉快')
+                        self.update_log(
+                            return_data_1.msg)  # my_print('亲爱的用户们：\n\t我们软件已推出新版本，增加了新功能并优化了现有功能。为方便您更新，我们已在Q群提供更新文件。请您自行进入Q群下载并安装新版本。如遇问题，请随时在Q群反馈。感谢您的支持！\n祝您使用愉快')
 
                     else:
                         self.update_log(f'已连接到网络')
@@ -280,6 +326,22 @@ class AppMain(QMainWindow, Ui_MainWindow):
             self.start_clicked()
         elif key == "stop":
             self.stop_clicked()
+
+    # 槽函数1：标签页切换（参数为新标签的索引）
+    def on_tab_changed(self, index):
+        tab_text = ''
+        with open(CONFIG_PATH, 'r') as file:
+            settings = json.load(file)
+        sender_obj = self.sender()  # 使用 self.sender() 获取发送者
+        if sender_obj == self.tabWidget:
+            tab_text = index  # 获取标签页标题
+            print(f"已切换到：{tab_text}（索引：{index}）")
+            gv.tab_index = tab_text
+            settings["tab_index"] = tab_text
+            if index == 1:
+                self.comboBox.addItems(self.list_capture_devices())
+        with open(CONFIG_PATH, 'w') as file:
+            json.dump(settings, file, indent=4)
 
     def on_text_changed(self):
         """
@@ -307,6 +369,18 @@ class AppMain(QMainWindow, Ui_MainWindow):
             text = self.lineEdit_5.text()  # 读取 self.lineEdit 的内容
             gv.vmware_ip = text
             settings["vmware_password"] = text
+        if sender_obj == self.lineEdit_10:
+            text = self.lineEdit_10.text()  # 读取 self.lineEdit 的内容
+            gv.vid = text
+            settings["vid"] = text
+        if sender_obj == self.lineEdit_9:
+            text = self.lineEdit_9.text()  # 读取 self.lineEdit 的内容
+            gv.pid = text
+            settings["pid"] = text
+        # if sender_obj == self.lineEdit_8:
+        #     text = self.lineEdit_8.text()  # 读取 self.lineEdit 的内容
+        #     gv.identifier = text
+        #     settings["identifier"] = text
         with open(CONFIG_PATH, 'w') as file:
             json.dump(settings, file, indent=4)
 
@@ -328,6 +402,10 @@ class AppMain(QMainWindow, Ui_MainWindow):
             currentIndex = self.ComboBox_3.currentIndex()
             settings['banzhuan'] = currentIndex
             gv.banzhuan = currentIndex
+        elif sender_obj == self.comboBox:
+            currentIndex = self.comboBox.currentText()
+            settings['identifier'] = currentIndex
+            gv.identifier = currentIndex
         with open(CONFIG_PATH, 'w') as file:
             json.dump(settings, file, indent=4)
 
@@ -664,42 +742,108 @@ class AppMain(QMainWindow, Ui_MainWindow):
             json.dump(settings, file, indent=4)
 
     def connect_to_vnc(self):
-        if self.VNC is not None:
-            QMessageBox.information(self, "提示", f"连接状态：已连接成功")
-            return
-        image = None
-        try:
-            vm_ip = self.lineEdit_3.text().strip()
-            vm_port = self.lineEdit_4.text().strip()
-            vm_pass = self.lineEdit_5.text().strip()
-
-            if not vm_ip or not vm_port:
-                QMessageBox.warning(self, "错误", "IP和端口不能为空")
+        sender_obj = self.sender()
+        if sender_obj == self.startBtn_2:
+            if self.VNC is not None:
+                QMessageBox.information(self, "提示", f"vnc连接状态：已连接成功")
                 return
+            image = None
+            try:
+                vm_ip = self.lineEdit_3.text().strip()
+                vm_port = self.lineEdit_4.text().strip()
+                vm_pass = self.lineEdit_5.text().strip()
+                print(vm_pass)
 
-            self.VNC = VNC(vm_ip, vm_port, vm_pass)
+                if not vm_ip or not vm_port:
+                    QMessageBox.warning(self, "错误", "IP和端口不能为空")
+                    return
 
-            # 截图
-            image = self.VNC.capture()
-            # 更新共享对象
-            pyauto.VNC = self.VNC
-            vnc_mm.VNC = self.VNC
-            screenshot_util.VNC = self.VNC
+                self.VNC = VNC(vm_ip, vm_port, vm_pass)
 
-            # 保存配置
-            self.save_vnc_config(vm_ip, vm_port, vm_pass)
-        except Exception as e:
-            self.cleanup_vnc()
-            print("connect_to_vnc 连接失败:", e)
+                # 截图
+                image = self.VNC.capture()
+                # 更新共享对象
+                pyauto.VNC = self.VNC
+                pyauto.pyauto_init(1, 0.05)
+                vnc_mm.VNC = self.VNC
+                screenshot_util.VNC = self.VNC
 
-        if isinstance(image, np.ndarray):
-            self.label_7.setText("已连接成功")
-            self.label_7.setStyleSheet("color: green;")  # 设置文字为红色
-        else:
-            self.VNC = None
-            self.label_7.setText("状态：连接失败")
-            self.label_7.setStyleSheet("color: red;")  # 设置文字为红色
-            QMessageBox.information(self, "警告", f"连接失败，请检查ip、端口和密码！")
+                # 保存配置
+                self.save_vnc_config(vm_ip, vm_port, vm_pass)
+            except Exception as e:
+                self.cleanup_vnc()
+                print("connect_to_vnc 连接失败:", e)
+
+            if isinstance(image, np.ndarray):
+                self.label_7.setText("已连接成功")
+                self.label_7.setStyleSheet("color: green;")  # 设置文字为红色
+            else:
+                self.VNC = None
+                self.label_7.setText("状态：连接失败")
+                self.label_7.setStyleSheet("color: red;")  # 设置文字为红色
+                QMessageBox.information(self, "警告", f"连接失败，请检查ip、端口和密码！")
+        elif sender_obj == self.startBtn_4:
+            if self.identifier.connection_status:
+                QMessageBox.information(self, "提示", f"采集卡连接状态：已连接成功")
+                return
+            image = None
+            try:
+                vid_str = self.lineEdit_10.text().strip()
+                pid_str = self.lineEdit_9.text().strip()
+                # identifier = int(self.lineEdit_8.text().strip())
+                identifier = self.comboBox.currentText()
+                print(f"identifier:{identifier}")
+                if not vid_str or not pid_str or not identifier:
+                    QMessageBox.warning(self, "错误", "主控VID和主控PID、采集卡不能为空")
+                    return
+
+                # 转换vid和pid
+                def convert_to_int(s):
+                    if s.startswith('0x') or s.startswith('0X'):
+                        # 去掉前缀，然后按16进制转换为整数，再转换为十六进制字符串（带0x前缀）
+                        return hex(int(s[2:], 16))
+                    else:
+                        # 按10进制转换为整数，再转换为十六进制字符串
+                        return hex(int(s))
+
+                vid = convert_to_int(vid_str)
+                pid = convert_to_int(pid_str)
+
+                self.identifier.connect(int(identifier), (1920, 1080))
+
+                print(f"self.identifier:{self.identifier}")
+
+                # 截图
+                image = self.identifier.capture()
+                # 更新共享对象
+                pyauto.VNC = None
+                pyauto.pyauto_init(2, 0.02)
+                # 键鼠盒子初始化
+                pyauto.init(1920, 1080, vid, pid)
+                vnc_mm.VNC = self.identifier
+                screenshot_util.VNC = self.identifier
+                # 保存配置
+                self.save_capturecardconnection_config(vid, pid, identifier)
+            except Exception as e:
+                self.cleanup_vnc()
+                print("connect_to_vnc 连接失败:", e)
+
+            if isinstance(image, np.ndarray):
+                self.label_15.setText("已连接成功")
+                self.label_15.setStyleSheet("color: green;")  # 设置文字为红色
+            else:
+                self.VNC = None
+                self.label_15.setText("状态：连接失败")
+                self.label_15.setStyleSheet("color: red;")  # 设置文字为红色
+                QMessageBox.information(self, "警告", f"连接失败，请检查ip、端口和密码！")
+
+    def list_capture_devices(self):
+        """
+        列出所有可用的视频采集设备
+        """
+        # 创建采集卡连接实例
+        self.identifier = CaptureCardConnection()
+        return self.identifier.find_available_devices()
 
     def save_vnc_config(self, ip, port, password):
         """保存VNC配置到文件"""
@@ -708,6 +852,17 @@ class AppMain(QMainWindow, Ui_MainWindow):
             "vmware_ip": ip,
             "vmware_prot": port,
             "vmware_password": password
+        })
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
+            json.dump(config, file, indent=4, ensure_ascii=False)
+
+    def save_capturecardconnection_config(self, vid, pid, identifier):
+        """保存VNC配置到文件"""
+        config = get_gui_config()
+        config.update({
+            "vid": vid,
+            "pid": pid,
+            "identifier": str(identifier)
         })
         with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
             json.dump(config, file, indent=4, ensure_ascii=False)

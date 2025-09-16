@@ -136,9 +136,9 @@ def fumo(c, n, mode=0):
         move_and_click(confirm_x, confirm_y, delay=0.1)
         time.sleep(0.5)
         # 按下两次空格
-        pyauto.KeyPressChar("space")
+        pyauto.keyPressChar("space")
         time.sleep(0.5)
-        pyauto.KeyPressChar("space")
+        pyauto.keyPressChar("space")
         time.sleep(0.5)
 
 

@@ -27,9 +27,9 @@ class CheckPlayerDynamics(QThread):
     def _recover_player_position(self):
         """ 玩家位置丢失恢复策略 """
         print("尝试螺旋搜索恢复位置")
-        pyauto.KeyPressChar('=')
+        pyauto.keyPressChar('=')
         time.sleep(0.05)
-        pyauto.KeyPressChar('space')
+        pyauto.keyPressChar('space')
         time.sleep(0.05)
         self.movement_recorder.spiral_search(duration=1)
 

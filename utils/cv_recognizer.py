@@ -146,7 +146,7 @@ class MM:
         """
         # 捕获指定区域的屏幕截图
         try:
-            screenshot_np = self.VNC.capture()[0:600, 0:1067]
+            screenshot_np = self.VNC.capture()
             if isinstance(screenshot_np, np.ndarray):
                 logger.info("vnc_mm截图成功")
             else:
@@ -562,7 +562,7 @@ class MM:
 
             elif self.VNC is not None:
                 logger.info("VNC截图")
-                screenshot_np = self.VNC.capture()[0:600, 0:1067]
+                screenshot_np = self.VNC.capture()
                 if isinstance(screenshot_np, np.ndarray):
                     logger.info("vnc_mm截图成功")
                 else:

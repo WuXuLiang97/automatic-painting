@@ -3,7 +3,7 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.8 (yolov5-6.0)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="ultralytics" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="dnf_cv" project-jdk-type="Python SDK" />
   <component name="PyCharmProfessionalAdvertiser">
     <option name="shown" value="true" />
   </component>

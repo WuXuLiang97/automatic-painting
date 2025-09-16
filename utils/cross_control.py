@@ -4,7 +4,7 @@ import os
 import random
 import pydirectinput
 import time
-from utils.yjs import yjs
+from utils.yjs import YJS
 from utils.logging_setup import logger
 
 # from utils.config_util import ini_file_path
@@ -13,16 +13,22 @@ ini_file_path = os.path.join('C:\\', "config.json")
 pydirectinput.PAUSE = 0
 
 
-class PYAUTO:
+class PYAUTO(YJS):
     left = 'left'
     right = 'right'
     up = 'up'
     down = 'down'
 
-    def __init__(self, sign):
-        self.sign = sign
+    def __init__(self):
+        super().__init__()
+        self.sign = None
         self.VNC = None
+        self.PAUSE = 0.05
         pass
+
+    def pyauto_init(self, sign, pause):
+        self.sign = sign
+        self.PAUSE = pause
 
     def releaseallkey(self):
         if self.sign == 0:
@@ -37,7 +43,7 @@ class PYAUTO:
             self.VNC.key_up('up')
             self.VNC.key_up('down')
         else:
-            yjs.ReleaseAllKey()
+            self.ReleaseAllKey()
 
     def click(self, input_char='left'):
         """鼠标点击"""
@@ -54,11 +60,11 @@ class PYAUTO:
                 self.VNC.click(3)
         else:
             if input_char == 'left':
-                yjs.LeftClick()
+                self.LeftClick()
             elif input_char == 'right':
-                yjs.RightClick()
+                self.RightClick()
 
-    def KeyPressChar(self, input_char):
+    def keyPressChar(self, input_char):
         """键盘点击"""
         if self.sign == 0:
             pydirectinput.keyDown(input_char)
@@ -70,7 +76,7 @@ class PYAUTO:
             time.sleep(random.randint(50, 80) * 0.001)
             self.VNC.key_up(input_char)
         else:
-            yjs.KeyPressChar(input_char)
+            self.KeyPressChar(input_char)
 
     def moveTo(self, x, y):
         if self.sign == 0:
@@ -79,25 +85,25 @@ class PYAUTO:
             logger.info(f"VNC鼠标移动：{(x, y)}")
             self.VNC.move(x + random.randint(-5, 5), y + random.randint(-5, 5))
         else:
-            yjs.MoveTo(x, y)
+            self.MoveTo(x, y)
 
-    def KeyDownChar(self, input_char):
+    def keyDownChar(self, input_char):
         if self.sign == 0:
             pydirectinput.keyDown(input_char)
         elif self.sign == 1:
             logger.info(f"VNC键盘按下：{input_char}")
             self.VNC.key_down(input_char)
         else:
-            yjs.KeyDownChar(input_char)
+            self.KeyDownChar(input_char)
 
-    def KeyUpChar(self, input_char):
+    def keyUpChar(self, input_char):
         if self.sign == 0:
             pydirectinput.keyUp(input_char)
         elif self.sign == 1:
             logger.info(f"VNC键盘弹起：{input_char}")
             self.VNC.key_up(input_char)
         else:
-            yjs.KeyUpChar(input_char)
+            self.KeyUpChar(input_char)
 
 
 try:
@@ -105,7 +111,7 @@ try:
     #     settings = json.load(file)
     # # 使用 get 方法安全地访问 'yjs' 键，如果不存在则默认为 0
     # sign = settings.get("yjs", 0)
-    pyauto = PYAUTO(1)
+    pyauto = PYAUTO()
 except Exception as e:
     print(f"pyauto模块:{e}")
 if __name__ == '__main__':
@@ -132,7 +138,7 @@ if __name__ == '__main__':
         time.sleep(0.1)
         pyauto.click()
         time.sleep(1)
-        pyauto.KeyPressChar('space')
+        pyauto.keyPressChar('space')
         time.sleep(random.uniform(1.5, 3.0))
-        pyauto.KeyPressChar('space')
+        pyauto.keyPressChar('space')
         time.sleep(random.uniform(1.5, 3.0))

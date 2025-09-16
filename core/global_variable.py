@@ -13,4 +13,8 @@ sy = False
 vmware_ip = None
 vmware_prot = None
 vmware_password = None
+tab_index = 0
+vid = ''
+pid = ''
+identifier = 0
 display_queue = queue.Queue(maxsize=2)  # 展示专用队列

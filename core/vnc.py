@@ -55,10 +55,10 @@ class VNC:
                 self.client.captureScreen(path)
             else:  # 不写入图像,直接转cv图像bgr格式
                 self.flush_screen(1)
-                imgae = cv2.cvtColor(np.asarray(self.client.screen), cv2.COLOR_RGB2BGR)
+                imgae = cv2.cvtColor(np.asarray(self.client.screen), cv2.COLOR_RGB2BGR)[0:600, 0:1067]
                 if not display_queue.full():
                     # 为展示线程缩小分辨率
-                    display_frame = cv2.resize(imgae[0:600, 0:1067], (356, 200))
+                    display_frame = cv2.resize(imgae, (356, 200))
                     display_queue.put(display_frame)
                 return imgae
 
@@ -176,13 +176,13 @@ if __name__ == '__main__':
     # v.click(1)
     # 截图测试
     # FPS = 0
-    # while True:
-    #     s = time.time()
-    #     new_image = v.capture(path=None)[0:600, 0:1067]  # 获取新图像
-    #
-    #     FPS = 1 / (time.time() - s)
-    #     # 绘制帧率
-    #     cv2.putText(new_image, str(int(FPS)), (0, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-    #     cv2.imshow("img", new_image)
-    #     cv2.waitKey(1)
+    while True:
+        s = time.time()
+        new_image = v.capture(path=None)[0:600, 0:1067]  # 获取新图像
+
+        FPS = 1 / (time.time() - s)
+        # 绘制帧率
+        cv2.putText(new_image, str(int(FPS)), (0, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        cv2.imshow("img", new_image)
+        cv2.waitKey(1)
     api.shutdown()  # 关闭事件循环
