@@ -1028,6 +1028,7 @@ class PlayerThread(QThread):
         player_pos_none_count = 0  # 玩家位置为None的计数
         door__pos_none_count = 0  # 门位置为None的计数
         attack = False
+        right = False
         # 只要游戏在运行且不是幽灵状态，就持续尝试
         while self.brush_running and not self.ghost_state:
             # 如果执行时间过长，则进入幽灵状态并返回
@@ -1157,7 +1158,7 @@ class PlayerThread(QThread):
                 logger.info(f"ROOM_Id:{self.player.player_room_id}")
 
                 # 查找门的位置
-                door_pos = self.find_door_pos()
+                door_pos = self.find_door_pos(right)
             else:
                 if len(self.doors) > 0:
                     door_pos = self.doors[0]
@@ -1248,9 +1249,10 @@ class PlayerThread(QThread):
                             #     logger.info("人物位置在下面卡住了")
                             #     self.movement_recorder.up_down_move("up", 1)
 
-            if isinstance(door_pos,str)and door_pos =="down":
+            if isinstance(door_pos, str) and door_pos == "down":
                 logger.info("门在下面，往下移动1秒")
                 self.movement_recorder.up_down_move("down", 1)
+                right = True
             else:
                 frame1_detections = (self.player_pos.x, self.player_pos.y)
                 if next_direction == "right" and self.player_pos.x > 750:
@@ -1862,7 +1864,7 @@ class PlayerThread(QThread):
             logger.info(f"没有找到与({target[0]}, {target[1]})接近的坐标。")
         return nearest_coord
 
-    def find_door_pos(self):
+    def find_door_pos(self, right):
         """
         寻找玩家当前房间内的门的位置。
 
@@ -1908,7 +1910,15 @@ class PlayerThread(QThread):
                 logger.info("已找到门，结束找门")
                 return door_pos  # 返回找到的门的位置
         if map_direction == "down":
-            logger.info("没筛选出门，给一个往下的坐标")
+            if right:
+                room_info = a_DictInfo.get(self.player.map_name).get("right")
+                for door_pos in self.doors:
+                    logger.info(f"当前遍历的door_pos:{(door_pos.x, door_pos.y)}")
+                    if (room_info['min_x'] < door_pos.x < room_info['max_x'] and  # 门的x坐标在房间x坐标范围内
+                            room_info['min_y'] < door_pos.y <= room_info['max_y']):  # 门的y坐标在房间y坐标范围内
+                        # logger.info(f'door_x:{door_pos.x},door_y:{door_pos.y}')  # 打印找到的门的位置，用于调试
+                        logger.info("已找到门，结束找门")
+                        return door_pos  # 返回找到的门的位置
             # logger.info("朝下走0.5秒")
             # self.movement_recorder.up_down_move("down", 0.5)
             # return Point(random.randint(500, 650), 530)
