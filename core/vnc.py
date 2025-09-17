@@ -73,7 +73,7 @@ class VNC:
         self.client.mouseMove(x, y)
 
     # 点击鼠标按钮,123分别对应左中右键
-    def click(self, button=1, delay=0.05):
+    def click(self, button=1, delay=0.1):
         self.client.mouseDown(button)
         time.sleep(delay)
         self.client.mouseUp(button)
@@ -129,7 +129,7 @@ class VNC:
 
 if __name__ == '__main__':
     try:
-        v = VNC("192.168.1.125", "5900", "")
+        v = VNC("192.168.1.125", "5901", "")
         print(v.client)
         time.sleep(2)
         # new_image = v.capture(path=None)  # 获取新图像
@@ -140,6 +140,23 @@ if __name__ == '__main__':
         # api.shutdown()  # 关闭事件循环
     except:
         print(v)
+    def is_colored(skill_img: np.ndarray, threshold=30):
+        """
+        判断图像是否为彩色的。阈值用于确定彩色和灰色的界限。
+        """
+        # 转换为灰度图像
+        gray = cv2.cvtColor(skill_img, cv2.COLOR_BGR2GRAY)
+
+        # 计算每个像素的绝对差值
+        diff = cv2.absdiff(skill_img, cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR))
+        diff_sum = np.sum(diff, axis=2)  # 求和RGB通道的差值
+        print(f"is_colored:{np.mean(diff_sum)}")
+
+        # 判断差值是否大于阈值
+        return np.mean(diff_sum) > threshold
+    x1, y1, x2, y2 = (162, 383, 256, 401)
+    min_img = v.capture()[y1:y2, x1:x2]
+    ret = is_colored(min_img, 50)
     # from utils.cv_recognizer import vnc_mm
     #
     # vnc_mm.VNC = v

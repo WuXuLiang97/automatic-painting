@@ -58,6 +58,9 @@ class PlayerThread(QThread):
 
     def __init__(self, dic=None):
         super().__init__()
+        # 设定每日开始时间为早上6点
+        self.start_hour = 6
+        self.today_task_completed = False
         self.door_direction = ''
         self.attack_boss_sy = []
         self.forward = False
@@ -278,13 +281,20 @@ class PlayerThread(QThread):
                     # 这里防止站街，回到赛丽亚房间，脚本停止
                     self.select_role()
                     self.send_log("暂无可刷角色,脚本停止")
-                    self.stop()
+                    self.today_task_completed = True
+
+                    # self.stop()
                     # # 刷完关机
                     # minutes = 1
                     # # 计算总秒数
                     # total_seconds = minutes * 60
                     # os.system(f"shutdown -s -t {total_seconds}")
-                    return
+                    # return
+                if self.today_task_completed:
+                    # 等待到次日六点
+                    self.wait_until_next_start()
+                    continue
+
                 screenshot_util.activate_window_by_handle()  # 激活窗口
                 # 选择角色
                 self.select_role()
@@ -878,6 +888,7 @@ class PlayerThread(QThread):
 
     def access(self):
         """存金币或取金绿柱石"""
+        pyauto.releaseallkey()
         qx, qy = 327, 0
         if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
             return
@@ -887,7 +898,7 @@ class PlayerThread(QThread):
             time.sleep(1)
             pyauto.click()
             time.sleep(0.5)
-            self.operator_module.move_to(870, 593)
+            self.operator_module.move_to(743, 161)
             time.sleep(0.1)
             ret = self.mm.FindPic_sleep(0, 0, 1067, 600, "账号金库.bmp|账号金库a.bmp", 0.9, 1, time_s=5)
             if ret:
@@ -922,13 +933,12 @@ class PlayerThread(QThread):
                 time.sleep(0.1)
                 pyauto.keyPressChar('space')
                 time.sleep(0.1)
-                self.operator_module.move_to(870, 593)
+                self.operator_module.move_to(743, 161)
                 time.sleep(0.1)
 
                 ret = self.mm.FindPic_sleep(qx, qy, 447, 541, "放入.bmp", 0.9, 1, time_s=2)
                 if ret:
                     x1, y1, x2, y2 = ret[0][1], ret[0][2] - 10, ret[0][1] + 100, ret[0][2] + 30
-
                     ret = self.mm.FindPic_sleep(x1, y1, x2, y2, "取出.bmp", 0.9, 1, time_s=2)
                     if ret:
                         x, y = ret[0][1], ret[0][2]
@@ -957,7 +967,7 @@ class PlayerThread(QThread):
                                     pyauto.keyPressChar(st)
                                     time.sleep(random.uniform(0.1, 0.15))
                                 # keyboard.write(random_number_str, delay=random.uniform(0.1, 0.15))
-                                time.sleep(0.1)
+                                time.sleep(random.uniform(1, 1.55))
                                 # 点物品
                                 self.operator_module.move_to(x, y + 30)
                                 time.sleep(0.1)
@@ -1002,7 +1012,7 @@ class PlayerThread(QThread):
                 time.sleep(0.1)
                 pyauto.keyPressChar('space')
                 time.sleep(0.1)
-                self.operator_module.move_to(870, 593)
+                self.operator_module.move_to(743, 161)
                 time.sleep(0.1)
             self.operator_module.open_window("选择菜单")
             # 按下esc
@@ -1036,10 +1046,10 @@ class PlayerThread(QThread):
                 return
             self.get_yolo_res()  # enter_door获取YOLO检测结果
             if time.time() - start_time > 10 and not attack:
-                if self.player_pos is None:
+                if self.player_pos.x is None:
                     continue
 
-                move_info = self.compute_move_info(self.player_pos, Point(562,392), 0, 0)
+                move_info = self.compute_move_info(self.player_pos, Point(562, 392), 0, 0)
                 if move_info is None:
                     continue
                 # 移动人物
@@ -1179,7 +1189,7 @@ class PlayerThread(QThread):
                     continue
 
                 # self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
-                # if self.player_pos is None:
+                # if self.player_pos.x is None:
                 #     continue
                 frame1_detections = (self.player_pos.x, self.player_pos.y)
                 st = time.time()
@@ -1203,7 +1213,7 @@ class PlayerThread(QThread):
                 if time.time() - frame_time > 5:
                     frame_time = time.time()
                     self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
-                    if self.player_pos is None:
+                    if self.player_pos.x is None:
                         continue
                     frame2_detections = (self.player_pos.x, self.player_pos.y)
 
@@ -1273,7 +1283,7 @@ class PlayerThread(QThread):
                 if time.time() - frame_time > 5:
                     frame_time = time.time()
                     self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
-                    if self.player_pos is None:
+                    if self.player_pos.x is None:
                         logger.info("第二帧没有识别到玩家")
                         continue
                     frame2_detections = (self.player_pos.x, self.player_pos.y)
@@ -1343,7 +1353,7 @@ class PlayerThread(QThread):
                 if time.time() - frame_time > 5:
                     frame_time = time.time()
                     self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
-                    if self.player_pos is None:
+                    if self.player_pos.x is None:
                         logger.info("第二帧没有识别到玩家")
                         continue
                     frame2_detections = (self.player_pos.x, self.player_pos.y)
@@ -1562,7 +1572,7 @@ class PlayerThread(QThread):
             if time.time() - frame_time > 5:
                 frame_time = time.time()
                 self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
-                if self.player_pos is None:
+                if self.player_pos.x is None:
                     continue
                 frame2_detections = (self.player_pos.x, self.player_pos.y)
 
@@ -1977,8 +1987,8 @@ class PlayerThread(QThread):
                 logger.info("已找到门，结束找门")
                 return door_pos  # 返回找到的门的位置
         if map_direction == "down":
-            if self.player_pos.y>460:
-                logger.info(f"找门人物已走到下边:{(self.player_pos.x,self.player_pos.y)}")
+            if self.player_pos.y > 460:
+                logger.info(f"找门人物已走到下边:{(self.player_pos.x, self.player_pos.y)}")
                 for door_pos in self.doors:
                     logger.info(f"当前遍历的door_pos:{(door_pos.x, door_pos.y)}")
                     if (0 < door_pos.x < 1067 and  # 门的x坐标在房间x坐标范围内
@@ -2833,7 +2843,7 @@ class PlayerThread(QThread):
         time.sleep(1)
         pyauto.click()
         time.sleep(0.5)
-        self.operator_module.move_to(870, 593)
+        self.operator_module.move_to(743, 161)
         time.sleep(0.1)
         ret = self.mm.FindPic_sleep(0, 0, 1067, 600, "账号金库.bmp|账号金库a.bmp", 0.9, 1, time_s=5)
         if ret:
@@ -2868,7 +2878,7 @@ class PlayerThread(QThread):
             time.sleep(0.1)
             pyauto.keyPressChar('space')
             time.sleep(0.1)
-            self.operator_module.move_to(870, 593)
+            self.operator_module.move_to(743, 161)
             time.sleep(0.1)
             pyauto.keyPressChar("esc")
             time.sleep(0.1)
@@ -3661,12 +3671,20 @@ class PlayerThread(QThread):
                 while self.brush_running:
                     ret = self.mm.FindPic(78, 277, 233, 329, "风暴逆鳞普通.bmp", 0.9)
                     if ret:
-                        text = self.get_text(162, 383, 256, 401)
-                        pattern = r'[0-9]+'
-                        # 使用 re.findall() 找出所有匹配的内容
-                        matches = re.findall(pattern, text)
-                        t = ''.join(matches)
-                        if t and int(''.join(t)) < 900:
+                        # text = self.get_text(162, 383, 256, 401)
+                        # pattern = r'[0-9]+'
+                        # # 使用 re.findall() 找出所有匹配的内容
+                        # matches = re.findall(pattern, text)
+                        # t = ''.join(matches)
+                        # if t and int(''.join(t)) < 900:
+                        x1, y1, x2, y2 = (162, 383, 256, 401)
+                        min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
+                        ret = self.mm.is_colored(min_img, 15)
+                        if not ret:
+                            pyauto.keyPressChar("f12")
+                            time.sleep(0.05)
+                            pyauto.keyPressChar("f12")
+                            time.sleep(0.05)
                             pyauto.keyPressChar("f12")
                             time.sleep(0.05)
                             return 0
@@ -3885,12 +3903,16 @@ class PlayerThread(QThread):
                 while self.brush_running:
                     ret = self.mm.FindPic(78, 277, 233, 329, "深渊.bmp", 0.9)
                     if ret:
-                        text = self.get_text(232, 383, 295, 399)
-                        pattern = r'[0-9]+'
-                        # 使用 re.findall() 找出所有匹配的内容
-                        matches = re.findall(pattern, text)
-                        t = ''.join(matches)
-                        if t and int(''.join(t)) < 30:
+                        # text = self.get_text(232, 383, 295, 399)
+                        # pattern = r'[0-9]+'
+                        # # 使用 re.findall() 找出所有匹配的内容
+                        # matches = re.findall(pattern, text)
+                        # t = ''.join(matches)
+                        # if t and int(''.join(t)) < 30:
+                        x1, y1, x2, y2 = (232, 383, 295, 399)
+                        min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
+                        ret = self.mm.is_colored(min_img, 15)
+                        if not ret:
                             self.send_log("深渊票不足，跳过当前角色")
                             self.ghost_state = False
                             # update_role_brush_date(self.current_role_group, self.current_role_index)
@@ -4531,3 +4553,37 @@ class PlayerThread(QThread):
                 move_info = self.compute_move_info(self.player_pos, Point(848, 468), 0, 0)  # 计算到最近货物的移动信息
                 logger.info("卡点了，尝试跑步：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                 self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
+
+    def wait_until_next_start(self):
+        """等待到下一个开始时间（早上六点）"""
+        wait_seconds = self.calculate_wait_time()
+
+        # 转换等待时间为小时、分钟、秒，便于阅读
+        hours, remainder = divmod(int(wait_seconds), 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        self.send_log(f"本日任务已完成，将在 {hours}小时{minutes}分钟{seconds}秒后（即次日{self.start_hour}点）继续运行")
+
+        # 进入等待状态
+        time.sleep(wait_seconds)
+
+        # 等待结束后重置任务状态
+        self.today_task_completed = False
+        self.send_log("等待结束，准备开始新的任务周期")
+
+    def calculate_wait_time(self):
+        """计算距离次日早上六点需要等待的秒数"""
+        now = datetime.datetime.now()
+
+        # 计算今天早上六点的时间
+        today_6am = now.replace(hour=self.start_hour, minute=0, second=0, microsecond=0)
+
+        # 如果当前时间已经过了今天六点，则目标时间是明天六点
+        if now >= today_6am:
+            tomorrow_6am = today_6am + datetime.timedelta(days=1)
+            wait_seconds = (tomorrow_6am - now).total_seconds()
+        else:
+            # 如果还没到今天六点，则等待到今天六点
+            wait_seconds = (today_6am - now).total_seconds()
+
+        return wait_seconds
