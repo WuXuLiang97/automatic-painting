@@ -1038,6 +1038,7 @@ class PlayerThread(QThread):
         player_pos_none_count = 0  # 玩家位置为None的计数
         door__pos_none_count = 0  # 门位置为None的计数
         attack = False
+        down = False
         # 只要游戏在运行且不是幽灵状态，就持续尝试
         while self.brush_running and not self.ghost_state:
             # 如果执行时间过长，则进入幽灵状态并返回
@@ -1167,7 +1168,7 @@ class PlayerThread(QThread):
                 logger.info(f"ROOM_Id:{self.player.player_room_id}")
 
                 # 查找门的位置
-                door_pos = self.find_door_pos()
+                door_pos = self.find_door_pos(down)
             else:
                 if len(self.doors) > 0:
                     door_pos = self.doors[0]
@@ -1259,76 +1260,9 @@ class PlayerThread(QThread):
                             #     self.movement_recorder.up_down_move("up", 1)
 
             if isinstance(door_pos, str) and door_pos == "down":
+                down = True
                 logger.info("门在下面，往下移动1秒")
                 self.movement_recorder.up_down_move("down", 1)
-                frame1_detections = (self.player_pos.x, self.player_pos.y)
-                if next_direction == "right" and self.player_pos.x > 750:
-                    logger.info("现在方向向右，且玩家X轴坐标{}大于750，弹起前进的方向，现在向左走".format(int(self.player_pos.x)))
-                    self.movement_recorder.already_left_right_move("left")
-                    # pyauto.KeyDownChar(next_direction)
-                    # time.sleep(0.05)
-                    next_direction = "left"
-                    already_move = True
-                if next_direction == "left" and self.player_pos.x < 375:
-                    logger.info("现在方向向左，且玩家X轴坐标{}小于450，弹起前进的方向，现在向右走".format(int(self.player_pos.x)))
-                    self.movement_recorder.already_left_right_move("right")
-                    # pyauto.KeyDownChar(next_direction)
-                    # time.sleep(0.05)
-                    next_direction = "right"
-                    already_move = True
-                if not already_move:
-                    logger.info("没有移动过，现在移动方向为：{}".format(next_direction))
-                    self.movement_recorder.already_left_right_move(next_direction)
-                    already_move = True
-                if time.time() - frame_time > 5:
-                    frame_time = time.time()
-                    self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
-                    if self.player_pos.x is None:
-                        logger.info("第二帧没有识别到玩家")
-                        continue
-                    frame2_detections = (self.player_pos.x, self.player_pos.y)
-
-                    frames = [frame1_detections, frame2_detections]
-                    logger.info("检测人物frames:{}".format(frames))
-                    # 设置一个位置变化的阈值（这里以像素为单位）
-                    movement_threshold = 5  # 如果x或y方向上的变化超过10像素，则认为物体在移动
-                    # 跟踪人物并检测运动
-                    last_position = None
-                    for frame_idx, (x, y) in enumerate(frames):
-                        # 检查当前位置是否为None
-                        if (x is None) or (y is None):
-                            logger.info(f"在帧 {frame_idx + 1} 中，人物位置数据缺失。")
-                            break
-                        # 如果是第一帧，则没有上一个位置可以比较，直接跳过
-                        if last_position is None:
-                            last_position = (x, y)
-                            continue
-                        # 计算当前位置与上一个位置的变化
-                        current_position = (x, y)
-                        dx, dy = abs(current_position[0] - last_position[0]), abs(current_position[1] - last_position[1])
-
-                        # 判断是否移动
-                        if dx > movement_threshold or dy > movement_threshold:
-                            logger.info(f"在帧 {frame_idx + 1} 中，人物移动了。")
-                        else:
-                            logger.info(f"在帧 {frame_idx + 1} 中，人物是静止的。")
-                            already_move = False
-                            if not up_and_down_move:
-                                logger.info("尝试向上移动")
-                                self.movement_recorder.up_down_move("up", 1)
-                                up_and_down_move = True
-                            else:
-                                logger.info("尝试向下移动")
-                                self.movement_recorder.up_down_move("down", 1)
-                                up_and_down_move = False
-                            self.test_move()
-                            # if self.player_pos.y < 458:
-                            #     logger.info("人物位置在上面卡住了")
-                            #     self.movement_recorder.up_down_move("down", 1)
-                            # else:
-                            #     logger.info("人物位置在下面卡住了")
-                            #     self.movement_recorder.up_down_move("up", 1)
-                continue
 
             else:
                 frame1_detections = (self.player_pos.x, self.player_pos.y)
@@ -1941,7 +1875,7 @@ class PlayerThread(QThread):
             logger.info(f"没有找到与({target[0]}, {target[1]})接近的坐标。")
         return nearest_coord
 
-    def find_door_pos(self):
+    def find_door_pos(self,down):
         """
         寻找玩家当前房间内的门的位置。
 
@@ -1987,15 +1921,37 @@ class PlayerThread(QThread):
                 logger.info("已找到门，结束找门")
                 return door_pos  # 返回找到的门的位置
         if map_direction == "down":
-            if self.player_pos.y > 460:
-                logger.info(f"找门人物已走到下边:{(self.player_pos.x, self.player_pos.y)}")
-                for door_pos in self.doors:
-                    logger.info(f"当前遍历的door_pos:{(door_pos.x, door_pos.y)}")
-                    if (0 < door_pos.x < 1067 and  # 门的x坐标在房间x坐标范围内
-                            460 < door_pos.y):  # 门的y坐标在房间y坐标范围内
-                        # logger.info(f'door_x:{door_pos.x},door_y:{door_pos.y}')  # 打印找到的门的位置，用于调试
-                        logger.info("已找到门，结束找门")
-                        return door_pos  # 返回找到的门的位置
+            # 记录人物当前坐标
+            logger.info(f"人物坐标: ({self.player_pos.x}, {self.player_pos.y})")
+
+            # 处理门位置数据
+            sorted_doors = sorted(self.doors, key=lambda door: door.y)
+
+            # 遍历并记录所有门位置
+            for door in self.doors:
+                logger.info(f"门位置: ({door.x}, {door.y})")
+
+            # 检查是否有可用门位置
+            if not sorted_doors:
+                logger.warning("未找到任何门位置数据（self.doors为空）")
+                return map_direction
+
+            # 根据方向返回对应门位置
+            if down:
+                bottom_door = sorted_doors[-1]
+                logger.info(f"返回最下方的门位置: ({bottom_door.x}, {bottom_door.y})")
+                return bottom_door
+            else:
+                return map_direction
+            # if self.player_pos.y > 460:
+            #     logger.info(f"找门人物已走到下边:{(self.player_pos.x, self.player_pos.y)}")
+            #     for door_pos in self.doors:
+            #         logger.info(f"当前遍历的door_pos:{(door_pos.x, door_pos.y)}")
+            #         if (0 < door_pos.x < 1067 and  # 门的x坐标在房间x坐标范围内
+            #                 460 < door_pos.y):  # 门的y坐标在房间y坐标范围内
+            #             # logger.info(f'door_x:{door_pos.x},door_y:{door_pos.y}')  # 打印找到的门的位置，用于调试
+            #             logger.info("已找到门，结束找门")
+            #             return door_pos  # 返回找到的门的位置
             # logger.info("朝下走0.5秒")
             # self.movement_recorder.up_down_move("down", 0.5)
             # return Point(random.randint(500, 650), 530)
