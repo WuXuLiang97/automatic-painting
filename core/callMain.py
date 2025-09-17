@@ -31,7 +31,9 @@ from core.callSettingsGroup import SettingsGroupWindow
 from utils.screenshot_util import screenshot_util
 # from utils.yjs import yjs
 from utils.cross_control import pyauto
-from view.main0914 import Ui_MainWindow
+# from view.main0914 import Ui_MainWindow
+from view.main0917 import Ui_MainWindow
+from view.key_config_run import KeyConfigDialog
 from core.device_identity_client import send_request, ret_data
 from core.device_time_utils import get_identity_mark
 # from core.window_position import WindowPositionUpdater
@@ -41,6 +43,7 @@ from core.vnc import VNC, api
 from core.capturecardconnection import CaptureCardConnection
 from utils.cv_recognizer import vnc_mm
 from root_dir import root_path
+
 
 # 拼接文件路径
 CONFIG_PATH = os.path.join(root_path, "json_resources/config.json")
@@ -188,8 +191,14 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.settingsGroupComboBox.activated.connect(self.update_roles_table_data)  # 假设settingsGroupComboBox是UI中的某个下拉框
 
         # 创建并启动键盘监听线程
+        self.Keyboardsettings.triggered.connect(self.open_keyboard_settings)
         self.keyboard_thread = KeyboardListenerThread(self.key_press_signal)
         self.keyboard_thread.start()  # self.yoloProcess = YoloProcess()  # self.yoloProcess.load_model()  # self.playerThread.yolo = self.yoloProcess
+
+    def open_keyboard_settings(self):
+        """打开按键配置对话框"""
+        dialog = KeyConfigDialog(self)
+        dialog.exec_()
 
     def init_content(self):
         """
@@ -293,30 +302,30 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.displaythread = DisplayThread()
         self.displaythread.update_signal.connect(self.update_image)
         self.displaythread.start()
-        # global Network
-        # Network = 1
-
-        for i in range(3):
-            try:
-                ret = send_request(f_program_version=f_program_version, state=0)
-                return_data_1 = ret_data(ret)
-                if return_data_1.response == 200 or return_data_1.response == 201:
-                    if return_data_1.response == 201:
-                        self.update_log(
-                            return_data_1.msg)  # my_print('亲爱的用户们：\n\t我们软件已推出新版本，增加了新功能并优化了现有功能。为方便您更新，我们已在Q群提供更新文件。请您自行进入Q群下载并安装新版本。如遇问题，请随时在Q群反馈。感谢您的支持！\n祝您使用愉快')
-
-                    else:
-                        self.update_log(f'已连接到网络')
-                    self.setWindowTitle(f'工具人({str(f_program_version)})    {return_data_1.msg}')
-                    global Network
-                    Network = 1
-                    break
-                else:
-                    # my_print(f'尝试连接网络{i + 1}次')
-                    self.update_log(return_data_1.msg)
-                    break
-            except Exception as e:
-                self.update_log(f"机器码验证错误:{e}")
+        global Network
+        Network = 1
+        #
+        # for i in range(3):
+        #     try:
+        #         ret = send_request(f_program_version=f_program_version, state=0)
+        #         return_data_1 = ret_data(ret)
+        #         if return_data_1.response == 200 or return_data_1.response == 201:
+        #             if return_data_1.response == 201:
+        #                 self.update_log(
+        #                     return_data_1.msg)  # my_print('亲爱的用户们：\n\t我们软件已推出新版本，增加了新功能并优化了现有功能。为方便您更新，我们已在Q群提供更新文件。请您自行进入Q群下载并安装新版本。如遇问题，请随时在Q群反馈。感谢您的支持！\n祝您使用愉快')
+        #
+        #             else:
+        #                 self.update_log(f'已连接到网络')
+        #             self.setWindowTitle(f'工具人({str(f_program_version)})    {return_data_1.msg}')
+        #             global Network
+        #             Network = 1
+        #             break
+        #         else:
+        #             # my_print(f'尝试连接网络{i + 1}次')
+        #             self.update_log(return_data_1.msg)
+        #             break
+        #     except Exception as e:
+        #         self.update_log(f"机器码验证错误:{e}")
 
     def show_login(self):
         self.authapp.show()
