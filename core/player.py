@@ -838,15 +838,26 @@ class PlayerThread(QThread):
                 logger.info(door_pos)
                 # 如果没有找到门的位置，则根据当前位置和移动方向尝试左右移动
                 if isinstance(door_pos, Point):
-                    logger.info(f"door_pos:{door_pos.x}, {door_pos.y}")
-                    if abs(self.player_pos.x - door_pos.x) < 40:
-                        self.player_left_right_move()
-                        continue
-                    move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)
-                    if move_info is None:
-                        continue
-                    # 移动人物
-                    self.movement_recorder.left_right_up_down_move_by(move_info, already_move)
+                    logger.info(f"player_pos：{self.player_pos.x}, {self.player_pos.y}\tdoor_pos:{door_pos.x}, {door_pos.y}")
+                    # if abs(self.player_pos.x - door_pos.x) < 40:
+                    #     self.player_left_right_move()
+                    #     continue
+                    # move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)
+                    # if move_info is None:
+                    #     continue
+                    # # 移动人物
+                    # self.movement_recorder.left_right_up_down_move_by(move_info, already_move)
+
+                    if abs(self.player_pos.x - door_pos.x) > 200:
+                        move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
+                        logger.info("向门奔跑：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
+                        self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
+
+                    else:
+                        move_info = self.compute_move_info_walk(self.player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
+                        logger.info("向门步行：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
+                        self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
+
                     self.to_door_count += 1
                     already_move = False
                     time.sleep(0.1)
@@ -1177,28 +1188,31 @@ class PlayerThread(QThread):
             # 如果没有找到门的位置，则根据当前位置和移动方向尝试左右移动
             if isinstance(door_pos, Point):
                 logger.info(f"door_pos:{door_pos.x}, {door_pos.y}")
-                if abs(self.player_pos.x - door_pos.x) < 40:
-                    self.player_left_right_move()
-                    continue
+                # if abs(self.player_pos.x - door_pos.x) < 40:
+                #     self.player_left_right_move()
+                #     continue
                 if 0 < door_pos.x < 150:
                     door_pos.x = 1
                 elif 1067 > door_pos.x > 1067 - 150:
                     door_pos.x = 1100
+                frame1_detections = (self.player_pos.x, self.player_pos.y)
 
+                st = time.time()
+                if abs(self.player_pos.x - door_pos.x) > 200:
+                    move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
+                    logger.info("向门奔跑：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
+                    self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
+
+                else:
+                    move_info = self.compute_move_info_walk(self.player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
+                    logger.info("向门步行：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
+                    self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
                 move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)
                 if move_info is None:
                     continue
 
-                # self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
-                # if self.player_pos.x is None:
-                #     continue
-                frame1_detections = (self.player_pos.x, self.player_pos.y)
-                st = time.time()
-                # if self.player_pos.x is not None and self.is_boss is False:
-                #     # 记录玩家的动态
-                #     self.player_dynamics_tuple.emit((self.player_pos.x, self.player_pos.y))
-                # 移动人物
-                self.movement_recorder.left_right_up_down_move_by(move_info, already_move)
+                # # 移动人物
+                # self.movement_recorder.left_right_up_down_move_by(move_info, already_move)
                 self.to_door_count += 1
                 logger.info(f"朝门移动耗时：{time.time() - st}秒")
                 already_move = False
@@ -1919,6 +1933,9 @@ class PlayerThread(QThread):
                     room_info['min_y'] < door_pos.y <= room_info['max_y']):  # 门的y坐标在房间y坐标范围内
                 # logger.info(f'door_x:{door_pos.x},door_y:{door_pos.y}')  # 打印找到的门的位置，用于调试
                 logger.info("已找到门，结束找门")
+                if map_direction == "up":
+                    logger.info("向上的门")
+                    door_pos.y = door_pos.y - 50
                 return door_pos  # 返回找到的门的位置
         if map_direction == "down":
             # 记录人物当前坐标
@@ -1943,18 +1960,7 @@ class PlayerThread(QThread):
                 return bottom_door
             else:
                 return map_direction
-            # if self.player_pos.y > 460:
-            #     logger.info(f"找门人物已走到下边:{(self.player_pos.x, self.player_pos.y)}")
-            #     for door_pos in self.doors:
-            #         logger.info(f"当前遍历的door_pos:{(door_pos.x, door_pos.y)}")
-            #         if (0 < door_pos.x < 1067 and  # 门的x坐标在房间x坐标范围内
-            #                 460 < door_pos.y):  # 门的y坐标在房间y坐标范围内
-            #             # logger.info(f'door_x:{door_pos.x},door_y:{door_pos.y}')  # 打印找到的门的位置，用于调试
-            #             logger.info("已找到门，结束找门")
-            #             return door_pos  # 返回找到的门的位置
-            # logger.info("朝下走0.5秒")
-            # self.movement_recorder.up_down_move("down", 0.5)
-            # return Point(random.randint(500, 650), 530)
+
         logger.info("结束找门,没有找到门")
         return map_direction  # 如果没有找到符合条件的门，则返回None
 
@@ -2114,81 +2120,75 @@ class PlayerThread(QThread):
             return False
         # 清除障碍
         self.clearingobstacles()
-        # 按x坐标排序的怪物列表
-        sorted_monsters_by_x = sorted(self.monsters, key=lambda x: x[0])
-        # 按y坐标排序的怪物列表
+        # 计算每个怪物与玩家的距离，找到最近的怪物
+        min_distance = float('inf')
+        nearest_monster = None
+        for monster in self.monsters:
+            # 计算欧氏距离的平方（避免开方运算，不影响距离比较结果）
+            distance = (monster[0] - self.player_pos.x) ** 2 + (monster[1] - self.player_pos.y) ** 2
+            if distance < min_distance:
+                min_distance = distance
+                nearest_monster = monster
+
+        if not nearest_monster:
+            # 如果没有怪物，返回False
+            return False
+
+        # 按y坐标排序的怪物列表（保留用于可能的y坐标参考）
         sorted_monsters_by_y = sorted(self.monsters, key=lambda x: x[1])
         n = len(sorted_monsters_by_y)
         if n % 2 == 1:
-            # 奇数长度：取正中间的元素
             median_y = sorted_monsters_by_y[n // 2][1]
         else:
-            # 偶数长度：取中间两个元素的平均值
-            median_y = (sorted_monsters_by_y[n // 2 - 1][1] + sorted_monsters_by_y[n // 2][1]) / 2  # 可用//取整数
-        # monster_points = sort_points_by_x(self.monsters)
-        # 调用sort_points_by_x函数，根据怪物的x坐标对怪物进行排序，并获取排序后的怪物列表
+            median_y = (sorted_monsters_by_y[n // 2 - 1][1] + sorted_monsters_by_y[n // 2][1]) / 2
 
-        monster_point = Point(sorted_monsters_by_x[0][0], median_y)
-        # 选择排序后的第一个怪物（即x坐标最小的怪物），作为玩家要接近的目标
-
-        max_monster_point = Point(sorted_monsters_by_x[-1][0], median_y)
-        # 选择排序后的最后一个怪物（即x坐标最大的怪物），作为玩家要接近的目标
+        # 使用最近的怪物作为目标点
+        monster_point = Point(nearest_monster[0], median_y)
 
         if self.is_first_attack_monster:
+            # 第一次攻击的位置调整逻辑，基于最近的怪物
             if monster_point.x >= self.player_pos.x and monster_point.x - 160 > 0:
-                # 如果是第一次攻击怪物
                 monster_point.x = monster_point.x - 160
-                # 将怪物位置向左移动120单位（可能是为了初始化位置或确保怪物在玩家视线内）
-                monster_direction = "right"  # 设置怪物面向方向为右
-            elif max_monster_point.x <= self.player_pos.x and max_monster_point.x + 160 < 1067:
-                # 如果是第一次攻击怪物
-                monster_point.x = max_monster_point.x + 160
-                # 将怪物位置向左移动120单位（可能是为了初始化位置或确保怪物在玩家视线内）
-                monster_direction = "left"  # 设置怪物面向方向为右
-            elif monster_point.x < self.player_pos.x < max_monster_point.x:
-                if self.player_pos.x - monster_point.x < max_monster_point.x - self.player_pos.x:
-                    # 如果是第一次攻击怪物
+                monster_direction = "right"  # 朝向玩家（右侧怪物面向左？这里根据实际需求调整）
+            elif monster_point.x <= self.player_pos.x and monster_point.x + 160 < 1067:
+                monster_point.x = monster_point.x + 160
+                monster_direction = "left"  # 朝向玩家（左侧怪物面向右？这里根据实际需求调整）
+            elif monster_point.x < self.player_pos.x < (monster_point.x + 160):
+                if self.player_pos.x - monster_point.x < (monster_point.x + 160) - self.player_pos.x:
                     monster_point.x = monster_point.x - 160
-                    # 将怪物位置向左移动120单位（可能是为了初始化位置或确保怪物在玩家视线内）
-                    monster_direction = "right"  # 设置怪物面向方向为右
+                    monster_direction = "right"
                 else:
-                    # 如果是第一次攻击怪物
-                    monster_point.x = max_monster_point.x + 160
-                    # 将怪物位置向左移动120单位（可能是为了初始化位置或确保怪物在玩家视线内）
-                    monster_direction = "left"  # 设置怪物面向方向为右
+                    monster_point.x = monster_point.x + 160
+                    monster_direction = "left"
 
-            self.is_first_attack_monster = False  # 更新状态，标记这不是第一次攻击怪物
+            self.is_first_attack_monster = False
 
         else:
-            # 如果不是第一次攻击怪物
-            if monster_point.x >= self.player_pos.x:
-                # 如果怪物在玩家的右侧或同一位置
-                if monster_point.x > 160:
-                    # 如果怪物距离其当前位置足够远（>120），则向左移动120单位
+            # 非第一次攻击，直接根据最近怪物位置判断方向
+            if monster_point.x > self.player_pos.x:
+                # 怪物在玩家右侧，玩家需要向右移动并朝向右侧
+                if monster_point.x - 160 > 0:
                     monster_point.x = monster_point.x - 160
-                monster_direction = "right"  # 无论是否移动，怪物都面向右
-
-            else:
-                # 如果怪物在玩家的左侧
+                monster_direction = "right"  # 玩家朝向右侧（怪物方向）
+            elif monster_point.x < self.player_pos.x:
+                # 怪物在玩家左侧，玩家需要向左移动并朝向左侧
                 if monster_point.x + 160 < 1067:
-                    # 如果怪物向右移动120单位后不会超出边界（1280可能是游戏界面的宽度）
-                    monster_point.x = monster_point.x + 160  # 注意：这里与原始代码不符，但逻辑上更合理，假设原意是调整怪物位置
-                monster_direction = "left"  # 怪物面向左
+                    monster_point.x = monster_point.x + 160
+                monster_direction = "left"  # 玩家朝向左侧（怪物方向）
+            else:
+                # 怪物与玩家x坐标相同，保持当前方向或默认向右
+                monster_direction = "right"
 
+        # 计算到最近怪物的移动信息
         move_info = self.compute_move_info(self.player_pos, monster_point, 0, 0)
-        # 计算玩家从当前位置到怪物位置的移动信息
 
-        # logger.info("向怪物移动：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
-        # if self.player_pos.x is not None and self.is_boss is False:
-        #     # 记录玩家的动态
-        #     self.player_dynamics_tuple.emit((self.player_pos.x, self.player_pos.y))
+        # 执行移动
         self.movement_recorder.left_right_up_down_move_by(move_info, False)
-        # 根据计算出的移动信息，控制玩家移动（不改变高度，仅左右移动）
+        # 发送方向指令，确保玩家朝向怪物
         pyauto.keyPressChar(monster_direction)
-        # yjs.KeyPressChar(monster_direction)
-        # 发送键盘指令，控制怪物面向玩家
-        logger.info("结束向怪物移动")
-        return True  # 执行成功，返回True
+
+        logger.info("结束向最近怪物移动，朝向: {}".format(monster_direction))
+        return True
 
     def process_detect_message(self, cls, game_image):
         """
