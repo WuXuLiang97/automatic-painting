@@ -30,12 +30,13 @@ from utils.minimap_util import miniMapUtil
 from utils.cross_control import pyauto
 # from utils.ocr_util import ocr_util
 from utils.screenshot_util import screenshot_util
-from utils.skill_util import skill_util
+# from utils.skill_util import skill_util
+from utils.skill_util2 import skill_util
 import socket
 from core import global_variable as gv
 
 from utils.logging_setup import logger
-
+from view.key_config_run import DEFAULT_CONFIG
 current_path = os.path.dirname(os.path.abspath(__file__))
 root_path = os.path.abspath(os.path.join(current_path, '../'))
 # 基础时间单位（秒）
@@ -45,6 +46,34 @@ HOUR = 60 * MINUTE
 
 target_items = ["风化的碎骨", "破旧的皮革", "碎布片", "生锈的铁片", "最下级硬化剂", "最下级砥石", "炉岩核", "协调结晶体", "嘿", "嗯", "呀"]
 SIMILARITY_THRESHOLD = 0.7  # 相似度阈值
+
+
+
+key_config_file = os.path.join(root_path, "json_resources/key_config.json")
+
+try:
+    if os.path.exists(key_config_file):
+        with open(key_config_file, 'r', encoding='utf-8') as f:
+            key_config = json.load(f)
+
+            logger.info(f"成功加载键盘配置: {key_config_file}")
+    else:
+        logger.warning(f"键盘配置文件不存在: {key_config_file}，使用默认配置")
+        key_config = DEFAULT_CONFIG
+except Exception as e:
+    logger.error(f"加载键盘配置失败: {e}，使用默认配置")
+    key_config = DEFAULT_CONFIG
+
+
+
+# 获取所需的值
+one_key_gather_value = key_config['one_key_gather']['key'].lower()#一键聚物
+move_character_value = key_config['move_character']['key'].lower()#移动角色
+back_to_selia_value = key_config['back_to_selia']['key'].lower()#回赛利亚房间
+challenge_again_value= key_config['challenge_again']['key'].lower()#再次挑战
+
+# print(one_key_gather_value)
+
 
 
 # min_map_name = 0
@@ -2771,7 +2800,7 @@ class PlayerThread(QThread):
             return
         logger.info("回赛丽亚旅馆存金币")
         self.send_log("回赛丽亚旅馆存金币")
-        pyauto.keyPressChar("delete")
+        pyauto.keyPressChar(back_to_selia_value)
         time.sleep(0.2)
         pyauto.keyPressChar("space")
         time.sleep(1)
@@ -2964,7 +2993,7 @@ class PlayerThread(QThread):
                             time.sleep(0.1)
                     game_image = screenshot_util.get_game_screenshot()
                     if gv.banzhuan == 0:
-                        pyauto.keyPressChar("f10")
+                        pyauto.keyPressChar(challenge_again_value)
                     else:
                         pyauto.keyPressChar("space")
                     self.get_yolo_res(game_image)
@@ -3121,7 +3150,7 @@ class PlayerThread(QThread):
                             pyauto.click()
                             time.sleep(0.1)
                     game_image = screenshot_util.get_game_screenshot()
-                    pyauto.keyPressChar("f10")
+                    pyauto.keyPressChar(challenge_again_value)#再次挑战快捷键
                     self.get_yolo_res(game_image)
                     # 再次检查是否还有物品
                     if len(self.goods) > 0:
@@ -3203,7 +3232,7 @@ class PlayerThread(QThread):
         pyauto.keyUpChar('up')
         time.sleep(0.05)
         for i in range(random.randint(3, 5)):
-            pyauto.keyPressChar('tab')
+            pyauto.keyPressChar(one_key_gather_value)
             time.sleep(0.05)
         time.sleep(random.uniform(1, 1.5))
         start_time = time.time()

@@ -5,7 +5,6 @@ import os.path
 import random
 # import pprint
 import string
-import sys
 import threading
 import time
 import traceback
@@ -31,8 +30,12 @@ from core.callSettingsGroup import SettingsGroupWindow
 from utils.screenshot_util import screenshot_util
 # from utils.yjs import yjs
 from utils.cross_control import pyauto
-from view.main0914 import Ui_MainWindow
-from core.device_identity_client import send_request, ret_data
+# from view.main0914 import Ui_MainWindow
+from view.main0916 import Ui_MainWindow
+from view.key_config_run import KeyConfigDialog
+
+# from view.key_config_run import KeyConfigDialog
+from core.device_identity_client import send_request
 from core.device_time_utils import get_identity_mark
 # from core.window_position import WindowPositionUpdater
 from core import global_variable as gv
@@ -140,6 +143,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.setupUi(self)  # 假设这个方法是在某个UI文件中通过pyuic生成的，用于设置窗口的UI界面
         self.action12.triggered.connect(self.show_login)
         self.loadSettings("json_resources/ui_config.json")
+
         self.lineEdit.textChanged.connect(self.on_text_changed)
         self.lineEdit_3.textChanged.connect(self.on_text_changed)
         self.lineEdit_4.textChanged.connect(self.on_text_changed)
@@ -175,22 +179,30 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.setFixedSize(self.width(), self.height())  # 设置窗口为固定大小，防止用户最大化
 
         # 初始化设置窗口
+        print(self.dic,7777777777)
         self.settings_group_window = SettingsGroupWindow(dic=self.dic)  # 初始化设置组窗口
         self.role_settings_window = RoleSettingsWindow(dic=self.dic)  # 初始化角色设置窗口
 
         # 连接设置组窗口的信号
+
         self.settings_group_window.send_update_settings_group_signal.connect(
             self.role_settings_window.receive_update_settings_group_signal)  # 连接设置组更新信号到角色设置窗口
         self.settings_group_window.send_update_settings_group_signal.connect(
             self.receive_update_settings_group_signal)  # 连接设置组更新信号到当前窗口的接收方法
 
+
         # 连接下拉框激活信号到更新角色表数据的方法
         self.settingsGroupComboBox.activated.connect(self.update_roles_table_data)  # 假设settingsGroupComboBox是UI中的某个下拉框
-
+        # self.Keyboardsettings.triggered.connect(self.open_keyboard_settings)
         # 创建并启动键盘监听线程
+        self.Keyboardsettings.triggered.connect(self.open_keyboard_settings)
         self.keyboard_thread = KeyboardListenerThread(self.key_press_signal)
         self.keyboard_thread.start()  # self.yoloProcess = YoloProcess()  # self.yoloProcess.load_model()  # self.playerThread.yolo = self.yoloProcess
 
+    def open_keyboard_settings(self):
+        """打开按键配置对话框"""
+        dialog = KeyConfigDialog(self)
+        dialog.exec_()
     def init_content(self):
         """
         初始化窗口内容，特别是与角色表格相关的设置。
@@ -293,33 +305,37 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.displaythread = DisplayThread()
         self.displaythread.update_signal.connect(self.update_image)
         self.displaythread.start()
-        # global Network
-        # Network = 1
+        global Network
+        Network = 1
 
-        for i in range(3):
-            try:
-                ret = send_request(f_program_version=f_program_version, state=0)
-                return_data_1 = ret_data(ret)
-                if return_data_1.response == 200 or return_data_1.response == 201:
-                    if return_data_1.response == 201:
-                        self.update_log(
-                            return_data_1.msg)  # my_print('亲爱的用户们：\n\t我们软件已推出新版本，增加了新功能并优化了现有功能。为方便您更新，我们已在Q群提供更新文件。请您自行进入Q群下载并安装新版本。如遇问题，请随时在Q群反馈。感谢您的支持！\n祝您使用愉快')
-
-                    else:
-                        self.update_log(f'已连接到网络')
-                    self.setWindowTitle(f'工具人({str(f_program_version)})    {return_data_1.msg}')
-                    global Network
-                    Network = 1
-                    break
-                else:
-                    # my_print(f'尝试连接网络{i + 1}次')
-                    self.update_log(return_data_1.msg)
-                    break
-            except Exception as e:
-                self.update_log(f"机器码验证错误:{e}")
+        # for i in range(3):
+        #     try:
+        #         ret = send_request(f_program_version=f_program_version, state=0)
+        #         return_data_1 = ret_data(ret)
+        #         if return_data_1.response == 200 or return_data_1.response == 201:
+        #             if return_data_1.response == 201:
+        #                 self.update_log(
+        #                     return_data_1.msg)  # my_print('亲爱的用户们：\n\t我们软件已推出新版本，增加了新功能并优化了现有功能。为方便您更新，我们已在Q群提供更新文件。请您自行进入Q群下载并安装新版本。如遇问题，请随时在Q群反馈。感谢您的支持！\n祝您使用愉快')
+        #
+        #             else:
+        #                 self.update_log(f'已连接到网络')
+        #             self.setWindowTitle(f'工具人({str(f_program_version)})    {return_data_1.msg}')
+        #             global Network
+        #             Network = 1
+        #             break
+        #         else:
+        #             # my_print(f'尝试连接网络{i + 1}次')
+        #             self.update_log(return_data_1.msg)
+        #             break
+        #     except Exception as e:
+        #         self.update_log(f"机器码验证错误:{e}")
 
     def show_login(self):
         self.authapp.show()
+
+
+    # def show_keyboard_settings(self):
+    #     self.keyboardapp.show()
 
     def on_key_pressed(self, key):
         if key == "start":
@@ -647,6 +663,8 @@ class AppMain(QMainWindow, Ui_MainWindow):
         # 调用update_settings_group_data方法来更新设置组数据
         self.update_settings_group_data()
 
+
+
     def update_log(self, log):
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         log_entry = f"{timestamp} - {log}"
@@ -911,3 +929,8 @@ class AppMain(QMainWindow, Ui_MainWindow):
         # 使用系统默认浏览器打开
         if not QDesktopServices.openUrl(url):
             print(f"无法打开文件: {local_html_path}")
+
+    # def open_keyboard_settings(self):
+    #     """打开按键配置对话框"""
+    #     dialog = KeyConfigDialog(self)
+    #     dialog.exec_()
