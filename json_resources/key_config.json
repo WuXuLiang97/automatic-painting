@@ -1,0 +1,34 @@
+{
+  "one_key_gather": {
+    "key": "2"
+  },
+  "move_character": {
+    "key": "按下按键..."
+  },
+  "back_to_selia": {
+    "key": "Delete"
+  },
+  "challenge_again": {
+    "key": "F10"
+  },
+  "skills": [
+    [
+      "Q",
+      "W",
+      "E",
+      "R",
+      "T",
+      "Y",
+      "V"
+    ],
+    [
+      "A",
+      "S",
+      "D",
+      "F",
+      "G",
+      "H",
+      "B"
+    ]
+  ]
+}
