@@ -37,6 +37,7 @@ from core import global_variable as gv
 
 from utils.logging_setup import logger
 from view.key_config_run import DEFAULT_CONFIG
+
 current_path = os.path.dirname(os.path.abspath(__file__))
 root_path = os.path.abspath(os.path.join(current_path, '../'))
 # 基础时间单位（秒）
@@ -47,11 +48,10 @@ HOUR = 60 * MINUTE
 target_items = ["风化的碎骨", "破旧的皮革", "碎布片", "生锈的铁片", "最下级硬化剂", "最下级砥石", "炉岩核", "协调结晶体", "嘿", "嗯", "呀"]
 SIMILARITY_THRESHOLD = 0.7  # 相似度阈值
 
-
 # min_map_name = 0
 
-key_config_file = os.path.join(root_path, "json_resources/key_config.json")
-
+target_dir = os.path.join(r"C:\Program Files", "json_resources")  # 拼接子目录
+key_config_file = os.path.join(target_dir, "key_config.json")
 try:
     if os.path.exists(key_config_file):
         with open(key_config_file, 'r', encoding='utf-8') as f:
@@ -65,10 +65,10 @@ except Exception as e:
     logger.error(f"加载键盘配置失败: {e}，使用默认配置")
     key_config = DEFAULT_CONFIG
 
-one_key_gather_value = key_config['one_key_gather']['key'].lower()#一键聚物
-move_character_value = key_config['move_character']['key'].lower()#移动角色
-back_to_selia_value = key_config['back_to_selia']['key'].lower()#回赛利亚房间
-challenge_again_value= key_config['challenge_again']['key'].lower()#再次挑战
+one_key_gather_value = key_config['one_key_gather']['key'].lower()  # 一键聚物
+move_character_value = key_config['move_character']['key'].lower()  # 移动角色
+back_to_selia_value = key_config['back_to_selia']['key'].lower()  # 回赛利亚房间
+challenge_again_value = key_config['challenge_again']['key'].lower()  # 再次挑战
 
 
 class PlayerThread(QThread):
@@ -1730,7 +1730,7 @@ class PlayerThread(QThread):
             return bool(re.search(pattern, s))
 
         logger.info("开始攻击怪物")
-
+        attack_boss_count = 0
         while self.brush_running and not self.ghost_state:  # 在刷子运行中且角色未成为幽灵时循环
             game_img = screenshot_util.get_game_screenshot()  # 获取当前游戏屏幕的截图
             logger.info("打怪中···")
@@ -1775,9 +1775,10 @@ class PlayerThread(QThread):
                         self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
                     return
             self.move_to_monster()  # 移动到最近的怪物
-            if self.is_boss:  # 如果当前怪物是Boss
+            if self.is_boss and attack_boss_count <= 2:  # 如果当前怪物是Boss
                 logger.info("当前怪物是Boss,释放打Boss的技能")
                 skill = skill_util.get_release_boss_skill(game_img)  # 获取释放Boss的技能
+                attack_boss_count += 1
             else:
                 logger.info("当前怪物是普通怪物,释放打普通怪物的技能")
                 skill = skill_util.get_release_skill(game_img)  # 获取释放普通怪物的技能
@@ -1910,7 +1911,7 @@ class PlayerThread(QThread):
             logger.info(f"没有找到与({target[0]}, {target[1]})接近的坐标。")
         return nearest_coord
 
-    def find_door_pos(self,down):
+    def find_door_pos(self, down):
         """
         寻找玩家当前房间内的门的位置。
 

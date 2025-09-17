@@ -8,6 +8,8 @@ from PyQt5.QtGui import QKeyEvent
 from root_dir import root_path
 from view.key_config import Ui_Frame
 
+target_dir = os.path.join(r"C:\Program Files", "json_resources")  # 拼接子目录
+target_file = os.path.join(target_dir, "key_config.json")
 DEFAULT_CONFIG = {
     'one_key_gather': {'key': 'Tab'},
     'move_character': {'key': 'W'},
@@ -24,6 +26,7 @@ FORBIDDEN_KEYS = {
     Qt.Key_End: 'End',
     Qt.Key_Home: 'Home',
 }
+
 
 class KeyButton(QPushButton):
     """自定义按钮类，支持根据文本自动调整宽度"""
@@ -45,12 +48,13 @@ class KeyButton(QPushButton):
         new_width = max(60, min(150, text_width + 30))
         self.setFixedWidth(new_width)
 
+
 class KeyConfigDialog(QDialog, Ui_Frame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
 
-        self.config_file = os.path.join(root_path, "json_resources/key_config.json")
+        self.config_file = target_file
         self.waiting_widget = None
 
         # 替换原有按钮为自定义按钮
@@ -112,6 +116,7 @@ class KeyConfigDialog(QDialog, Ui_Frame):
 
         self.btn_challenge_again = KeyButton('未设置', parent)
         self.btn_challenge_again.setGeometry(again_geometry)
+
     def init_skill_grid(self):
         """初始化技能按键网格 2行7列"""
         for row in range(2):
@@ -161,7 +166,7 @@ class KeyConfigDialog(QDialog, Ui_Frame):
             if conflict_button:
                 msg = f'按键 {key_name} 已被 {self.get_button_name(conflict_button)} 使用！\n是否替换？'
                 reply = QMessageBox.question(self, '按键冲突', msg,
-                                          QMessageBox.Yes | QMessageBox.No)
+                                             QMessageBox.Yes | QMessageBox.No)
                 if reply == QMessageBox.Yes:
                     conflict_button.setText('未设置')
                 else:
@@ -269,50 +274,59 @@ class KeyConfigDialog(QDialog, Ui_Frame):
 
     def save_config(self):
         """保存配置到文件"""
-        # 检查是否有按键冲突
+        # 检查是否有按键冲突（重复按键）
         key_names = {}
         for button in self.all_key_buttons:
-            if button.text() != '未设置':
-                if button.text() in key_names:
-                    QMessageBox.warning(self, '错误',
-                                       f'存在按键冲突：{button.text()} 和 {key_names[button.text()]} '
-                                       f'使用了相同的按键！\n请先解决冲突再保存。')
+            btn_text = button.text()
+            if btn_text != '未设置':
+                if btn_text in key_names:
+                    QMessageBox.warning(
+                        self, '错误',
+                        f'存在按键冲突：{btn_text} 同时被「{self.get_button_name(key_names[btn_text])}」和「{self.get_button_name(button)}」使用！\n请先解决冲突再保存。'
+                    )
                     return False
-                key_names[button.text()] = button.text()
+                key_names[btn_text] = button  # 存储按钮对象，方便提示冲突来源
 
+        # 构造配置字典
         config = {
-            'one_key_gather': {
-                'key': self.btn_one_key_gather.text() if self.btn_one_key_gather.text() != '未设置' else '',
-            },
-            'move_character': {
-                'key': self.btn_move_character.text() if self.btn_move_character.text() != '未设置' else '',
-            },
-
-            'back_to_selia': {
-                'key': self.btn_back_to_selia.text() if self.btn_back_to_selia.text() != '未设置' else '',
-            },
-            'challenge_again': {
-                'key': self.btn_challenge_again.text() if self.btn_challenge_again.text() != '未设置' else '',
-            },
-
+            'one_key_gather': {'key': self.btn_one_key_gather.text() if self.btn_one_key_gather.text() != '未设置' else ''},
+            'move_character': {'key': self.btn_move_character.text() if self.btn_move_character.text() != '未设置' else ''},
+            'back_to_selia': {'key': self.btn_back_to_selia.text() if self.btn_back_to_selia.text() != '未设置' else ''},
+            'challenge_again': {'key': self.btn_challenge_again.text() if self.btn_challenge_again.text() != '未设置' else ''},
             'skills': []
         }
 
-        # 保存技能按键配置（简化格式，只保存按键字符串）
+        # 补充技能按键配置
         for row in self.skill_buttons:
-            row_keys = []
-            for btn in row:
-                key_text = btn.text() if btn.text() != '未设置' else ''
-                row_keys.append(key_text)
+            row_keys = [btn.text() if btn.text() != '未设置' else '' for btn in row]
             config['skills'].append(row_keys)
 
         try:
-            with open(self.config_file, 'w', encoding='utf-8') as f:
+            # 1. 确保目录存在（简化逻辑，去掉冗余判断）
+            os.makedirs(target_dir, exist_ok=True)
+            # 2. 打印调试信息（确认目录和文件路径）
+            dir_path = os.path.abspath(target_dir)
+            file_path = os.path.abspath(self.config_file)
+            print(f"[调试] 目标目录：{dir_path}")
+            print(f"[调试] 目标文件：{file_path}")
+
+            # 3. 写入配置文件
+            with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(config, f, ensure_ascii=False, indent=2)
-            QMessageBox.information(self, '成功', '配置保存成功！')
+
+            # 4. 仅在保存成功时弹窗提示
+            QMessageBox.information(self, '成功', f'配置已保存到：\n{file_path}')
             return True
+
         except Exception as e:
-            QMessageBox.critical(self, '错误', f'保存配置失败：{str(e)}')
+            # 5. 捕获异常并打印详细堆栈（关键：定位具体错误）
+            import traceback
+            error_detail = traceback.format_exc()
+            print(f"[错误] 保存配置失败：\n{error_detail}")
+            QMessageBox.critical(
+                self, '保存失败',
+                f'无法写入配置文件：\n{str(e)}\n\n详细错误信息已打印到控制台，请检查路径权限或日志。'
+            )
             return False
 
     def closeEvent(self, event):
@@ -320,7 +334,7 @@ class KeyConfigDialog(QDialog, Ui_Frame):
         has_unconfigured = any(button.text() == '未设置' for button in self.all_key_buttons)
         if has_unconfigured:
             reply = QMessageBox.question(self, '提示', '存在未设置的按键，是否保存当前配置？',
-                                       QMessageBox.Save | QMessageBox.Cancel)
+                                         QMessageBox.Save | QMessageBox.Cancel)
             if reply == QMessageBox.Save:
                 if self.save_config():
                     event.accept()
@@ -381,7 +395,7 @@ class KeyConfigDialog(QDialog, Ui_Frame):
     def load_default_config(self):
         """加载默认配置"""
         reply = QMessageBox.question(self, '确认', '是否加载默认配置？\n这将覆盖当前的所有设置。',
-                                   QMessageBox.Yes | QMessageBox.No)
+                                     QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.No:
             return
 
@@ -395,6 +409,7 @@ class KeyConfigDialog(QDialog, Ui_Frame):
                 for col_idx, key in enumerate(row_data):
                     if col_idx < len(self.skill_buttons[row_idx]):
                         self.skill_buttons[row_idx][col_idx].setText(key)
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

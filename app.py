@@ -17,12 +17,11 @@ from root_dir import root_path
 # 设置日志
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 import os
-
-# config_path = os.path.join(root_path, 'json_resources/remember.json')
+target_dir = os.path.join(r"C:\Program Files", "json_resources")  # 拼接子目录
 # 用户数据存储文件
-USER_DATA_FILE = os.path.join(r'C:\Users', 'users.json')
+USER_DATA_FILE = os.path.join(target_dir, 'users.json')
 # 记住密码的配置文件
-REMEMBER_FILE = os.path.join(r'C:\Users', 'remember.json')
+REMEMBER_FILE = os.path.join(target_dir, 'remember.json')
 
 
 def encrypt_password(password):

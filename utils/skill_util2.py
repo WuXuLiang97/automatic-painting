@@ -62,7 +62,8 @@ class SkillUtil:
 
     def load_key_config(self):
         """加载键盘配置文件"""
-        config_file = os.path.join(root_path, "json_resources/key_config.json")
+        target_dir = os.path.join(r"C:\Program Files", "json_resources")  # 拼接子目录
+        config_file = os.path.join(target_dir, "key_config.json")
 
         try:
             if os.path.exists(config_file):
