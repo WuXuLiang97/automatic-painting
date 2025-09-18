@@ -14,6 +14,7 @@ import cv2
 import keyboard
 import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal
+import weiyang
 
 from core.directional_astar import a_star, judge_direction  # A星寻路
 from utils.api import test_view_subgroup_config, test_update_subgroup_config
@@ -282,6 +283,8 @@ class PlayerThread(QThread):
             self.juqing()
         elif gv.banzhuan == 2:
             self.juqing_2()
+        elif gv.banzhuan == 3:
+            weiyang.main(pyauto)
 
     def banzhuan(self):
         try:
