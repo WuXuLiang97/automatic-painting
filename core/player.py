@@ -776,31 +776,52 @@ class PlayerThread(QThread):
             func()
 
     def brush_map(self):
-        # 如果开了门
-        if len(self.doors) > 0 and not self.has_continue:
-            # 先获取当前房间ID和对应的拾取次数（不存在则为None）
-            current_room_id = self.player.player_room_id
-            pickup_count = self.room_item_pickup_counts.get(current_room_id)
-            if len(self.goods) > 0 and (pickup_count is None or pickup_count < 10):
+        # 提取重复使用的变量，减少计算次数
+        current_room_id = self.player.player_room_id
+        pickup_count = self.room_item_pickup_counts.get(current_room_id, 0)
+        has_doors = len(self.doors) > 0
+        has_monsters = len(self.monsters) > 0
+        has_goods = len(self.goods) > 0
+        # 添加拾取次数检查 - 如果已经拾取超过10次，不再拾取
+        can_pickup_goods = has_goods and pickup_count < 10
+
+        # 调试日志保持不变，便于问题定位
+        logger.info(
+            f"\nbrush_map:"
+            f"\n\tself.doors:{len(self.doors)}"
+            f"\n\tself.has_continue:{self.has_continue}"
+            f"\n\tself.player.player_room_id:{current_room_id}"
+            f"\n\tself.room_item_pickup_counts:{pickup_count}"
+            f"\n\tself.goods:{len(self.goods)}"
+            f"\n\tself.monsters:{len(self.monsters)}"
+            f"\n\tself.is_boss:{self.is_boss}"
+        )
+
+        # 分支1：存在门且无需继续上一操作
+        if has_doors and not self.has_continue:
+            if can_pickup_goods:  # 只有在拾取次数未超限时才拾取
                 self.pickup_goods()
             else:
                 self.enter_door()
+
+        # 分支2：无门 或 需要继续上一操作
         else:
-            if len(self.monsters) > 0:
+            # 优先处理怪物逻辑
+            if has_monsters:
                 if self.is_boss:
                     self.process_boss_room()
                 else:
                     self.attach_monster()
+            # 无怪物时，处理物品或进门
             else:
-                # 先获取当前房间ID和对应的拾取次数（不存在则为None）
-                current_room_id = self.player.player_room_id
-                pickup_count = self.room_item_pickup_counts.get(current_room_id)
-                if len(self.goods) > 0 and not self.has_continue and (pickup_count is None or pickup_count < 10):
+                # 满足物品拾取条件且拾取次数未超限时优先拾取
+                if can_pickup_goods and not self.has_continue:
                     self.pickup_goods()
-                elif self.is_boss is not True:
-                    # 无门 无怪物 无物品
+                # 非BOSS房间：无物品/不可拾取时进门
+                elif not self.is_boss:
                     self.enter_door()
-                elif self.is_boss:
+                # BOSS房间：无物品/不可拾取时处理BOSS逻辑
+                else:
                     self.process_boss_room()
 
     def brush_map_2(self):
@@ -1162,13 +1183,13 @@ class PlayerThread(QThread):
                             if release_completed:  # 检查技能是否已释放完成
                                 time.sleep(0.2)  # 稍微等待一下以确保技能确实释放完成
                                 break  # 退出内层循环
-                            time.sleep(0.2)  # 注意：这里没有else语句来处理技能为None的情况，因为前面的if skill is not None已经涵盖了这种情况
+                            time.sleep(0.2)  # 注意：这里没有else语句来处理技能为None的情况，因为前面的if skill is not None已经涵盖了这种情况——
 
             # 如果检测到怪物、物品或满足特定条件，则处理
-            logger.info("确定门检查怪物数量：{}\t金币数量：{}\t是否有奖励：{}\t是否有继续：{}"
-                        "".format(len(self.monsters), len(self.goods), self.has_rewards, self.has_continue))
+            logger.info("确定门检查怪物数量：{}\t是否有奖励：{}\t是否有继续：{}"
+                        "".format(len(self.monsters), self.has_rewards, self.has_continue))
 
-            if len(self.monsters) > 0 or len(self.goods) > 0 or self.has_rewards or self.has_continue:
+            if len(self.monsters) > 0 or self.has_rewards or self.has_continue:
 
                 if self.has_rewards or self.has_continue:
                     self.process_boss_room()
@@ -1424,9 +1445,9 @@ class PlayerThread(QThread):
             the_first_item = Point(goods_pos[0][0], goods_pos[0][1])
             # 先获取当前房间ID和对应的拾取次数（不存在则为None）
             current_room_id = self.player.player_room_id
-            pickup_count = self.room_item_pickup_counts.get(current_room_id)
+            pickup_count = self.room_item_pickup_counts.get(current_room_id, 0)
 
-            if abs(self.player_pos.x - the_first_item.x) > 200 and (pickup_count is None or pickup_count < 3):
+            if abs(self.player_pos.x - the_first_item.x) > 200 and pickup_count < 3:
                 move_info = self.compute_move_info(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                 logger.info("向物品奔跑：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                 self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
@@ -2388,9 +2409,14 @@ class PlayerThread(QThread):
                     self.doorOpenState[room_id] = True  # 记录已开门
         else:
             should_process = (not self.monsters or self.has_continue or self.has_rewards)
+        current_room_id = self.player.player_room_id
+        pickup_count = self.room_item_pickup_counts.get(current_room_id, 0)
         # 调试输出：打印两个条件的值
-        logger.info(f"拾取物品的条件：should_process = {should_process}, self.doorOpenState.get(room_id) = {self.doorOpenState.get(room_id)}")
-        if should_process or self.doorOpenState.get(room_id):
+        logger.info(f"\n拾取物品的条件：\n\tshould_process : {should_process}"
+                    f"\n\tself.doorOpenState.get(room_id) : {self.doorOpenState.get(room_id)}"
+                    f"\n\tpickup_count : {pickup_count}")
+
+        if (should_process or self.doorOpenState.get(room_id)) and pickup_count < 10:
             # 公共的商品处理逻辑
             filtered_goods = []
             for dx, dy, dx1, dy1 in goods:
@@ -3122,8 +3148,8 @@ class PlayerThread(QThread):
                         self.operator_module.move_to(x, y)
                         pyauto.click()
                         time.sleep(0.1)
-                    ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
-                    if ret:
+
+                    if self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85) or self.mm.FindPic(145, 22, 255, 54, "模糊的奥拉蔻.bmp", 0.85):
                         ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp", 0.85, 1)
                         if ret:
                             for r in ret:
