@@ -1188,7 +1188,15 @@ class PlayerThread(QThread):
             # 如果检测到怪物、物品或满足特定条件，则处理
             logger.info("确定门检查怪物数量：{}\t是否有奖励：{}\t是否有继续：{}"
                         "".format(len(self.monsters), self.has_rewards, self.has_continue))
-
+            if len(self.goods) > 0:
+                current_room_id = self.player.player_room_id
+                pickup_count = self.room_item_pickup_counts.get(current_room_id, 0)
+                logger.info(f"找门发现物品，当前房间：{current_room_id}拾取次数：{pickup_count}")
+                if pickup_count < 10:
+                    logger.info(f"小于10次return去拾取物品")
+                    return
+                else:
+                    logger.info(f"大于10次继续找门过图")
             if len(self.monsters) > 0 or self.has_rewards or self.has_continue:
 
                 if self.has_rewards or self.has_continue:
