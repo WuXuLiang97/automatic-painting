@@ -136,6 +136,7 @@ class PlayerThread(QThread):
         self.medicine_time = None
         self.room_item_pickup_counts = {}  # 记录每个房间拾取次数
         self.doorOpenState = {}  # 记录每个房间开门状态
+        self.Number_of_moves_to_the_next_room = {}  # 记录前往下个房间的移动次数
 
     def set_big_break_time(self):
         # 计算3-4小时后的随机时间点（以秒为单位）
@@ -602,6 +603,7 @@ class PlayerThread(QThread):
         :return:
         """
         # 重置boss状态
+        self.Number_of_moves_to_the_next_room.clear()
         self.room_item_pickup_counts.clear()
         self.doorOpenState.clear()
         self.direction_dic.clear()
@@ -881,14 +883,6 @@ class PlayerThread(QThread):
                 # 如果没有找到门的位置，则根据当前位置和移动方向尝试左右移动
                 if isinstance(door_pos, Point):
                     logger.info(f"player_pos：{self.player_pos.x}, {self.player_pos.y}\tdoor_pos:{door_pos.x}, {door_pos.y}")
-                    # if abs(self.player_pos.x - door_pos.x) < 40:
-                    #     self.player_left_right_move()
-                    #     continue
-                    # move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)
-                    # if move_info is None:
-                    #     continue
-                    # # 移动人物
-                    # self.movement_recorder.left_right_up_down_move_by(move_info, already_move)
 
                     if abs(self.player_pos.x - door_pos.x) > 200:
                         move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
@@ -1083,7 +1077,7 @@ class PlayerThread(QThread):
 
         start_time = time.time()  # 记录方法开始执行的时间
         frame_time = time.time()
-        logger.info("开始找门")  # 打印开始信息
+        logger.info("<开始找门>")  # 打印开始信息
         # 定义变量
         next_direction = "right"  # 默认的移动方向为向右
         already_move = False  # 标记是否已经尝试过左右移动
@@ -1092,6 +1086,11 @@ class PlayerThread(QThread):
         door__pos_none_count = 0  # 门位置为None的计数
         attack = False
         down = False
+        if self.player.map_name != "深渊：终末崇拜者":
+            # 获取小地图数据
+            self.get_min_map_yolo_res()
+            current_room = self.player.player_room_id
+            logger.info(f"\n<开始找门>\n\t当前房间：{current_room}")
         # 只要游戏在运行且不是幽灵状态，就持续尝试
         while self.brush_running and not self.ghost_state:
             # 如果执行时间过长，则进入幽灵状态并返回
@@ -1257,9 +1256,19 @@ class PlayerThread(QThread):
                     move_info = self.compute_move_info_walk(self.player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
                     logger.info("向门步行：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                     self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
-                move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)
-                if move_info is None:
-                    continue
+                # 不是深渊
+                if self.player.map_name != "深渊：终末崇拜者":
+                    current_room_id = self.player.player_room_id
+                    moves_count = self.Number_of_moves_to_the_next_room.get(current_room_id, 0)
+                    if self.player.player_room_id is not None:
+                        if current_room_id not in self.Number_of_moves_to_the_next_room:
+                            self.Number_of_moves_to_the_next_room[current_room_id] = 0  # 手动初始化
+                        self.Number_of_moves_to_the_next_room[current_room_id] += 1  # 现在可以安全执行
+                        logger.info(f"当前房间 {current_room_id}移动次数+1")
+                        logger.info(f"当前房间{current_room_id}移动次数: {moves_count}")
+                # move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)
+                # if move_info is None:
+                #     continue
 
                 # # 移动人物
                 # self.movement_recorder.left_right_up_down_move_by(move_info, already_move)
@@ -1275,53 +1284,71 @@ class PlayerThread(QThread):
                 pyauto.releaseallkey()
                 # 设置首次攻击怪物的标志
                 self.is_first_attack_monster = True
-                if time.time() - frame_time > 5:
-                    frame_time = time.time()
-                    self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
-                    if self.player_pos.x is None:
-                        continue
-                    frame2_detections = (self.player_pos.x, self.player_pos.y)
-
-                    frames = [frame1_detections, frame2_detections]
-                    logger.info("检测人物frames:{}".format(frames))
-                    # 设置一个位置变化的阈值（这里以像素为单位）
-                    movement_threshold = 10  # 如果x或y方向上的变化超过10像素，则认为物体在移动
-                    # 跟踪人物并检测运动
-                    last_position = None
-                    for frame_idx, (x, y) in enumerate(frames):
-                        # 检查当前位置是否为None
-                        if (x is None) or (y is None):
-                            logger.info(f"在帧 {frame_idx + 1} 中，人物位置数据缺失。")
-                            break
-                        # 如果是第一帧，则没有上一个位置可以比较，直接跳过
-                        if last_position is None:
-                            last_position = (x, y)
-                            continue
-                        # 计算当前位置与上一个位置的变化
-                        current_position = (x, y)
-                        dx, dy = abs(current_position[0] - last_position[0]), abs(current_position[1] - last_position[1])
-
-                        # 判断是否移动
-                        if dx > movement_threshold or dy > movement_threshold:
-                            logger.info(f"在帧 {frame_idx + 1} 中，人物移动了。")
+                if self.player.map_name != "深渊：终末崇拜者":
+                    current_room_id = self.player.player_room_id
+                    moves_count = self.Number_of_moves_to_the_next_room.get(current_room_id, 0)
+                    if moves_count > 5 and current_room == current_room_id:
+                        logger.info(f"当前房间找门移动次数：{moves_count}\t记录房间：{current_room}\t当前房间：{current_room_id}")
+                        already_move = False
+                        if not up_and_down_move:
+                            logger.info("尝试向上移动")
+                            self.movement_recorder.up_down_move("up", 1)
+                            up_and_down_move = True
                         else:
-                            logger.info(f"在帧 {frame_idx + 1} 中，人物是静止的。")
-                            already_move = False
-                            if not up_and_down_move:
-                                logger.info("尝试向上移动")
-                                self.movement_recorder.up_down_move("up", 1)
-                                up_and_down_move = True
-                            else:
-                                logger.info("尝试向下移动")
-                                self.movement_recorder.up_down_move("down", 1)
-                                up_and_down_move = False
-                            self.test_move()
-                            # if self.player_pos.y < 458:
-                            #     logger.info("人物位置在上面卡住了")
-                            #     self.movement_recorder.up_down_move("down", 1)
-                            # else:
-                            #     logger.info("人物位置在下面卡住了")
-                            #     self.movement_recorder.up_down_move("up", 1)
+                            logger.info("尝试向下移动")
+                            self.movement_recorder.up_down_move("down", 1)
+                            up_and_down_move = False
+                        self.test_move()
+                        logger.info(f"解除卡点重置为0")
+                        # 解除卡点重置为0
+                        self.Number_of_moves_to_the_next_room[current_room_id] = 0  # 手动初始化
+                # if time.time() - frame_time > 5:
+                #     frame_time = time.time()
+                #     self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
+                #     if self.player_pos.x is None:
+                #         continue
+                #     frame2_detections = (self.player_pos.x, self.player_pos.y)
+                #
+                #     frames = [frame1_detections, frame2_detections]
+                #     logger.info("检测人物frames:{}".format(frames))
+                #     # 设置一个位置变化的阈值（这里以像素为单位）
+                #     movement_threshold = 10  # 如果x或y方向上的变化超过10像素，则认为物体在移动
+                #     # 跟踪人物并检测运动
+                #     last_position = None
+                #     for frame_idx, (x, y) in enumerate(frames):
+                #         # 检查当前位置是否为None
+                #         if (x is None) or (y is None):
+                #             logger.info(f"在帧 {frame_idx + 1} 中，人物位置数据缺失。")
+                #             break
+                #         # 如果是第一帧，则没有上一个位置可以比较，直接跳过
+                #         if last_position is None:
+                #             last_position = (x, y)
+                #             continue
+                #         # 计算当前位置与上一个位置的变化
+                #         current_position = (x, y)
+                #         dx, dy = abs(current_position[0] - last_position[0]), abs(current_position[1] - last_position[1])
+                #
+                #         # 判断是否移动
+                #         if dx > movement_threshold or dy > movement_threshold:
+                #             logger.info(f"在帧 {frame_idx + 1} 中，人物移动了。")
+                #         else:
+                #             logger.info(f"在帧 {frame_idx + 1} 中，人物是静止的。")
+                #             already_move = False
+                #             if not up_and_down_move:
+                #                 logger.info("尝试向上移动")
+                #                 self.movement_recorder.up_down_move("up", 1)
+                #                 up_and_down_move = True
+                #             else:
+                #                 logger.info("尝试向下移动")
+                #                 self.movement_recorder.up_down_move("down", 1)
+                #                 up_and_down_move = False
+                #             self.test_move()
+                #             # if self.player_pos.y < 458:
+                #             #     logger.info("人物位置在上面卡住了")
+                #             #     self.movement_recorder.up_down_move("down", 1)
+                #             # else:
+                #             #     logger.info("人物位置在下面卡住了")
+                #             #     self.movement_recorder.up_down_move("up", 1)
 
             if isinstance(door_pos, str) and door_pos == "down":
                 down = True
@@ -1348,6 +1375,7 @@ class PlayerThread(QThread):
                     logger.info("没有移动过，现在移动方向为：{}".format(next_direction))
                     self.movement_recorder.already_left_right_move(next_direction)
                     already_move = True
+
                 if time.time() - frame_time > 5:
                     frame_time = time.time()
                     self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
@@ -1396,6 +1424,7 @@ class PlayerThread(QThread):
                             # else:
                             #     logger.info("人物位置在下面卡住了")
                             #     self.movement_recorder.up_down_move("up", 1)
+
                 continue
             logger.info("结束找门")
 
@@ -2326,7 +2355,17 @@ class PlayerThread(QThread):
                         logger.info(f"yolo处理 最少房间要求为：{min_rooms}")
                         if self.getOpenedRoomsCount() >= min_rooms:
                             logger.info(f"yolo处理 当前房间是boss房")
-                            self.is_boss = True  # 假设遇到继续即视为Boss关
+                            if self.player.map_name == "深渊：终末崇拜者":
+                                self.is_boss = True
+                            else:
+                                ocr_text = self.get_text(40, 90, 133, 110, game_image).strip()
+                                pattern = r'[\u4e00-\u9fa5]+'
+                                # 使用 re.findall() 找出所有匹配的内容
+                                matches = re.findall(pattern, ocr_text)
+                                t = "".join(matches)
+                                logger.info(f"识别领主：{ocr_text}")
+                                if "领主" in t:
+                                    self.is_boss = True
                     else:
                         logger.info(f"当前地图：{self.player.map_name},识别的数据：{data}，不是本地图的怪物，应该是识别错误已跳过本条信息处理")
                         continue
@@ -2977,6 +3016,7 @@ class PlayerThread(QThread):
                     self.direction_dic.clear()
                     self.is_boss = False
                     self.to_door_count = 0
+                    self.Number_of_moves_to_the_next_room.clear()
                     self.room_item_pickup_counts.clear()
                     self.doorOpenState.clear()
                     return True
@@ -3082,6 +3122,7 @@ class PlayerThread(QThread):
                             self.to_door_count = 0
                             self.release_buffer()
                             self.pass_room_id.clear()
+                            self.Number_of_moves_to_the_next_room.clear()
                             self.room_item_pickup_counts.clear()
                             self.doorOpenState.clear()
                             if self.player.player_occupation == "女魔法师-召唤师":
@@ -3137,6 +3178,7 @@ class PlayerThread(QThread):
                     self.direction_dic.clear()
                     self.is_boss = False
                     self.to_door_count = 0
+                    self.Number_of_moves_to_the_next_room.clear()
                     self.room_item_pickup_counts.clear()
                     self.doorOpenState.clear()
                 start_time = time.time()  # 记录当前时间作为开始时间
@@ -3231,6 +3273,7 @@ class PlayerThread(QThread):
                             self.to_door_count = 0
                             self.release_buffer()
                             self.pass_room_id.clear()
+                            self.Number_of_moves_to_the_next_room.clear()
                             self.room_item_pickup_counts.clear()
                             self.doorOpenState.clear()
                             if self.player.player_occupation == "女魔法师-召唤师":
@@ -3921,24 +3964,25 @@ class PlayerThread(QThread):
                         # matches = re.findall(pattern, text)
                         # t = ''.join(matches)
                         # if t and int(''.join(t)) < 30:
-                        x1, y1, x2, y2 = (232, 383, 295, 399)
-                        min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
-                        ret = self.mm.is_colored(min_img, 15)
-                        if not ret:
-                            self.send_log("深渊票不足，跳过当前角色")
-                            self.ghost_state = False
-                            # update_role_brush_date(self.current_role_group, self.current_role_index)
-                            role_settings = self.all_role_settings[self.current_role_index]
-                            dic_data = {'career': role_settings['career'],
-                                        'convert_career': role_settings['convert_career'],
-                                        'height': role_settings['height'],
-                                        'map': role_settings['map'],
-                                        'difficulty': role_settings['difficulty'],
-                                        "brush_map_expire_time": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                        'leave_pl': self.player.pl_value}
-                            test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.current_role_index, dic_data)
-                            self.brush_running = False
-                            return 0
+
+                        # x1, y1, x2, y2 = (232, 383, 295, 399)
+                        # min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
+                        # ret = self.mm.is_colored(min_img, 15)
+                        # if not ret:
+                        #     self.send_log("深渊票不足，跳过当前角色")
+                        #     self.ghost_state = False
+                        #     # update_role_brush_date(self.current_role_group, self.current_role_index)
+                        #     role_settings = self.all_role_settings[self.current_role_index]
+                        #     dic_data = {'career': role_settings['career'],
+                        #                 'convert_career': role_settings['convert_career'],
+                        #                 'height': role_settings['height'],
+                        #                 'map': role_settings['map'],
+                        #                 'difficulty': role_settings['difficulty'],
+                        #                 "brush_map_expire_time": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        #                 'leave_pl': self.player.pl_value}
+                        #     test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.current_role_index, dic_data)
+                        #     self.brush_running = False
+                        #     return 0
                         # time.sleep(0.05)
                         # pyauto.KeyDownChar("shift")
                         #
@@ -3961,6 +4005,7 @@ class PlayerThread(QThread):
                         logger.info('初始化地图')
                         for room_list in self.room_info_map:
                             logger.info(room_list)
+                        syst = time.time()
                         while self.brush_running:
                             text = self.get_text(860, 0, 997, 23)
                             pattern = r'[0-9]+'
@@ -3971,11 +4016,30 @@ class PlayerThread(QThread):
                             logger.info(t)
                             if t and int(t) > 0:
                                 self.send_log("识别到频道，说明未进入地图入口")
+                                pyauto.keyPressChar('esc')
+                                time.sleep(0.1)
                                 return 0
                             game_image = screenshot_util.get_game_screenshot()
                             text = self.get_text(927, 2, 1031, 22, game_image)
                             logger.info(f"识别右上角文字：{text}")
                             cleaned_text = re.sub(r'[^\u4e00-\u9fa5]', '', text)
+                            if time.time() - syst > 20:
+                                self.send_log("深渊票不足，跳过当前角色")
+                                self.ghost_state = False
+                                # update_role_brush_date(self.current_role_group, self.current_role_index)
+                                role_settings = self.all_role_settings[self.current_role_index]
+                                dic_data = {'career': role_settings['career'],
+                                            'convert_career': role_settings['convert_career'],
+                                            'height': role_settings['height'],
+                                            'map': role_settings['map'],
+                                            'difficulty': role_settings['difficulty'],
+                                            "brush_map_expire_time": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                            'leave_pl': self.player.pl_value}
+                                test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.current_role_index, dic_data)
+                                self.brush_running = False
+                                pyauto.keyPressChar('esc')
+                                time.sleep(0.1)
+                                return 0
                             if self.similarity(cleaned_text, "深渊：终末崇拜者") >= 0.7:
                                 break
                             else:
