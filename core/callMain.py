@@ -47,7 +47,7 @@ from root_dir import root_path
 
 # 拼接文件路径
 CONFIG_PATH = os.path.join(root_path, "json_resources/config.json")
-f_program_version = '250908'
+f_program_version = '250920'
 Network = 0
 
 
@@ -304,7 +304,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.displaythread.start()
         global Network
         Network = 1
-        #
+
         # for i in range(3):
         #     try:
         #         ret = send_request(f_program_version=f_program_version, state=0)

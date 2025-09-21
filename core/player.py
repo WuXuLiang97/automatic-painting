@@ -1502,7 +1502,7 @@ class PlayerThread(QThread):
                 logger.info(f"房间 {room_id}拾取次数+1")
                 logger.info(f"房间{current_room_id}拾取次数: {pickup_count}")
             pickup_count = self.room_item_pickup_counts.get(current_room_id)
-            if isinstance(pickup_count, int) and pickup_count > 5:
+            if isinstance(pickup_count, int) and pickup_count > 5 and not self.is_boss:
                 logger.info(f"房间{current_room_id}拾取次数大于或等于5次，重新识别移速")
                 if self.player_pos.x:
                     # 重新识别移速
@@ -2358,7 +2358,7 @@ class PlayerThread(QThread):
                             if self.player.map_name == "深渊：终末崇拜者":
                                 self.is_boss = True
                             else:
-                                ocr_text = self.get_text(40, 90, 133, 110, game_image).strip()
+                                ocr_text = self.get_text(int(data[1]), int(data[2]), int(data[3]), int(data[4]), game_image).strip()
                                 pattern = r'[\u4e00-\u9fa5]+'
                                 # 使用 re.findall() 找出所有匹配的内容
                                 matches = re.findall(pattern, ocr_text)
