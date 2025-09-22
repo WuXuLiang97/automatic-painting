@@ -4,13 +4,13 @@ import time
 
 import cv2
 from PyQt5.QtCore import pyqtSignal, QThread
+from utils.screen.screenshot_util import screenshot_util
 from utils.common.auto_key import pyauto
 from utils.common.image import FindPic, template_match
 from utils.common.load_image import read_from_path
-from global_fields import screenshot_util,banzhuan,sy
+from global_fields import fields
 from root_dir import root_path
 from utils.log.logging_setup import logger
-from global_fields import VNC_Connection
 
 # from utils.yjs import yjs
 
@@ -29,16 +29,16 @@ class CheckProcess(QThread):
         self.template = cv2.cvtColor(self.template, cv2.COLOR_BGR2GRAY)
         self.su = screenshot_util
         self.running = True
+        self.vnc_connection = None
 
     def run(self):
         logger.info(f"check_d.py 启动")
         self.running = True
         is_send_false = False
-        # self.su.init_game_hwnd(mode=1)
         while self.running:
-            if banzhuan != 0:
+            if fields["banzhuan"] != 0:
                 ret = FindPic(
-                    VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                     824,
                     446,
                     937,
@@ -62,7 +62,7 @@ class CheckProcess(QThread):
                     is_send_false = True
                 time.sleep(1)
                 continue
-            if sy:
+            if fields["sy"]:
                 logger.info(f"check_d.py:深渊人物挂掉了用复活币")
                 pyauto.KeyPressChar("x")
                 time.sleep(0.2)

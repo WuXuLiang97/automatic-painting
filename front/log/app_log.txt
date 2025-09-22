@@ -1,2 +1,92 @@
-2025-09-04T16:35:24.236091+0800 - INFO - 从指定的模板路径中加载所有PNG图片到内存用了 0.02430105209350586 秒
-2025-09-04T16:38:33.196864+0800 - INFO - 从指定的模板路径中加载所有PNG图片到内存用了 0.019519329071044922 秒
+2025-09-11T22:24:02.677180+0800 - INFO - 文件夹 Images 已存在。
+2025-09-11T22:24:02.680831+0800 - INFO - check_d.py 启动
+2025-09-11T22:24:02.681335+0800 - INFO - ('192.168.3.2', 12345)
+2025-09-11T22:24:02.682449+0800 - INFO - <socket.socket fd=676, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0, laddr=('192.168.3.2', 57431), raddr=('192.168.3.2', 12345)>
+2025-09-11T22:24:02.711280+0800 - INFO - ghost_state_message：false
+2025-09-11T22:24:05.684012+0800 - INFO - move_to:窗口左上角x = 0	窗口左上角y = 0	x=640	y=40
+2025-09-11T22:24:05.685073+0800 - INFO - VNC鼠标移动：(640, 40)
+2025-09-11T22:24:05.987219+0800 - INFO - VNC鼠标左点击：left
+2025-09-11T22:24:06.221965+0800 - INFO - {'brush_map_expire_time': '2025-09-11 11:35:18', 'brush_order': 1, 'career': '男格斗家', 'convert_career': '气功师', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1323, 'subgroup_name': '1920481388', 'today_task_completed': '是', 'username': '123123'}
+2025-09-11T22:24:06.221965+0800 - INFO - {'brush_map_expire_time': '2025-09-11 12:03:41', 'brush_order': 2, 'career': '男格斗家', 'convert_career': '气功师', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1341, 'subgroup_name': '1920481388', 'today_task_completed': '是', 'username': '123123'}
+2025-09-11T22:24:06.223084+0800 - INFO - {'brush_map_expire_time': '2025-09-11 12:45:37', 'brush_order': 3, 'career': '男光职者', 'convert_career': '惩戒者', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1342, 'subgroup_name': '1920481388', 'today_task_completed': '是', 'username': '123123'}
+2025-09-11T22:24:06.223084+0800 - INFO - {'brush_map_expire_time': '2025-09-11 13:21:03', 'brush_order': 4, 'career': '枪剑士', 'convert_career': '源能专家', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1944, 'subgroup_name': '1920481388', 'today_task_completed': '是', 'username': '123123'}
+2025-09-11T22:24:06.223084+0800 - INFO - {'brush_map_expire_time': '2025-09-11 13:52:37', 'brush_order': 5, 'career': '女魔法师', 'convert_career': '小魔女', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1945, 'subgroup_name': '1920481388', 'today_task_completed': '是', 'username': '123123'}
+2025-09-11T22:24:06.223084+0800 - INFO - {'brush_map_expire_time': '2025-09-11 14:35:17', 'brush_order': 6, 'career': '女魔法师', 'convert_career': '召唤师', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1946, 'subgroup_name': '1920481388', 'today_task_completed': '是', 'username': '123123'}
+2025-09-11T22:24:06.224250+0800 - INFO - {'brush_map_expire_time': '2025-09-11 15:06:30', 'brush_order': 7, 'career': '男鬼剑士', 'convert_career': '狂战士', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1947, 'subgroup_name': '1920481388', 'today_task_completed': '是', 'username': '123123'}
+2025-09-11T22:24:06.224250+0800 - INFO - {'brush_map_expire_time': '2025-09-11 15:36:30', 'brush_order': 8, 'career': '男鬼剑士', 'convert_career': '狂战士', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1347, 'subgroup_name': '1920481388', 'today_task_completed': '是', 'username': '123123'}
+2025-09-11T22:24:06.224250+0800 - INFO - {'brush_map_expire_time': '2025-09-11 15:53:27', 'brush_order': 9, 'career': '男鬼剑士', 'convert_career': '狂战士', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '深渊：终末崇拜者', 'subgroup_config_id': 1948, 'subgroup_name': '1920481388', 'today_task_completed': '是', 'username': '123123'}
+2025-09-11T22:24:06.225754+0800 - INFO - {'brush_map_expire_time': '2025-09-11 16:17:12', 'brush_order': 10, 'career': '男鬼剑士', 'convert_career': '狂战士', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '跌宕群岛', 'subgroup_config_id': 1949, 'subgroup_name': '1920481388', 'today_task_completed': '是', 'username': '123123'}
+2025-09-11T22:24:06.225754+0800 - INFO - {'brush_map_expire_time': '2025-09-11 16:46:47', 'brush_order': 11, 'career': '男格斗家', 'convert_career': '气功师', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '跌宕群岛', 'subgroup_config_id': 1950, 'subgroup_name': '1920481388', 'today_task_completed': '是', 'username': '123123'}
+2025-09-11T22:24:06.225754+0800 - INFO - {'brush_map_expire_time': '2025-09-11 17:02:31', 'brush_order': 12, 'career': '男魔法师', 'convert_career': '次元行者', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '深渊：终末崇拜者', 'subgroup_config_id': 2015, 'subgroup_name': '1920481388', 'today_task_completed': '是', 'username': '123123'}
+2025-09-11T22:24:06.226740+0800 - INFO - {'brush_map_expire_time': '2025-09-11 17:03:13', 'brush_order': 13, 'career': '男魔法师', 'convert_career': '逐风者', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '深渊：终末崇拜者', 'subgroup_config_id': 2016, 'subgroup_name': '1920481388', 'today_task_completed': '是', 'username': '123123'}
+2025-09-11T22:24:06.226740+0800 - INFO - 疲劳阈值:0
+2025-09-11T22:24:06.227811+0800 - INFO - 302expire_date:2025-09-11
+2025-09-11T22:24:06.228316+0800 - INFO - 疲劳阈值:0
+2025-09-11T22:24:06.228844+0800 - INFO - 302expire_date:2025-09-11
+2025-09-11T22:24:06.228844+0800 - INFO - 疲劳阈值:0
+2025-09-11T22:24:06.228844+0800 - INFO - 302expire_date:2025-09-11
+2025-09-11T22:24:06.229892+0800 - INFO - 疲劳阈值:0
+2025-09-11T22:24:06.229892+0800 - INFO - 302expire_date:2025-09-11
+2025-09-11T22:24:06.231040+0800 - INFO - 疲劳阈值:0
+2025-09-11T22:24:06.231040+0800 - INFO - 302expire_date:2025-09-11
+2025-09-11T22:24:06.231040+0800 - INFO - 疲劳阈值:0
+2025-09-11T22:24:06.231040+0800 - INFO - 302expire_date:2025-09-11
+2025-09-11T22:24:06.232153+0800 - INFO - 疲劳阈值:0
+2025-09-11T22:24:06.232153+0800 - INFO - 302expire_date:2025-09-11
+2025-09-11T22:24:06.233137+0800 - INFO - 疲劳阈值:0
+2025-09-11T22:24:06.233137+0800 - INFO - 302expire_date:2025-09-11
+2025-09-11T22:24:06.234077+0800 - INFO - 疲劳阈值:0
+2025-09-11T22:24:06.234077+0800 - INFO - 302expire_date:2025-09-11
+2025-09-11T22:24:06.235151+0800 - INFO - 疲劳阈值:0
+2025-09-11T22:24:06.235151+0800 - INFO - 302expire_date:2025-09-11
+2025-09-11T22:24:06.235151+0800 - INFO - 疲劳阈值:0
+2025-09-11T22:24:06.236068+0800 - INFO - 302expire_date:2025-09-11
+2025-09-11T22:24:06.236068+0800 - INFO - 疲劳阈值:0
+2025-09-11T22:24:06.237488+0800 - INFO - 302expire_date:2025-09-11
+2025-09-11T22:24:06.238493+0800 - INFO - 疲劳阈值:0
+2025-09-11T22:24:06.238493+0800 - INFO - 302expire_date:2025-09-11
+2025-09-11T22:24:06.238493+0800 - INFO - 当前第-1个角色
+2025-09-11T22:24:06.239498+0800 - INFO - 进入 ocr
+2025-09-11T22:24:06.257456+0800 - INFO - 成功发送 消息头长度
+2025-09-11T22:24:06.258666+0800 - INFO - 成功发送 消息头内容
+2025-09-11T22:24:06.258666+0800 - INFO - 成功发送 图片数据(3210字节)
+2025-09-11T22:24:06.410686+0800 - INFO - ocr 已获取识别数据: T23
+2025-09-11T22:24:06.410686+0800 - INFO - 退出 ocr
+2025-09-11T22:24:06.412226+0800 - INFO - 选择角色
+2025-09-11T22:24:06.413657+0800 - INFO - 进入 ocr
+2025-09-11T22:24:06.437797+0800 - INFO - 成功发送 消息头长度
+2025-09-11T22:24:06.437797+0800 - INFO - 成功发送 消息头内容
+2025-09-11T22:24:06.438833+0800 - INFO - 成功发送 图片数据(3210字节)
+2025-09-11T22:24:06.519503+0800 - INFO - ocr 已获取识别数据: T23
+2025-09-11T22:24:06.520479+0800 - INFO - 退出 ocr
+2025-09-11T22:24:06.587373+0800 - INFO - 进入 ocr
+2025-09-11T22:24:06.670892+0800 - INFO - 成功发送 消息头长度
+2025-09-11T22:24:06.670892+0800 - INFO - 成功发送 消息头内容
+2025-09-11T22:24:06.670892+0800 - INFO - 成功发送 图片数据(2794字节)
+2025-09-11T22:24:06.693061+0800 - INFO - ocr 已获取识别数据: 
+2025-09-11T22:24:06.693061+0800 - INFO - 退出 ocr
+2025-09-11T22:24:06.694190+0800 - INFO - 选择菜单未打开
+2025-09-11T22:24:06.695194+0800 - INFO - move_to:窗口左上角x = 0	窗口左上角y = 0	x=640	y=40
+2025-09-11T22:24:06.695194+0800 - INFO - VNC鼠标移动：(640, 40)
+2025-09-11T22:24:07.097574+0800 - INFO - VNC鼠标左点击：left
+2025-09-11T22:24:07.350497+0800 - INFO - VNC键盘点击：esc
+2025-09-11T22:24:07.674859+0800 - INFO - 进入 ocr
+2025-09-11T22:24:07.826129+0800 - INFO - 成功发送 消息头长度
+2025-09-11T22:24:07.826129+0800 - INFO - 成功发送 消息头内容
+2025-09-11T22:24:07.827038+0800 - INFO - 成功发送 图片数据(3158字节)
+2025-09-11T22:24:07.866886+0800 - INFO - ocr 已获取识别数据: 选择菜单
+2025-09-11T22:24:07.867858+0800 - INFO - 退出 ocr
+2025-09-11T22:24:07.867858+0800 - INFO - 选择菜单已打开
+2025-09-11T22:24:07.867858+0800 - INFO - VNC键盘点击：esc
+2025-09-11T22:24:08.244105+0800 - INFO - VNC键盘点击：esc
+2025-09-11T22:24:08.514464+0800 - INFO - move_to:窗口左上角x = 0	窗口左上角y = 0	x=502	y=504
+2025-09-11T22:24:08.514464+0800 - INFO - VNC鼠标移动：(502, 504)
+2025-09-11T22:24:09.217256+0800 - INFO - VNC鼠标左点击：left
+2025-09-11T22:24:09.469798+0800 - INFO - move_to:窗口左上角x = 0	窗口左上角y = 0	x=602	y=554
+2025-09-11T22:24:09.469798+0800 - INFO - VNC鼠标移动：(602, 554)
+2025-09-11T22:24:09.797773+0800 - INFO - 在 1.9988560676574707 秒后超时，未找到图片:选择角色.bmp。
+2025-09-11T22:24:09.999866+0800 - INFO - 在 1.7967638969421387 秒后超时，未找到图片:选择角色.bmp。
+2025-09-11T22:24:10.142199+0800 - INFO - 截图模块--过图中 (尝试 1/30) ratioBelow20:1.0000
+2025-09-11T22:24:10.183395+0800 - INFO - 在 1.613234281539917 秒后超时，未找到图片:选择角色.bmp。
+2025-09-11T22:24:11.364495+0800 - INFO - check_d.py 终止
+2025-09-11T22:24:12.285573+0800 - INFO - VNC键盘弹起所有键

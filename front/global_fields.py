@@ -9,29 +9,30 @@ import win32api
 image_queue = queue.Queue()
 
 # 创建一个全局变量用来判断启动线程没有
-fields = {"called": False}
+fields = {"called": False,
+          "server_ip": None,
+          "server_port": 12345,
+          "banzhuan": None,
+          "sy": False,
+          "vmware_ip": None,
+          "vmware_prot": None,
+          "vmware_password": None,}
 
 STOP_EVENT = threading.Event()
 last_position = (0, 0)
 # 创建一个锁对象
 Capture_lock = threading.Lock()
-server_ip = None
-server_port = 12345
-banzhuan = None
-sy = False
-vmware_ip = None
-vmware_prot = None
-vmware_password = None
+# server_ip = None
+# server_port = 12345
+# banzhuan = None
+# sy = False
+# vmware_ip = None
+# vmware_prot = None
+# vmware_password = None
 display_queue = queue.Queue(maxsize=2)  # 展示专用队列
 
-import utils.mockdevice.vnc as VNC
 
-# 创建一个全局的VNC连接对象
-VNC_Connection = None
 
-from utils.screen.screenshot_util import ScreenshotUtil
-
-screenshot_util = ScreenshotUtil()
 
 from utils.mockdevice.DeviceMouseKeyboard import DeviceMouseKeyboard
 

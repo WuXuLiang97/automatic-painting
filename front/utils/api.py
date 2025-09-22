@@ -5,8 +5,9 @@ import hashlib
 import json
 from datetime import datetime, timedelta
 import logging
-from config import BASE_URL
+# from config import BASE_URL
 
+BASE_URL = "http://39.98.46.105:5001"
 # 基础配置
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "123456"
@@ -255,5 +256,15 @@ def run_tests():
 
 if __name__ == "__main__":
     # run_tests()
-    cookies = login("1457854270", "111222")
-    copy_subgroup(cookies, "16号", "18号")
+    # group = "649345323"
+    group = "1920481388"
+    cookies = login("123123", "123123")
+    grp = view_subgroup_config(cookies, group)
+    # print(grp)
+
+    for g in grp.get("configs", []):
+        print(g)
+        g.update({"brush_map_expire_time": "2025-08-01 12:00:00"})
+        update_subgroup_config(cookies, group, g["brush_order"], g)
+        time.sleep(1)
+    

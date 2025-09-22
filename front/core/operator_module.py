@@ -2,8 +2,7 @@
 import re
 import time
 
-from global_fields import VNC_Connection
-from utils.common.image import FindPic
+from utils.common.image import FindPic, FindPic_sleep
 from utils.common.load_image import read_from_path
 from utils.common.auto_key import pyauto
 from root_dir import root_path
@@ -39,6 +38,8 @@ class OperatorModule:
         self.player_instance = player_instance
         self.weakness_template = None  # 弱点模板
         self.back_down_template = None  # 返回城镇模板
+        self.playerThread = None
+        self.vnc_connection = None
         # self.filter = []
 
     def initialize(self):
@@ -119,13 +120,14 @@ class OperatorModule:
             return False
 
     def remove_weakness(self):
+        
         """
         消除弱点
         :return:
         """
         for i in range(5):
             ret = FindPic(
-                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 725,
                 462,
                 972,
@@ -140,7 +142,7 @@ class OperatorModule:
 
                 time.sleep(0.5)
                 ret = FindPic(
-                    VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                     398,
                     154,
                     670,
@@ -157,7 +159,7 @@ class OperatorModule:
                 else:
                     continue
                 ret = FindPic(
-                    VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                     406,
                     150,
                     651,
@@ -182,7 +184,8 @@ class OperatorModule:
                 if window_name == "个人信息":
                     pyauto.KeyPressChar("m")
                     time.sleep(0.1)
-                    ret = self.mm.FindPic_sleep(
+                    ret = FindPic_sleep(
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         239,
                         39,
                         548,
@@ -192,6 +195,7 @@ class OperatorModule:
                         delta_color=([0, 0, 0], [179, 255, 255]),
                         time_s=0.5,
                         my_sleep=0.1,
+                        func=self.vnc_connection.capture
                     )
                     if ret:
                         logger.info("已打开个人信息")
@@ -203,8 +207,10 @@ class OperatorModule:
                     if self.is_esc_menu_open():
                         return True
                 if window_name == "世界地图":
-                    ret = self.mm.FindPic_sleep(
-                        463, 0, 607, 43, "世界地图.bmp", 0.9, time_s=0.5, my_sleep=0.1
+                    ret = FindPic_sleep(
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        463, 0, 607, 43, "世界地图.bmp", 0.9, time_s=0.5, my_sleep=0.1,
+                        func=self.vnc_connection.capture
                     )
                     if ret:
                         logger.info("已打开世界地图")
@@ -231,12 +237,13 @@ class OperatorModule:
                 break
 
     def is_esc_menu_open(self):
+        
         """
         检查是否打开了选择菜单
         :return: bool
         """
         ret = FindPic(
-            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
             0,
             0,
             1067,
@@ -287,6 +294,7 @@ class OperatorModule:
         return random.randint(x1, x2), random.randint(y1, y2)
 
     def sale_goods(self, sell):
+        
         """
         销售货物
         :return:
@@ -300,7 +308,7 @@ class OperatorModule:
 
         # 点击材料
         ret = FindPic(
-            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
             595,
             278,
             875,
@@ -326,7 +334,7 @@ class OperatorModule:
         time.sleep(0.2)
         xy = []
         ret = FindPic(
-            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
             606,
             302,
             864,
@@ -354,7 +362,8 @@ class OperatorModule:
             time.sleep(0.2)
 
     def find_pic_sleep(self, pic_name, x1, y1, x2, y2):
-        return self.mm.FindPic_sleep(
+        return FindPic_sleep(
+            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
             x1,
             y1,
             x2,
@@ -364,6 +373,7 @@ class OperatorModule:
             drag=None,
             delta_color=([20, 0, 0], [23, 255, 255]),
             time_s=2,
+            func=self.vnc_connection.capture
         )
 
     def get_menu_item_coordinates(self, item_name):
@@ -428,6 +438,7 @@ class OperatorModule:
         return False
 
     def handle_return_to_town(self):
+        
         logger.info("进入返回城镇(handle_return_to_town)")
         while True:
             open_status = self.open_window("选择菜单")
@@ -439,7 +450,7 @@ class OperatorModule:
             pyauto.KeyPressChar("esc")
             time.sleep(0.2)
             ret = FindPic(
-                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 0,
                 0,
                 1067,
@@ -465,7 +476,7 @@ class OperatorModule:
                 self.move_to(x + 100, y + 50)
                 time.sleep(0.1)
                 ret = FindPic(
-                    VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                     408,
                     205,
                     670,
@@ -479,13 +490,14 @@ class OperatorModule:
                     time.sleep(0.2)
 
     def handle_transfer_matrix(self):
+        
         if self.is_esc_menu_open():
             pyauto.KeyPressChar("esc")
             time.sleep(0.5)
         st = time.time()
         while True:
             ret = FindPic(
-                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 463,
                 0,
                 607,
@@ -509,6 +521,7 @@ class OperatorModule:
                 return False
 
     def ocr_pl(self, func: callable, func1: callable):
+        
         """
         识别疲劳
         :return: int
@@ -519,7 +532,7 @@ class OperatorModule:
             return bool(re.search(pattern, s))
 
         ret = FindPic(
-            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
             718,
             30,
             897,

@@ -1,8 +1,8 @@
 {
-    "ip": "192.168.1.125",
+    "ip": "192.168.3.2",
     "yjs": 1,
     "banzhuan": 0,
-    "vmware_ip": "192.168.1.125",
-    "vmware_prot": "5902",
+    "vmware_ip": "192.168.59.1",
+    "vmware_prot": "5900",
     "vmware_password": ""
 }

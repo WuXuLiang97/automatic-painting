@@ -13,8 +13,8 @@ import keyboard
 import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal
 from core.directional_astar import a_star, judge_direction  # A星寻路
-from global_fields import VNC_Connection
-from utils.common.image import FindPic
+from config import MOVE_GOODS
+from utils.common.image import FindPic, FindPic_sleep, is_colored
 from utils.common.time import get_date
 from utils.ocr.ocr import screenshot_OCR_str
 from utils.api import view_subgroup_config, update_subgroup_config
@@ -33,11 +33,12 @@ from core.player_move import MovementRecorder
 from utils.common.points import sort_points_by_x
 from utils.common.auto_key import pyauto
 from core.minimap_decet import miniMapUtil
-from global_fields import screenshot_util
+from utils.screen.screenshot_util import screenshot_util
 from core.skill_util import skill_util
 import socket
 from utils.log.logging_setup import logger
-from global_fields import server_ip, server_port, banzhuan
+from global_fields import fields
+from static_fields import minimap
 
 current_path = os.path.dirname(os.path.abspath(__file__))
 root_path = os.path.abspath(os.path.join(current_path, "../"))
@@ -125,6 +126,7 @@ class PlayerThread(QThread):
         self.mouse_pos = None
         self.medicine = False
         self.medicine_time = None
+        self.vnc_connection = None
 
     def set_big_break_time(self):
         # 计算3-4小时后的随机时间点（以秒为单位）
@@ -161,6 +163,7 @@ class PlayerThread(QThread):
     def initialize(self):
         self.operator_module = OperatorModule(self)
         self.operator_module.initialize()
+        self.operator_module.vnc_connection = self.vnc_connection
 
     def Image_count_initialization(self):
         folder_path = "Images"
@@ -186,7 +189,7 @@ class PlayerThread(QThread):
         连接socket
         :return:
         """
-        server_address = (server_ip, server_port)
+        server_address = (fields["server_ip"], fields["server_port"])
         logger.info(server_address)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect(server_address)
@@ -213,9 +216,7 @@ class PlayerThread(QThread):
         list_data = []
         # 获取当前角色组的所有角色设置
         # self.all_role_settings = get_all_role_settings(self.current_role_group)
-        ret = view_subgroup_config(
-            self.dic.get("cookies"), self.current_role_group
-        )
+        ret = view_subgroup_config(self.dic.get("cookies"), self.current_role_group)
         # 检查是否有配置数据
         if not ret or "configs" not in ret or not ret["configs"]:
             self.current_role_index = -1
@@ -273,12 +274,12 @@ class PlayerThread(QThread):
         self.read_current_role_config()
 
     def run(self):
-        print(banzhuan)
-        if banzhuan == 0:
+        print(fields["banzhuan"])
+        if fields["banzhuan"] == 0:
             self.banzhuan()
-        elif banzhuan == 1:
+        elif fields["banzhuan"] == 1:
             self.juqing()
-        elif banzhuan == 2:
+        elif fields["banzhuan"] == 2:
             self.juqing_2()
 
     def banzhuan(self):
@@ -289,6 +290,7 @@ class PlayerThread(QThread):
                 self.send_log("程序启动倒计时" + str(i) + "s")
                 time.sleep(1)
             self.send_log("程序已启动")
+
             self.operator_module.move_to(640, 40)
             time.sleep(0.1)
             pyauto.click()
@@ -340,8 +342,17 @@ class PlayerThread(QThread):
                         dic_data,
                     )
                     continue
-                self.mm.FindPic_sleep(
-                    758, 564, 818, 589, "商城图标.bmp", 0.9, time_s=10, my_sleep=0.5
+                FindPic_sleep(
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    758,
+                    564,
+                    818,
+                    589,
+                    "商城图标.bmp",
+                    0.9,
+                    time_s=10,
+                    my_sleep=0.5,
+                    func=self.vnc_connection.capture
                 )
                 if self.player.map_name == "风暴逆鳞普通":
                     # 打开金绿盒子
@@ -349,7 +360,8 @@ class PlayerThread(QThread):
                 if self.player.map_name == "跌宕群岛":
                     pyauto.KeyPressChar("f2")
                     time.sleep(0.1)
-                    ret = self.mm.FindPic_sleep(
+                    ret = FindPic_sleep(
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         185,
                         401,
                         350,
@@ -358,6 +370,7 @@ class PlayerThread(QThread):
                         0.9,
                         time_s=1,
                         my_sleep=0.2,
+                        func=self.vnc_connection.capture
                     )
                     if ret:
                         self.player.map_name = "风暴逆鳞普通"
@@ -402,7 +415,7 @@ class PlayerThread(QThread):
                             time.sleep(0.5)
                             continue
 
-                if self.player.map_name in miniMapUtil.minimap:
+                if self.player.map_name in minimap:
                     # 这个地图不过滤物品
                     if self.player.map_name == "德洛斯矿山外围":
                         self.filter_goods = False
@@ -502,7 +515,7 @@ class PlayerThread(QThread):
                             time.sleep(0.5)
                             continue
 
-                if self.player.map_name in miniMapUtil.minimap:
+                if self.player.map_name in minimap:
                     # 这个地图不过滤物品
                     if self.player.map_name == "德洛斯矿山外围":
                         self.filter_goods = False
@@ -602,7 +615,7 @@ class PlayerThread(QThread):
                             time.sleep(0.5)
                             continue
 
-                if self.player.map_name in miniMapUtil.minimap:
+                if self.player.map_name in minimap:
                     # 这个地图不过滤物品
                     if self.player.map_name == "德洛斯矿山外围":
                         self.filter_goods = False
@@ -624,6 +637,7 @@ class PlayerThread(QThread):
     def stop(self):
         self.running = False
         self.brush_running = False
+        self.send_log(f"改变brush：stop，639")
         # screenshot_util.cancel_window_topping()
         self.send_log("脚本已停止，可关闭窗口")
 
@@ -656,7 +670,7 @@ class PlayerThread(QThread):
             if init_status:
                 break
         ret = FindPic(
-            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
             727,
             474,
             885,
@@ -671,6 +685,7 @@ class PlayerThread(QThread):
             pyauto.click()
             time.sleep(0.05)
         logger.info("开始刷图")
+        logger.info(f"brush_running: {self.brush_running}")
         while self.brush_running:
             if self.ghost_state:
                 self.direction_dic.clear()
@@ -690,7 +705,7 @@ class PlayerThread(QThread):
                     continue
                 pyauto.releaseallkey()
                 ret = FindPic(
-                    VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                     0,
                     0,
                     1067,
@@ -738,9 +753,20 @@ class PlayerThread(QThread):
                         dic_data,
                     )
                     self.brush_running = False
+                    self.send_log(f"改变brush：brush，755")
+
                     return
-                self.mm.FindPic_sleep(
-                    758, 564, 818, 589, "商城图标.bmp", 0.9, time_s=10, my_sleep=0.5
+                FindPic_sleep(
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    758,
+                    564,
+                    818,
+                    589,
+                    "商城图标.bmp",
+                    0.9,
+                    time_s=10,
+                    my_sleep=0.5,
+                    func=self.vnc_connection.capture
                 )
                 if self.player.map_name == "风暴逆鳞普通":
                     # 打开金绿盒子
@@ -748,7 +774,8 @@ class PlayerThread(QThread):
                 if self.player.map_name == "跌宕群岛":
                     pyauto.KeyPressChar("f2")
                     time.sleep(0.1)
-                    ret = self.mm.FindPic_sleep(
+                    ret = FindPic_sleep(
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         185,
                         401,
                         350,
@@ -757,6 +784,7 @@ class PlayerThread(QThread):
                         0.9,
                         time_s=1,
                         my_sleep=0.2,
+                        func=self.vnc_connection.capture
                     )
                     if ret:
                         self.player.map_name = "风暴逆鳞普通"
@@ -804,7 +832,7 @@ class PlayerThread(QThread):
             if init_status:
                 break
         ret = FindPic(
-            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
             727,
             474,
             885,
@@ -849,7 +877,7 @@ class PlayerThread(QThread):
             if init_status:
                 break
         ret = FindPic(
-            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
             727,
             474,
             885,
@@ -891,6 +919,7 @@ class PlayerThread(QThread):
                     self.process_boss_room()
 
     def brush_map_2(self):
+
         def enter_door():
             """
             进入门并尝试移动到门的位置。
@@ -975,7 +1004,7 @@ class PlayerThread(QThread):
                     already_move = False
                     time.sleep(0.1)
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         0,
                         0,
                         1067,
@@ -1032,8 +1061,17 @@ class PlayerThread(QThread):
             time.sleep(0.5)
             self.operator_module.move_to(870, 593)
             time.sleep(0.1)
-            ret = self.mm.FindPic_sleep(
-                0, 0, 1067, 600, "账号金库.bmp|账号金库a.bmp", 0.9, 1, time_s=5
+            ret = FindPic_sleep(
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                0,
+                0,
+                1067,
+                600,
+                "账号金库.bmp|账号金库a.bmp",
+                0.9,
+                1,
+                time_s=5,
+                func=self.vnc_connection.capture
             )
             if ret:
                 x, y = ret[0][1], ret[0][2]
@@ -1045,7 +1083,7 @@ class PlayerThread(QThread):
                 pyauto.click()
                 time.sleep(0.1)
             ret = FindPic(
-                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 0,
                 0,
                 1067,
@@ -1065,7 +1103,7 @@ class PlayerThread(QThread):
                 pyauto.click()
                 time.sleep(0.1)
             ret = FindPic(
-                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 0,
                 0,
                 1067,
@@ -1088,8 +1126,17 @@ class PlayerThread(QThread):
                 self.operator_module.move_to(870, 593)
                 time.sleep(0.1)
 
-                ret = self.mm.FindPic_sleep(
-                    qx, qy, 447, 541, "放入.bmp", 0.9, 1, time_s=2
+                ret = FindPic_sleep(
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    qx,
+                    qy,
+                    447,
+                    541,
+                    "放入.bmp",
+                    0.9,
+                    1,
+                    time_s=2,
+                    func=self.vnc_connection.capture
                 )
                 if ret:
                     x1, y1, x2, y2 = (
@@ -1099,8 +1146,17 @@ class PlayerThread(QThread):
                         ret[0][2] + 30,
                     )
 
-                    ret = self.mm.FindPic_sleep(
-                        x1, y1, x2, y2, "取出.bmp", 0.9, 1, time_s=2
+                    ret = FindPic_sleep(
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        x1,
+                        y1,
+                        x2,
+                        y2,
+                        "取出.bmp",
+                        0.9,
+                        1,
+                        time_s=2,
+                        func=self.vnc_connection.capture
                     )
                     if ret:
                         x, y = ret[0][1], ret[0][2]
@@ -1109,8 +1165,17 @@ class PlayerThread(QThread):
                         time.sleep(0.1)
                         pyauto.click()
                         time.sleep(0.1)
-                        ret = self.mm.FindPic_sleep(
-                            0, 0, 1067, 600, "金库1.bmp", 0.9, 1, time_s=5
+                        ret = FindPic_sleep(
+                            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                            0,
+                            0,
+                            1067,
+                            600,
+                            "金库1.bmp",
+                            0.9,
+                            1,
+                            time_s=5,
+                            func=self.vnc_connection.capture
                         )
                         if ret:
                             x, y = ret[0][1], ret[0][2]
@@ -1119,8 +1184,19 @@ class PlayerThread(QThread):
                             time.sleep(0.1)
                             pyauto.click()
                             time.sleep(0.1)
-                            ret = self.mm.FindPic_sleep(
-                                0, 0, 1067, 600, "数量.bmp", 0.9, 1, time_s=2
+                            ret = FindPic_sleep(
+                                self.vnc_connection.capture(
+                                    x1=0, y1=0, x2=1067, y2=600
+                                ),
+                                0,
+                                0,
+                                1067,
+                                600,
+                                "数量.bmp",
+                                0.9,
+                                1,
+                                time_s=2,
+                                func=self.vnc_connection.capture
                             )
                             if ret:
                                 # 生成980到1020之间的随机整数
@@ -1150,8 +1226,17 @@ class PlayerThread(QThread):
             time.sleep(0.1)
             pyauto.click()
             time.sleep(0.5)
-            ret = self.mm.FindPic_sleep(
-                0, 0, 1067, 600, "账号金库.bmp|账号金库a.bmp", 0.9, 1, time_s=5
+            ret = FindPic_sleep(
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                0,
+                0,
+                1067,
+                600,
+                "账号金库.bmp|账号金库a.bmp",
+                0.9,
+                1,
+                time_s=5,
+                func=self.vnc_connection.capture
             )
             if ret:
                 x, y = ret[0][1], ret[0][2]
@@ -1161,7 +1246,7 @@ class PlayerThread(QThread):
                 pyauto.click()
                 time.sleep(0.1)
             ret = FindPic(
-                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 0,
                 0,
                 1067,
@@ -1180,7 +1265,7 @@ class PlayerThread(QThread):
                 pyauto.click()
                 time.sleep(0.1)
             ret = FindPic(
-                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 0,
                 0,
                 1067,
@@ -1228,10 +1313,11 @@ class PlayerThread(QThread):
         attack = False
         # 只要游戏在运行且不是幽灵状态，就持续尝试
         while self.brush_running and not self.ghost_state:
-            # 如果执行时间过长，则进入幽灵状态并返回
+            # 如果执行时间过长，则进入幽灵状态并返回，判断时间30S
             if time.time() - start_time > 30:
                 self.ghost_state = True
                 return
+            # 每10S进行一次攻击，尝试清理未清理完的怪物
             if time.time() - start_time > 10 and not attack:
                 attack = True
                 game_img = (
@@ -1346,16 +1432,34 @@ class PlayerThread(QThread):
                         self.get_player_position, duration=2
                     )  # self.movement_recorder.up_down_move("down", 0.2)  # self.player_left_right_move()
                 continue
+            
             # 清除障碍
             self.clearingobstacles()
+
             # 获取小地图数据
             self.get_min_map_yolo_res()
+
             door_pos = None
             logger.info(f"self.player.map_name:{self.player.map_name}")
             # # 获取玩家所在的房间ID
             if self.player.map_name != "深渊：终末崇拜者":
                 # 如果房间ID为None，则跳过本次循环
                 if self.player.player_room_id is None:
+                    # 判断是否进入地图
+                    ret = FindPic(
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        963,
+                        536,
+                        1066,
+                        570,
+                        "返回城镇.bmp",
+                        0.85,
+                    )
+
+                    if not ret:
+                        self.get_min_map_yolo_res()
+                        self.player_left_right_move()
+
                     logger.info("enter_door player_room_id is None")
                     continue
                 # 打印房间ID
@@ -1377,14 +1481,8 @@ class PlayerThread(QThread):
                 move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)
                 if move_info is None:
                     continue
-                # self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
-                # if self.player_pos is None:
-                #     continue
                 frame1_detections = (self.player_pos.x, self.player_pos.y)
                 st = time.time()
-                # if self.player_pos.x is not None and self.is_boss is False:
-                #     # 记录玩家的动态
-                #     self.player_dynamics_tuple.emit((self.player_pos.x, self.player_pos.y))
                 # 移动人物
                 self.movement_recorder.left_right_up_down_move_by(
                     move_info, already_move
@@ -1394,7 +1492,7 @@ class PlayerThread(QThread):
                 already_move = False
                 time.sleep(0.1)
                 ret = FindPic(
-                    VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                     0,
                     0,
                     1067,
@@ -1461,7 +1559,14 @@ class PlayerThread(QThread):
                             # else:
                             #     logger.info("人物位置在下面卡住了")
                             #     self.movement_recorder.up_down_move("up", 1)
+            
+            elif time.time() - start_time < 10 and door_pos is not None:
+                # 10S内尝试向门的方向移动
+                door_direction = door_pos
+                logger.info(f"尝试向门的方向（{door_direction}移动）")
+                self.movement_recorder.already_left_right_move(door_direction)
             else:
+                print("找不到门，尝试左右移动")
                 frame1_detections = (self.player_pos.x, self.player_pos.y)
                 if next_direction == "right" and self.player_pos.x > 750:
                     logger.info(
@@ -1470,8 +1575,6 @@ class PlayerThread(QThread):
                         )
                     )
                     self.movement_recorder.already_left_right_move("left")
-                    # pyauto.KeyDownChar(next_direction)
-                    # time.sleep(0.05)
                     next_direction = "left"
                     already_move = True
                 if next_direction == "left" and self.player_pos.x < 375:
@@ -1481,10 +1584,9 @@ class PlayerThread(QThread):
                         )
                     )
                     self.movement_recorder.already_left_right_move("right")
-                    # pyauto.KeyDownChar(next_direction)
-                    # time.sleep(0.05)
                     next_direction = "right"
                     already_move = True
+
                 if not already_move:
                     logger.info("没有移动过，现在移动方向为：{}".format(next_direction))
                     self.movement_recorder.already_left_right_move(next_direction)
@@ -2143,6 +2245,7 @@ class PlayerThread(QThread):
     #     return room_info['direction']
 
     def get_move_speed(self):
+
         def open_window():
             for _ in range(5):
                 pyauto.KeyPressChar("m")
@@ -2164,7 +2267,7 @@ class PlayerThread(QThread):
                     continue
                 time.sleep(0.1)
                 ret = FindPic(
-                    VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                     0,
                     0,
                     1067,
@@ -2195,7 +2298,7 @@ class PlayerThread(QThread):
                     "9": ["9.bmp", "9-1.bmp"],
                 }
                 results = screenshot_OCR_str(
-                    VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                     x1,
                     y1,
                     x2,
@@ -2604,7 +2707,7 @@ class PlayerThread(QThread):
         # 如果存在门、继续选项或奖励，则清除怪物列表（可能为了优化或逻辑需要）
         # if len(self.goods) > 0 or self.has_continue or self.has_rewards:
         #     self.doors.clear()
-        if banzhuan == 0:
+        if fields["banzhuan"] == 0:
             should_process = (
                 len(self.doors) > 0 or self.has_continue or self.has_rewards
             )
@@ -2722,6 +2825,8 @@ class PlayerThread(QThread):
         ):
             logger.info("矿山这里向左")
             query_room_id_list.append((1, 4))
+        
+
         # 如果问号房间和boss房间不为空，找到最接近boss房间的问号房间
         if query_room_id_list and self.boss_room_id:
             if self.player.map_name == "德洛斯矿山外围" and len(query_room_id_list) > 1:
@@ -2730,6 +2835,9 @@ class PlayerThread(QThread):
                 # 初始化最小距离为无穷大，以及最近的坐标
                 min_distance = float("inf")
                 # 遍历坐标列表
+                if self.player.player_room_id is None:
+                    self.movement_recorder.left_right_move("right", 0.5)
+
                 for coord in query_room_id_list:
                     # 计算当前坐标与target的距离的平方（避免使用sqrt以提高效率）
                     distance_squared = (
@@ -2839,7 +2947,7 @@ class PlayerThread(QThread):
 
     def _reconnect(self):
         """关闭旧连接并建立新连接"""
-        server_address = (server_ip, server_port)
+        server_address = (fields["server_ip"], fields["server_port"])
         logger.info(server_address)
         self.sock.close()
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -2974,10 +3082,15 @@ class PlayerThread(QThread):
                 game_image = cv2.resize(
                     game_image, new_size, interpolation=cv2.INTER_LINEAR
                 )
-            _image_rgb = cv2.cvtColor(game_image, cv2.COLOR_BGR2GRAY)
+
+            # _image_rgb = cv2.cvtColor(game_image, cv2.COLOR_BGR2GRAY)
             # 1. 转换图片为二进制
-            img_bytes = cv2.imencode(".jpg", _image_rgb)[1].tobytes()
+            # img_bytes = cv2.imencode(".jpg", _image_rgb)[1].tobytes()
+            # image_size = len(img_bytes)
+            img_bytes = cv2.imencode(".jpg", game_image)[1].tobytes()
             image_size = len(img_bytes)
+            print(f"图片大小：{image_size}")
+            print(f"图片尺寸：{game_image.shape}")
 
             # 2. 创建消息头
             header_data = json.dumps(
@@ -3024,8 +3137,6 @@ class PlayerThread(QThread):
             logger.info(f"进入 get_min_map_yolo_res")
             min_map = miniMapUtil.min_map_capture(self.player.map_name)
             logger.info(f"get_min_map_yolo_res")
-            # cv2.imwrite(f"D:/automatic-painting/min_map/{min_map_name}.png", min_map)
-            # min_map_name += 1
             # 1. 转换图片为二进制
             img_bytes = cv2.imencode(".jpg", min_map)[1].tobytes()
             image_size = len(img_bytes)
@@ -3071,6 +3182,7 @@ class PlayerThread(QThread):
         return True
 
     def deposit_goods(self):
+
         if self.player.map_name in ("跌宕群岛", "妖气追踪"):
             return
         logger.info("回赛丽亚旅馆存金币")
@@ -3105,8 +3217,17 @@ class PlayerThread(QThread):
         time.sleep(0.5)
         self.operator_module.move_to(870, 593)
         time.sleep(0.1)
-        ret = self.mm.FindPic_sleep(
-            0, 0, 1067, 600, "账号金库.bmp|账号金库a.bmp", 0.9, 1, time_s=5
+        ret = FindPic_sleep(
+            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            0,
+            0,
+            1067,
+            600,
+            "账号金库.bmp|账号金库a.bmp",
+            0.9,
+            1,
+            time_s=5,
+            func=self.vnc_connection.capture
         )
         if ret:
             x, y = ret[0][1], ret[0][2]
@@ -3118,7 +3239,7 @@ class PlayerThread(QThread):
             pyauto.click()
             time.sleep(0.1)
         ret = FindPic(
-            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
             0,
             0,
             1067,
@@ -3138,7 +3259,7 @@ class PlayerThread(QThread):
             pyauto.click()
             time.sleep(0.1)
         ret = FindPic(
-            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
             0,
             0,
             1067,
@@ -3184,7 +3305,7 @@ class PlayerThread(QThread):
         # 买门票、玛瑙
         if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
             ret = FindPic(
-                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 152,
                 505,
                 248,
@@ -3194,7 +3315,7 @@ class PlayerThread(QThread):
             )
             if ret:
                 ret = FindPic(
-                    VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                     62,
                     433,
                     304,
@@ -3213,7 +3334,7 @@ class PlayerThread(QThread):
                         time.sleep(0.2)
         if self.player.map_name != "深渊：终末崇拜者":
             ret = FindPic(
-                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 152,
                 505,
                 248,
@@ -3272,7 +3393,7 @@ class PlayerThread(QThread):
                     self.operator_module.click_menu_item("返回城镇")
                     time.sleep(0.5)
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         0,
                         0,
                         1067,
@@ -3295,6 +3416,8 @@ class PlayerThread(QThread):
                     if self.player.is_daily_tasks == "是":
                         self.daily_tasks()
                     self.brush_running = False
+                    self.send_log(f"改变brush：process_pass，3398")
+
                     self.first_press_to_exit = True
                     self.direction_dic.clear()
                     self.is_boss = False
@@ -3312,7 +3435,7 @@ class PlayerThread(QThread):
                         break  # 退出循环
                     # 收起结算评分否则如果还有物品可能识别不到
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         901,
                         159,
                         969,
@@ -3326,7 +3449,7 @@ class PlayerThread(QThread):
                         pyauto.click()
                         time.sleep(0.1)
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         152,
                         505,
                         248,
@@ -3341,7 +3464,9 @@ class PlayerThread(QThread):
                             "妖气追踪",
                         ):
                             ret = FindPic(
-                                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                                self.vnc_connection.capture(
+                                    x1=0, y1=0, x2=1067, y2=600
+                                ),
                                 62,
                                 433,
                                 304,
@@ -3361,7 +3486,7 @@ class PlayerThread(QThread):
                         pyauto.KeyPressChar("esc")
                         time.sleep(0.2)
                         ret = FindPic(
-                            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                             357,
                             200,
                             456,
@@ -3377,7 +3502,7 @@ class PlayerThread(QThread):
                             pyauto.click()
                             time.sleep(0.1)
                     game_image = screenshot_util.get_game_screenshot()
-                    if banzhuan == 0:
+                    if fields["banzhuan"] == 0:
                         pyauto.KeyPressChar("f10")
                     else:
                         pyauto.KeyPressChar("space")
@@ -3492,7 +3617,7 @@ class PlayerThread(QThread):
                 pl_value = self.operator_module.ocr_pl(self.get_text, self.send_log)
                 x1, y1, x2, y2 = (899, 77, 964, 96)
                 min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
-                ret = self.mm.is_colored(min_img, 30)
+                ret = is_colored(min_img, 30)
                 # 如果体力不为0、小于预留体力、ret是False代表按f10不能再刷
                 if (
                     pl_value is not None
@@ -3522,7 +3647,7 @@ class PlayerThread(QThread):
                     time.sleep(0.5)
                     # 0点弹广告
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         0,
                         0,
                         1067,
@@ -3544,6 +3669,7 @@ class PlayerThread(QThread):
                     if self.player.is_daily_tasks == "是":
                         self.daily_tasks()
                     self.brush_running = False
+                    self.send_log(f"改变brush：process_pass，3651")
                     self.first_press_to_exit = True
                     self.direction_dic.clear()
                     self.is_boss = False
@@ -3560,7 +3686,7 @@ class PlayerThread(QThread):
                         break  # 退出循环
                     # 收起结算评分否则如果还有物品可能识别不到
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         901,
                         159,
                         969,
@@ -3574,7 +3700,7 @@ class PlayerThread(QThread):
                         pyauto.click()
                         time.sleep(0.1)
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         152,
                         505,
                         248,
@@ -3584,7 +3710,7 @@ class PlayerThread(QThread):
                     )
                     if ret:
                         ret = FindPic(
-                            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                             62,
                             433,
                             304,
@@ -3604,7 +3730,7 @@ class PlayerThread(QThread):
                         pyauto.KeyPressChar("esc")
                         time.sleep(0.2)
                         ret = FindPic(
-                            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                             357,
                             200,
                             456,
@@ -3733,7 +3859,7 @@ class PlayerThread(QThread):
         pyauto.KeyUpChar("up")
         time.sleep(0.05)
         for i in range(random.randint(3, 5)):
-            pyauto.KeyPressChar("tab")
+            pyauto.KeyPressChar(MOVE_GOODS)
             time.sleep(0.05)
         time.sleep(random.uniform(1, 1.5))
         start_time = time.time()
@@ -3777,7 +3903,8 @@ class PlayerThread(QThread):
             return brightness
 
         y = 0
-        ret = self.mm.FindPic_sleep(
+        ret = FindPic_sleep(
+            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
             0,
             0,
             1067,
@@ -3786,6 +3913,7 @@ class PlayerThread(QThread):
             0.9,
             time_s=1,
             delta_color=([0, 0, 0], [0, 232, 255]),
+            func=self.vnc_connection.capture
         )
         if ret:
             x, y = ret[0][1], ret[0][2]
@@ -3816,7 +3944,8 @@ class PlayerThread(QThread):
             time.sleep(0.05)
             pyauto.click()
             time.sleep(0.5)
-            ret = self.mm.FindPic_sleep(
+            ret = FindPic_sleep(
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 0,
                 0,
                 1067,
@@ -3825,6 +3954,7 @@ class PlayerThread(QThread):
                 0.9,
                 time_s=1,
                 delta_color=([0, 0, 0], [0, 232, 255]),
+                func=self.vnc_connection.capture
             )
             if ret:
                 x, y = ret[0][1], ret[0][2]
@@ -3837,7 +3967,8 @@ class PlayerThread(QThread):
                 # time.sleep(0.05)
                 # pyauto.click()
                 time.sleep(0.1)
-            ret = self.mm.FindPic_sleep(
+            ret = FindPic_sleep(
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 0,
                 0,
                 1067,
@@ -3846,6 +3977,7 @@ class PlayerThread(QThread):
                 0.9,
                 time_s=1,
                 delta_color=([0, 0, 0], [0, 232, 255]),
+                func=self.vnc_connection.capture
             )
             if ret:
                 x, y = ret[0][1], ret[0][2]
@@ -3919,10 +4051,11 @@ class PlayerThread(QThread):
                 time.sleep(0.2)
 
     def access_0(self):
+
         pyauto.KeyPressChar("i")
         time.sleep(0.2)
         ret = FindPic(
-            VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+            self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
             609,
             218,
             861,
@@ -3940,7 +4073,7 @@ class PlayerThread(QThread):
             self.operator_module.move_to(870, 593)
             time.sleep(0.2)
             ret = FindPic(
-                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 607,
                 306,
                 862,
@@ -3969,7 +4102,7 @@ class PlayerThread(QThread):
         )
         if ret:
             ret = FindPic(
-                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 358,
                 292,
                 396,
@@ -4011,9 +4144,10 @@ class PlayerThread(QThread):
             time.sleep(0.1)
 
     def enter_map(self):
+
         while self.brush_running:
             ret = FindPic(
-                VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                 0,
                 0,
                 1067,
@@ -4042,7 +4176,7 @@ class PlayerThread(QThread):
                 while self.brush_running:
                     time.sleep(0.1)
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         963,
                         536,
                         1066,
@@ -4056,7 +4190,7 @@ class PlayerThread(QThread):
                     else:
                         continue
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         78,
                         277,
                         233,
@@ -4091,7 +4225,7 @@ class PlayerThread(QThread):
                 while self.brush_running:
                     x1, y1, x2, y2 = (57, 97, 126, 105)
                     min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
-                    ret = self.mm.is_colored(min_img, 50)
+                    ret = is_colored(min_img, 50)
                     if ret:
                         pyauto.KeyPressChar("space")
                         time.sleep(0.2)
@@ -4125,7 +4259,7 @@ class PlayerThread(QThread):
                             min_img = screenshot_util.get_game_screenshot()[
                                 y1:y2, x1:x2
                             ]
-                            ret = self.mm.is_colored(min_img, 50)
+                            ret = is_colored(min_img, 50)
                             if ret:
                                 pyauto.KeyPressChar("space")
                                 time.sleep(0.2)
@@ -4147,21 +4281,37 @@ class PlayerThread(QThread):
                     time.sleep(1)
                     pyauto.KeyPressChar("n")
                     time.sleep(0.1)
-                    ret = self.mm.FindPic_sleep(
-                        883, 25, 970, 50, "艾尔罗斯.bmp", 0.9, time_s=1, my_sleep=0.1
+                    ret = FindPic_sleep(
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        883,
+                        25,
+                        970,
+                        50,
+                        "艾尔罗斯.bmp",
+                        0.9,
+                        time_s=1,
+                        my_sleep=0.1,
+                        func=self.vnc_connection.capture
                     )
                     if ret:
                         break
                 pyauto.KeyDownChar("right")
-                ret = self.mm.FindPic_sleep(
-                    963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20
+                ret = FindPic_sleep(
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    963,
+                    536,
+                    1066,
+                    570,
+                    "返回城镇.bmp",
+                    0.9,
+                    time_s=20,
                 )
                 if ret:
                     pyauto.KeyUpChar("right")
                     time.sleep(0.1)
                 while self.brush_running:
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         78,
                         277,
                         233,
@@ -4245,7 +4395,7 @@ class PlayerThread(QThread):
                 while self.brush_running:
                     time.sleep(0.1)
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         963,
                         536,
                         1066,
@@ -4259,7 +4409,7 @@ class PlayerThread(QThread):
                     else:
                         continue
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         78,
                         277,
                         233,
@@ -4307,7 +4457,7 @@ class PlayerThread(QThread):
                 while self.brush_running:
                     time.sleep(0.1)
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         963,
                         536,
                         1066,
@@ -4321,7 +4471,7 @@ class PlayerThread(QThread):
                     else:
                         continue
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         78,
                         277,
                         233,
@@ -4361,7 +4511,7 @@ class PlayerThread(QThread):
                     x1, y1, x2, y2 = (59, 194, 133, 198)
                     min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
 
-                    ret = self.mm.is_colored(min_img, 50)
+                    ret = is_colored(min_img, 50)
                     if ret:
                         pyauto.KeyPressChar("space")
                         time.sleep(0.2)
@@ -4395,7 +4545,7 @@ class PlayerThread(QThread):
                             min_img = screenshot_util.get_game_screenshot()[
                                 y1:y2, x1:x2
                             ]
-                            ret = self.mm.is_colored(min_img, 50)
+                            ret = is_colored(min_img, 50)
                             if ret:
                                 pyauto.KeyPressChar("space")
                                 time.sleep(0.2)
@@ -4417,8 +4567,17 @@ class PlayerThread(QThread):
                     # time.sleep(1)
                     # pyauto.KeyPressChar("n")
                     time.sleep(5)
-                    ret = self.mm.FindPic_sleep(
-                        883, 25, 970, 50, "红矿村.bmp", 0.9, time_s=1, my_sleep=0.1
+                    ret = FindPic_sleep(
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        883,
+                        25,
+                        970,
+                        50,
+                        "红矿村.bmp",
+                        0.9,
+                        time_s=1,
+                        my_sleep=0.1,
+                        func=self.vnc_connection.capture
                     )
                     if ret:
                         break
@@ -4427,15 +4586,23 @@ class PlayerThread(QThread):
                 pyauto.KeyUpChar("right")
                 time.sleep(0.1)
                 pyauto.KeyDownChar("left")
-                ret = self.mm.FindPic_sleep(
-                    963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20
+                ret = FindPic_sleep(
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    963,
+                    536,
+                    1066,
+                    570,
+                    "返回城镇.bmp",
+                    0.9,
+                    time_s=20,
+                    func=self.vnc_connection.capture
                 )
                 if ret:
                     pyauto.KeyUpChar("left")
                     time.sleep(0.1)
                 while self.brush_running:
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         78,
                         277,
                         233,
@@ -4474,6 +4641,7 @@ class PlayerThread(QThread):
                                 dic_data,
                             )
                             self.brush_running = False
+                            self.send_log(f"改变brush：enter_map，4623")
                             return 0
                         # time.sleep(0.05)
                         # pyauto.KeyDownChar("shift")
@@ -4531,7 +4699,7 @@ class PlayerThread(QThread):
                 while self.brush_running:
                     x1, y1, x2, y2 = (59, 194, 133, 198)
                     min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
-                    ret = self.mm.is_colored(min_img, 50)
+                    ret = is_colored(min_img, 50)
                     if ret:
                         pyauto.KeyPressChar("space")
                         time.sleep(0.2)
@@ -4565,7 +4733,7 @@ class PlayerThread(QThread):
                             min_img = screenshot_util.get_game_screenshot()[
                                 y1:y2, x1:x2
                             ]
-                            ret = self.mm.is_colored(min_img, 50)
+                            ret = is_colored(min_img, 50)
                             if ret:
                                 pyauto.KeyPressChar("space")
                                 time.sleep(0.2)
@@ -4587,8 +4755,10 @@ class PlayerThread(QThread):
                     # time.sleep(1)
                     # pyauto.KeyPressChar("n")
                     time.sleep(5)
-                    ret = self.mm.FindPic_sleep(
-                        883, 25, 970, 50, "红矿村.bmp", 0.9, time_s=1, my_sleep=0.1
+                    ret = FindPic_sleep(
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        883, 25, 970, 50, "红矿村.bmp", 0.9, time_s=1, my_sleep=0.1,
+                        func=self.vnc_connection.capture
                     )
                     if ret:
                         break
@@ -4597,15 +4767,23 @@ class PlayerThread(QThread):
                 pyauto.KeyUpChar("right")
                 time.sleep(0.1)
                 pyauto.KeyDownChar("left")
-                ret = self.mm.FindPic_sleep(
-                    963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20
+                ret = FindPic_sleep(
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    963,
+                    536,
+                    1066,
+                    570,
+                    "返回城镇.bmp",
+                    0.9,
+                    time_s=20,
+                    func=self.vnc_connection.capture
                 )
                 if ret:
                     pyauto.KeyUpChar("left")
                     time.sleep(0.1)
                 while self.brush_running:
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         78,
                         277,
                         233,
@@ -4670,7 +4848,7 @@ class PlayerThread(QThread):
                 while self.brush_running:
                     x1, y1, x2, y2 = (59, 194, 133, 198)
                     min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
-                    ret = self.mm.is_colored(min_img, 50)
+                    ret = is_colored(min_img, 50)
                     if ret:
                         pyauto.KeyPressChar("space")
                         time.sleep(0.2)
@@ -4704,7 +4882,7 @@ class PlayerThread(QThread):
                             min_img = screenshot_util.get_game_screenshot()[
                                 y1:y2, x1:x2
                             ]
-                            ret = self.mm.is_colored(min_img, 50)
+                            ret = is_colored(min_img, 50)
                             if ret:
                                 pyauto.KeyPressChar("space")
                                 time.sleep(0.2)
@@ -4726,8 +4904,10 @@ class PlayerThread(QThread):
                     # time.sleep(1)
                     # pyauto.KeyPressChar("n")
                     time.sleep(5)
-                    ret = self.mm.FindPic_sleep(
-                        883, 25, 970, 50, "红矿村.bmp", 0.9, time_s=1, my_sleep=0.1
+                    ret = FindPic_sleep(
+                self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        883, 25, 970, 50, "红矿村.bmp", 0.9, time_s=1, my_sleep=0.1,
+                        func=self.vnc_connection.capture
                     )
                     if ret:
                         break
@@ -4736,15 +4916,23 @@ class PlayerThread(QThread):
                 pyauto.KeyUpChar("right")
                 time.sleep(0.1)
                 pyauto.KeyDownChar("left")
-                ret = self.mm.FindPic_sleep(
-                    963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20
+                ret = FindPic_sleep(
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    963,
+                    536,
+                    1066,
+                    570,
+                    "返回城镇.bmp",
+                    0.9,
+                    time_s=20,
+                    func=self.vnc_connection.capture
                 )
                 if ret:
                     pyauto.KeyUpChar("left")
                     time.sleep(0.1)
                 while self.brush_running:
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         78,
                         277,
                         233,
@@ -4809,7 +4997,7 @@ class PlayerThread(QThread):
                 while self.brush_running:
                     x1, y1, x2, y2 = (57, 146, 129, 152)
                     min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
-                    ret = self.mm.is_colored(min_img, 50)
+                    ret = is_colored(min_img, 50)
                     if ret:
                         pyauto.KeyPressChar("space")
                         time.sleep(0.2)
@@ -4825,7 +5013,7 @@ class PlayerThread(QThread):
                 # time.sleep(0.1)
                 # pyauto.KeyPressChar("space")
                 while self.brush_running:
-                    # self.mm.FindPic_sleep(883, 25, 970, 50, "min_切斯特小镇.bmp", 0.9, time_s=10, my_sleep=0.1)
+                    # FindPic_sleep(883, 25, 970, 50, "min_切斯特小镇.bmp", 0.9, time_s=10, my_sleep=0.1)
                     ret = self.waiting_for_the_text_to_appear(
                         [883, 25, 970, 50], "切斯特小镇", r"[\u4e00-\u9fa5]+", 15
                     )
@@ -4840,7 +5028,7 @@ class PlayerThread(QThread):
                             min_img = screenshot_util.get_game_screenshot()[
                                 y1:y2, x1:x2
                             ]
-                            ret = self.mm.is_colored(min_img, 50)
+                            ret = is_colored(min_img, 50)
                             if ret:
                                 pyauto.KeyPressChar("space")
                                 time.sleep(0.2)
@@ -4867,7 +5055,8 @@ class PlayerThread(QThread):
                     time.sleep(3)
                     pyauto.KeyPressChar("n")
                     # ret = self.waiting_for_the_text_to_appear([337, 124, 488, 179], '分解修理机', r'[\u4e00-\u9fa5]+', 20)
-                    ret = self.mm.FindPic_sleep(
+                    ret = FindPic_sleep(
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         264,
                         85,
                         540,
@@ -4876,13 +5065,22 @@ class PlayerThread(QThread):
                         0.9,
                         time_s=20,
                         delta_color=([15, 0, 0], [27, 255, 255]),
+                        func=self.vnc_connection.capture
                     )
                     if ret:
                         logger.info(ret)
                         break
                 pyauto.KeyDownChar("right")
-                ret = self.mm.FindPic_sleep(
-                    963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20
+                ret = FindPic_sleep(
+                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                    963,
+                    536,
+                    1066,
+                    570,
+                    "返回城镇.bmp",
+                    0.9,
+                    time_s=20,
+                    func=self.vnc_connection.capture
                 )
                 if ret:
                     pyauto.KeyUpChar("right")
@@ -4890,7 +5088,7 @@ class PlayerThread(QThread):
                 while self.brush_running:
                     time.sleep(0.1)
                     ret = FindPic(
-                        VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600),
+                        self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
                         60,
                         270,
                         270,
@@ -5178,7 +5376,7 @@ class PlayerThread(QThread):
         return count
 
     def handle_mouse_press(self, x, y):
-        if banzhuan == 2:
+        if fields["banzhuan"] == 2:
             # if button == "middle":
             self.mouse_pos = (x, y)
             # self.send_log(f"鼠标事件: 移动 - 位置({x}, {y})")

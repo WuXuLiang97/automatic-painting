@@ -71,6 +71,8 @@ REMEMBER_FILE = os.path.join(
     config.get("CONFIG", "login_data_file", fallback="json_resources/remember.json"),
 )
 
+MOVE_GOODS = config.get("CONFIG", "move_goods_key", fallback="caplk")  # 移动物品按键
+
 f_program_version = config.get("ENV", "version", fallback="1.0.0.0")  # 程序版本号
 
 map_levels = json_config.get("map_levels", [])

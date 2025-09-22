@@ -19,7 +19,7 @@ from PyQt5.QtWidgets import (
     QHeaderView,
     QMessageBox,
 )
-from config import CONFIG_PATH,f_program_version
+from config import CONFIG_PATH, f_program_version
 from core.KeyboardListenerThread import KeyPressSignal, KeyboardListenerThread
 from core.check_d import CheckProcess
 from core.player import PlayerThread
@@ -35,7 +35,8 @@ from core.device_time_utils import get_identity_mark
 from utils.api import view_subgroups, view_subgroup_config
 from utils.mockdevice.vnc import VNC, api
 from root_dir import root_path
-from global_fields import VNC_Connection  # 确保VNC_Connection为全局变量
+from utils.screen.screenshot_util import screenshot_util
+from global_fields import fields
 
 # 拼接文件路径
 Network = 0
@@ -67,6 +68,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.heartbeat_thread = None
         self.server_ip = None
         self.server_address = None
+        self.vnc_connection = None
         self.dic = dic
         self.authapp = None
         self.role_settings = {}
@@ -191,21 +193,21 @@ class AppMain(QMainWindow, Ui_MainWindow):
         gui_config = get_gui_config()
         # 初始化ui的主机地址
         self.lineEdit.setText(str(gui_config["ip"]))
-        server_ip = gui_config["ip"]
+        fields["server_ip"] = gui_config["ip"]
         # 初始化ui的虚拟机ip地址
         self.lineEdit_3.setText(str(gui_config["vmware_ip"]))
-        vmware_ip = gui_config["vmware_ip"]
+        fields["vmware_ip"] = gui_config["vmware_ip"]
         # 初始化ui的虚拟机端口
         self.lineEdit_4.setText(str(gui_config["vmware_prot"]))
-        vmware_prot = gui_config["vmware_prot"]
+        fields["vmware_prot"] = gui_config["vmware_prot"]
         # 初始化ui的虚拟机vnc密码
         self.lineEdit_5.setText(str(gui_config["vmware_password"]))
-        vmware_password = gui_config["vmware_password"]
+        fields["vmware_password"] = gui_config["vmware_password"]
 
         # 初始化ui的主机地址
         # 初始化ui的功能（搬砖还是半自动剧情）
         self.ComboBox_3.setCurrentIndex(int(gui_config["banzhuan"]))
-        banzhuan = gui_config["banzhuan"]
+        fields["banzhuan"] = gui_config["banzhuan"]
         # 初始化ui的机器码
         self.lineEdit_2.setText(get_identity_mark())
         chars = string.ascii_letters + string.digits  # 大小写字母+数字
@@ -265,19 +267,19 @@ class AppMain(QMainWindow, Ui_MainWindow):
         sender_obj = self.sender()  # 使用 self.sender() 获取发送者
         if sender_obj == self.lineEdit:
             text = self.lineEdit.text()  # 读取 self.lineEdit 的内容
-            server_ip = text
+            fields["server_ip"] = text
             settings["ip"] = text
         if sender_obj == self.lineEdit_3:
             text = self.lineEdit_3.text()  # 读取 self.lineEdit 的内容
-            vmware_ip = text
+            fields["vmware_ip"] = text
             settings["vmware_ip"] = text
         if sender_obj == self.lineEdit_4:
             text = self.lineEdit_4.text()  # 读取 self.lineEdit 的内容
-            vmware_prot = text
+            fields["vmware_prot"] = text
             settings["vmware_prot"] = text
         if sender_obj == self.lineEdit_5:
             text = self.lineEdit_5.text()  # 读取 self.lineEdit 的内容
-            vmware_ip = text
+            fields["vmware_ip"] = text
             settings["vmware_password"] = text
         with open(CONFIG_PATH, "w") as file:
             json.dump(settings, file, indent=4)
@@ -299,7 +301,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         if sender_obj == self.ComboBox_3:
             currentIndex = self.ComboBox_3.currentIndex()
             settings["banzhuan"] = currentIndex
-            banzhuan = currentIndex
+            fields["banzhuan"] = currentIndex
         with open(CONFIG_PATH, "w") as file:
             json.dump(settings, file, indent=4)
 
@@ -440,8 +442,13 @@ class AppMain(QMainWindow, Ui_MainWindow):
                     self.displaythread.start()
                 # 初始化工作线程
                 self.playerThread = PlayerThread(dic=self.dic)  # 初始玩家刷图线程
-
+                self.playerThread.vnc_connection = self.vnc_connection
+                if not self.playerThread.brush_running:
+                    self.update_log("正在加载模型，请稍后aaaaaaaaaaa...")
+                    return
+                
                 self.checkProcess = CheckProcess()  # 初始化检查进程
+                self.checkProcess.vnc_connection = self.vnc_connection
                 # 连接播放器线程的信号
                 self.playerThread.message.connect(
                     self.update_log
@@ -633,8 +640,8 @@ class AppMain(QMainWindow, Ui_MainWindow):
             json.dump(settings, file, indent=4)
 
     def connect_to_vnc(self):
-        global VNC_Connection
-        if VNC_Connection is not None:
+
+        if self.vnc_connection is not None:
             QMessageBox.information(self, "提示", f"连接状态：已连接成功")
             return
         image = None
@@ -647,10 +654,12 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 QMessageBox.warning(self, "错误", "IP和端口不能为空")
                 return
 
-            VNC_Connection = VNC(vm_ip, vm_port, vm_pass)
+            self.vnc_connection = VNC(vm_ip, vm_port, vm_pass)
+            screenshot_util.vnc_connection = self.vnc_connection
+            pyauto.vnc_connect = self.vnc_connection
 
             # 截图
-            image = VNC_Connection.capture()
+            image = self.vnc_connection.capture()
 
             # 保存配置
             self.save_vnc_config(vm_ip, vm_port, vm_pass)
@@ -661,8 +670,9 @@ class AppMain(QMainWindow, Ui_MainWindow):
         if isinstance(image, np.ndarray):
             self.label_7.setText("已连接成功")
             self.label_7.setStyleSheet("color: green;")  # 设置文字为红色
+
         else:
-            VNC_Connection = None
+            self.vnc_connection = None
             self.label_7.setText("状态：连接失败")
             self.label_7.setStyleSheet("color: red;")  # 设置文字为红色
             QMessageBox.information(self, "警告", f"连接失败，请检查ip、端口和密码！")
@@ -677,14 +687,13 @@ class AppMain(QMainWindow, Ui_MainWindow):
             json.dump(config, file, indent=4, ensure_ascii=False)
 
     def cleanup_vnc(self):
-        global VNC_Connection
         """清理VNC资源"""
-        if VNC_Connection:
+        if self.vnc_connection:
             try:
                 api.shutdown()
             except:
                 pass
-            VNC_Connection = None
+            self.vnc_connection = None
 
     def update_image(self, qimage):
         pixmap = self.convert_cv_qt(qimage)

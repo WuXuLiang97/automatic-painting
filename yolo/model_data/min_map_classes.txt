@@ -1,0 +1,6 @@
+player
+door
+goods
+continue
+reward
+forward

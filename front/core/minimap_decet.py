@@ -3,10 +3,9 @@
 import numpy as np
 from core.common import map_pos_info
 from utils.log.logging_setup import logger
-from global_fields import screenshot_util
-from static_fields import (
-    RECT_MINMAPS
-)
+from utils.screen.screenshot_util import screenshot_util
+from static_fields import RECT_MINMAPS
+from static_fields import minimap
 
 
 class MiniMapUtil:
@@ -214,12 +213,10 @@ class MiniMapUtil:
         if self.minimap_name == "流雨瀑布":
             # 从minimap字典中获取流雨瀑布小地图的宽度、高度、行数和列数
             width = (
-                self.minimap[self.minimap_name]["width"]
-                / self.minimap[self.minimap_name]["row"]
+                minimap[self.minimap_name]["width"] / minimap[self.minimap_name]["row"]
             )
             height = (
-                self.minimap[self.minimap_name]["height"]
-                / self.minimap[self.minimap_name]["col"]
+                minimap[self.minimap_name]["height"] / minimap[self.minimap_name]["col"]
             )
             # 将x和y坐标转换为房间网格的行和列索引
             # 注意：这里假设x和y坐标是像素值，需要根据网格大小进行转换
@@ -231,12 +228,10 @@ class MiniMapUtil:
         elif self.minimap_name == "风暴幽城":
             # 从minimap字典中获取流雨瀑布小地图的宽度、高度、行数和列数
             width = (
-                self.minimap[self.minimap_name]["width"]
-                / self.minimap[self.minimap_name]["row"]
+                minimap[self.minimap_name]["width"] / minimap[self.minimap_name]["row"]
             )
             height = (
-                self.minimap[self.minimap_name]["height"]
-                / self.minimap[self.minimap_name]["col"]
+                minimap[self.minimap_name]["height"] / minimap[self.minimap_name]["col"]
             )
             # 将x和y坐标转换为房间网格的行和列索引
             # 注意：这里假设x和y坐标是像素值，需要根据网格大小进行转换
@@ -250,12 +245,10 @@ class MiniMapUtil:
         elif self.minimap_name == "风暴逆鳞普通":
             # 从minimap字典中获取流雨瀑布小地图的宽度、高度、行数和列数
             width = (
-                self.minimap[self.minimap_name]["width"]
-                / self.minimap[self.minimap_name]["row"]
+                minimap[self.minimap_name]["width"] / minimap[self.minimap_name]["row"]
             )
             height = (
-                self.minimap[self.minimap_name]["height"]
-                / self.minimap[self.minimap_name]["col"]
+                minimap[self.minimap_name]["height"] / minimap[self.minimap_name]["col"]
             )
             # 将x和y坐标转换为房间网格的行和列索引
             # 注意：这里假设x和y坐标是像素值，需要根据网格大小进行转换
@@ -269,12 +262,10 @@ class MiniMapUtil:
         elif self.minimap_name == "海伯伦的预言所":
             # 从minimap字典中获取流雨瀑布小地图的宽度、高度、行数和列数
             width = (
-                self.minimap[self.minimap_name]["width"]
-                / self.minimap[self.minimap_name]["row"]
+                minimap[self.minimap_name]["width"] / minimap[self.minimap_name]["row"]
             )
             height = (
-                self.minimap[self.minimap_name]["height"]
-                / self.minimap[self.minimap_name]["col"]
+                minimap[self.minimap_name]["height"] / minimap[self.minimap_name]["col"]
             )
             # 将x和y坐标转换为房间网格的行和列索引
             # 注意：这里假设x和y坐标是像素值，需要根据网格大小进行转换
@@ -288,12 +279,10 @@ class MiniMapUtil:
         elif self.minimap_name == "德洛斯矿山外围":
             # 从minimap字典中获取流雨瀑布小地图的宽度、高度、行数和列数
             width = (
-                self.minimap[self.minimap_name]["width"]
-                / self.minimap[self.minimap_name]["row"]
+                minimap[self.minimap_name]["width"] / minimap[self.minimap_name]["row"]
             )
             height = (
-                self.minimap[self.minimap_name]["height"]
-                / self.minimap[self.minimap_name]["col"]
+                minimap[self.minimap_name]["height"] / minimap[self.minimap_name]["col"]
             )
             # 将x和y坐标转换为房间网格的行和列索引
             # 注意：这里假设x和y坐标是像素值，需要根据网格大小进行转换
@@ -307,12 +296,10 @@ class MiniMapUtil:
         elif self.minimap_name == "跌宕群岛":
             # 从minimap字典中获取流雨瀑布小地图的宽度、高度、行数和列数
             width = (
-                self.minimap[self.minimap_name]["width"]
-                / self.minimap[self.minimap_name]["row"]
+                minimap[self.minimap_name]["width"] / minimap[self.minimap_name]["row"]
             )
             height = (
-                self.minimap[self.minimap_name]["height"]
-                / self.minimap[self.minimap_name]["col"]
+                minimap[self.minimap_name]["height"] / minimap[self.minimap_name]["col"]
             )
             # 将x和y坐标转换为房间网格的行和列索引
             # 注意：这里假设x和y坐标是像素值，需要根据网格大小进行转换
@@ -325,12 +312,10 @@ class MiniMapUtil:
         elif self.minimap_name == "妖气追踪":
             # 从minimap字典中获取流雨瀑布小地图的宽度、高度、行数和列数
             width = (
-                self.minimap[self.minimap_name]["width"]
-                / self.minimap[self.minimap_name]["row"]
+                minimap[self.minimap_name]["width"] / minimap[self.minimap_name]["row"]
             )
             height = (
-                self.minimap[self.minimap_name]["height"]
-                / self.minimap[self.minimap_name]["col"]
+                minimap[self.minimap_name]["height"] / minimap[self.minimap_name]["col"]
             )
             # 将x和y坐标转换为房间网格的行和列索引
             # 注意：这里假设x和y坐标是像素值，需要根据网格大小进行转换
@@ -344,12 +329,10 @@ class MiniMapUtil:
         elif self.minimap_name == "通用":
             # 从minimap字典中获取流雨瀑布小地图的宽度、高度、行数和列数
             width = (
-                self.minimap[self.minimap_name]["width"]
-                / self.minimap[self.minimap_name]["row"]
+                minimap[self.minimap_name]["width"] / minimap[self.minimap_name]["row"]
             )
             height = (
-                self.minimap[self.minimap_name]["height"]
-                / self.minimap[self.minimap_name]["col"]
+                minimap[self.minimap_name]["height"] / minimap[self.minimap_name]["col"]
             )
             # 将x和y坐标转换为房间网格的行和列索引
             # 注意：这里假设x和y坐标是像素值，需要根据网格大小进行转换

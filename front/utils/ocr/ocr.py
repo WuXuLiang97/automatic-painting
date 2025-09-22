@@ -194,7 +194,7 @@ def screenshot_OCR_str(
     return result
 
 
-def image_pretreatment(self, image, get_colour=None, drag=None):
+def image_pretreatment(image, get_colour=None, drag=None):
     """
     优化后的图像预处理方法，专注于数字识别
     """

@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 
 from core.capture import Capture
-from global_fields import screenshot_util
+from utils.screen.screenshot_util import screenshot_util
 from utils.log.logging_setup import logger
 
 

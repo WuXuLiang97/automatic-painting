@@ -9,7 +9,6 @@ import win32con
 import win32gui
 from core import capture
 from utils.log.logging_setup import logger
-from global_fields import VNC_Connection
 
 class ScreenshotUtil:
     def __init__(self):
@@ -23,12 +22,14 @@ class ScreenshotUtil:
         self.region = {}
         self.camera = None
         self.mode = 1
+        self.vnc_connection = None
 
     def init_game_hwnd(self, mode=1):
+        
         self.mode = mode
         if self.game_hwnd is not None:
             return
-        if VNC_Connection is not None:
+        if self.vnc_connection is not None:
             return
         hwnd_child_list = []
         win32gui.EnumChildWindows(
@@ -133,10 +134,11 @@ class ScreenshotUtil:
                 time.sleep(0.2)  # 错误时稍长延迟
 
     def screenshot_bgr(self):
+        
         while True:
             try:
-                if VNC_Connection is not None:
-                    screenshot = VNC_Connection.capture(x1=0, y1=0, x2=1067, y2=600)
+                if self.vnc_connection is not None:
+                    screenshot = self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600)
                 else:
                     screenshot = capture.Capture(self.game_hwnd, 0, 0, 1067, 600)
                     screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGRA2BGR)
@@ -150,6 +152,7 @@ class ScreenshotUtil:
                 raise e
 
     def screenshot_rgb(self):
+        
         while True:
             try:
                 screenshot = capture.Capture(self.game_hwnd, 0, 0, 1067, 600)
@@ -197,5 +200,6 @@ class ScreenshotUtil:
         except Exception as e:
             logger.info("窗口取消置顶异常：{}".format(e))
 
+screenshot_util = ScreenshotUtil()
 if __name__ == "__main__":
     st = time.time()

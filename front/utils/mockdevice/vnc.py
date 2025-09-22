@@ -12,6 +12,8 @@ import ctypes
 import time
 
 import cv2, numpy as np
+# your_vnc_module.py
+import logging
 
 from vncdotool import api
 from vncdotool.client import KEYMAP
@@ -41,6 +43,7 @@ class VNC:
         self.key_map = KEYMAP
         self.image_size = 1440017  # 1024*768分辨率大小的
         self.image_buffer = (ctypes.c_ubyte * self.image_size)()
+        self.setup_vnc_logging()
 
     def __del__(self):
         self.stop()
@@ -48,6 +51,13 @@ class VNC:
     def stop(self):
         self.client.disconnect()
 
+    def setup_vnc_logging(self):
+        """关闭 VNC 相关的调试日志"""
+        logging.getLogger("vncdotool").setLevel(logging.WARNING)
+        logging.getLogger("vncdotool.client").setLevel(logging.WARNING)
+        logging.getLogger("twisted").setLevel(logging.WARNING)
+
+    
     # 截图,可以保存到本地，也可以直接获取cv图像对象
     def capture(self, path=None):
         with Capture_lock:
@@ -143,8 +153,13 @@ class VNC:
 
 if __name__ == "__main__":
     try:
-        v = VNC("192.168.1.125", "5900", "")
-        print(v.client)
+        v = VNC("192.168.59.1", "5900", "")
+        # print(v.client)
+        img = v.capture(x1=0, y1=0, x2=1067, y2=600)
+        
+        cv2.imshow("vnc", img)
+        cv2.waitKey(0)
+
         time.sleep(2)
     except:
         print(v)

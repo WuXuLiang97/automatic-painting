@@ -5,7 +5,7 @@ import random
 import pydirectinput
 import time
 from utils.log.logging_setup import logger
-from global_fields import VNC_Connection, device_mouse_keyboard
+from global_fields import device_mouse_keyboard
 
 # 禁用pydirectinput的默认延迟，加快自动化速度
 pydirectinput.PAUSE = 0
@@ -26,8 +26,10 @@ class PYAUTO:
 
     def __init__(self, sign):
         self.sign = sign  # 控制模式标志
+        self.vnc_connect = None
 
     def releaseallkey(self):
+        
         """释放所有方向键"""
         if self.sign == 0:
             pydirectinput.keyUp("left")
@@ -36,14 +38,15 @@ class PYAUTO:
             pydirectinput.keyUp("down")
         elif self.sign == 1:
             logger.info(f"VNC键盘弹起所有键")
-            VNC_Connection.key_up("left")
-            VNC_Connection.key_up("right")
-            VNC_Connection.key_up("up")
-            VNC_Connection.key_up("down")
+            self.vnc_connect.key_up("left")
+            self.vnc_connect.key_up("right")
+            self.vnc_connect.key_up("up")
+            self.vnc_connect.key_up("down")
         else:
             device_mouse_keyboard.ReleaseAllKey()
 
     def click(self, input_char="left"):
+        
         """鼠标点击，支持左/右键"""
         if self.sign == 0:
             pydirectinput.mouseDown(button=input_char)
@@ -52,10 +55,10 @@ class PYAUTO:
         elif self.sign == 1:
             if input_char == "left":
                 logger.info(f"VNC鼠标左点击：{input_char}")
-                VNC_Connection.click(1)
+                self.vnc_connect.click(1)
             if input_char == "right":
                 logger.info(f"VNC鼠标右点击：{input_char}")
-                VNC_Connection.click(3)
+                self.vnc_connect.click(3)
         else:
             if input_char == "left":
                 device_mouse_keyboard.LeftClick()
@@ -63,6 +66,7 @@ class PYAUTO:
                 device_mouse_keyboard.RightClick()
 
     def KeyPressChar(self, input_char):
+        
         """键盘点击（按下并弹起）"""
         if self.sign == 0:
             pydirectinput.keyDown(input_char)
@@ -70,39 +74,42 @@ class PYAUTO:
             pydirectinput.keyUp(input_char)
         elif self.sign == 1:
             logger.info(f"VNC键盘点击：{input_char}")
-            VNC_Connection.key_down(input_char)
+            self.vnc_connect.key_down(input_char)
             time.sleep(random.randint(50, 80) * 0.001)
-            VNC_Connection.key_up(input_char)
+            self.vnc_connect.key_up(input_char)
         else:
             device_mouse_keyboard.KeyPressChar(input_char)
 
     def moveTo(self, x, y):
+        
         """鼠标移动到指定坐标"""
         if self.sign == 0:
             pydirectinput.moveTo(x=x, y=y)
         elif self.sign == 1:
             logger.info(f"VNC鼠标移动：{(x, y)}")
-            VNC_Connection.move(x + random.randint(-5, 5), y + random.randint(-5, 5))
+            self.vnc_connect.move(x + random.randint(-5, 5), y + random.randint(-5, 5))
         else:
             device_mouse_keyboard.MoveTo(x, y)
 
     def KeyDownChar(self, input_char):
+        
         """按下某个键（不弹起）"""
         if self.sign == 0:
             pydirectinput.keyDown(input_char)
         elif self.sign == 1:
             logger.info(f"VNC键盘按下：{input_char}")
-            VNC_Connection.key_down(input_char)
+            self.vnc_connect.key_down(input_char)
         else:
             device_mouse_keyboard.KeyDownChar(input_char)
 
     def KeyUpChar(self, input_char):
+        
         """弹起某个键"""
         if self.sign == 0:
             pydirectinput.keyUp(input_char)
         elif self.sign == 1:
             logger.info(f"VNC键盘弹起：{input_char}")
-            VNC_Connection.key_up(input_char)
+            self.vnc_connect.key_up(input_char)
         else:
             device_mouse_keyboard.KeyUpChar(input_char)
 

@@ -48,6 +48,7 @@ def FindPic_sleep(
     time_s=None,
     my_sleep=0.1,
     delta_color=([0, 0, 0], [179, 255, 255]),
+    func: callable = None,
 ):
     """
     在指定区域内查找图片，支持超时设置。
@@ -140,6 +141,8 @@ def FindPic_sleep(
                 return []
             logger.info(f"在 {time_s - elapsed_time} 秒后超时，未找到图片:{img_name}。")
             time.sleep(my_sleep)  # 每次循环等待 0.5 秒
+            if func:
+                screenshot_np = func(x1=0, y1=0, x2=1067, y2=600)
     if STOP_EVENT.is_set():
         logger.info("搜索已停止。")
         return []
@@ -183,7 +186,6 @@ def FindPic(
             每个列表代表找到的一个位置,arr[i][0]代表img_name中的第一张图,arr[i][1]代表img_name中的第二张图
             arr[0][1]arr[0][2]为找到图片的中心（加了随机偏移+2)坐标;arr[0][3]arr[0][4]为找到图片的左上角的坐标
     """
-    screenshot_np = None
     start_time = timeit.default_timer()  # 获取当前时间作为开始时间
     # 初始化一个列表来存放返回结果
     arr_ret = []
