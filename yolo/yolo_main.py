@@ -21,10 +21,10 @@ class YoloV8:
 
     def loadModel(self):
         from ultralytics import YOLO
-        self.model = YOLO(os.path.join(root_path, "yolo", "model_data", "best.pt"))
+        self.model = YOLO(os.path.join(root_path, "yolo", "model_data", "best.engine"))
         # path_model = r"D:\server_env\app\yolo\model_data\best.pt"
         # self.model = YOLO(path_model)
-        self.min_map_model = YOLO(os.path.join(root_path, "yolo", "model_data", "min_map_best.pt"))
+        self.min_map_model = YOLO(os.path.join(root_path, "yolo", "model_data", "min_map_best.engine"))
 
     def detect(self, game_image):
         """

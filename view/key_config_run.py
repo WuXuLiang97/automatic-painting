@@ -5,27 +5,16 @@ from PyQt5.QtWidgets import QApplication, QFrame, QPushButton, QMessageBox, QDia
 from PyQt5.QtCore import Qt, QEvent
 from PyQt5.QtGui import QKeyEvent
 
+from core.Config import FORBIDDEN_KEYS, DEFAULT_KEY_CONFIG
 from root_dir import root_path
 from view.key_config import Ui_Frame
 
-target_dir = os.path.join(r"C:\Program Files", "json_resources")  # 拼接子目录
+target_dir = os.path.join(root_path, "json_resources")  # 拼接子目录
 target_file = os.path.join(target_dir, "key_config.json")
-DEFAULT_CONFIG = {
-    'one_key_gather': {'key': 'Tab'},
-    'move_character': {'key': 'W'},
-    'back_to_selia': {'key': 'R'},
-    'challenge_again': {'key': 'F10'},
-    'skills': [
-        ['Q', 'W', 'E', 'R', 'T', 'Y', 'Ctrl'],
-        ['A', 'S', 'D', 'F', 'G', 'H', 'Alt']
-    ]
-}
+
 
 # 禁止设置的按键
-FORBIDDEN_KEYS = {
-    Qt.Key_End: 'End',
-    Qt.Key_Home: 'Home',
-}
+
 
 
 class KeyButton(QPushButton):
@@ -399,7 +388,7 @@ class KeyConfigDialog(QDialog, Ui_Frame):
         if reply == QMessageBox.No:
             return
 
-        default = DEFAULT_CONFIG
+        default = DEFAULT_KEY_CONFIG
         self.btn_one_key_gather.setText(default['one_key_gather']['key'])
         self.btn_move_character.setText(default['move_character']['key'])
         self.btn_back_to_selia.setText(default['back_to_selia']['key'])

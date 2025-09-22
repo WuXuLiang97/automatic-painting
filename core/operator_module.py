@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
+import json
+import os
 import re
 import time
+
+from core.Config import CONFIG_PATH, default_config
 
 from utils.cross_control import pyauto
 from root_dir import root_path
@@ -30,7 +34,32 @@ from utils.logging_setup import logger
 #     '最下级砥石': '砥石.bmp',
 #     '炉岩核': '炉岩核.bmp',
 # }
+def get_gui_config():
+    """获取GUI配置"""
+    # 默认配置
 
+
+
+
+    try:
+        # 如果配置文件存在，读取它
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as file:
+                file_config = json.load(file)
+                # 合并默认配置和文件配置
+                return {**default_config, **file_config}
+
+        # 如果配置文件不存在，创建默认配置
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
+            json.dump(default_config, file, indent=4, ensure_ascii=False)
+        return default_config
+
+    except json.JSONDecodeError:
+        print("Warning: Config file is corrupted or not in JSON format.")
+        return default_config
+    except Exception as e:
+        print(f"Error loading config: {e}")
+        return default_config
 
 class OperatorModule:
 
@@ -136,7 +165,14 @@ class OperatorModule:
                 pyauto.click()
 
                 time.sleep(0.5)
-                ret = self.mm.FindPic(398, 154, 670, 435, "契约恢复.bmp", 0.9)
+
+                weak_config = get_gui_config()#
+                setting=weak_config.get('weak_setting', 'gold')#
+                if setting == 'gold':
+                    ret = self.mm.FindPic(398, 154, 670, 435, "金币恢复.bmp", 0.9)
+                if setting == 'contract':
+                    ret = self.mm.FindPic(398, 154, 670, 435, "契约恢复.bmp", 0.9)
+
                 if ret:
                     x, y = ret[0][1], ret[0][2]
                     self.move_to(x, y)

@@ -17,6 +17,7 @@ from PyQt5.QtCore import pyqtSignal, QByteArray, QPoint, QSize, QThread, QUrl
 from PyQt5.QtGui import QPixmap, QImage, QDesktopServices
 from PyQt5.QtWidgets import QMainWindow, QAbstractItemView, QTableWidgetItem, QHeaderView, QMessageBox
 
+from core.Config import default_config, CONFIG_PATH
 from core.KeyboardListenerThread import KeyPressSignal, KeyboardListenerThread
 # from core.check_caton import CheckPlayerDynamics
 from core.check_d import CheckProcess
@@ -46,7 +47,7 @@ from root_dir import root_path
 
 
 # 拼接文件路径
-CONFIG_PATH = os.path.join(root_path, "json_resources/config.json")
+
 f_program_version = '250908'
 Network = 0
 
@@ -54,18 +55,9 @@ Network = 0
 def get_gui_config():
     """获取GUI配置"""
     # 默认配置
-    default_config = {
-        "ip": "192.168.1.1",
-        "yjs": 0,
-        "banzhuan": 0,
-        "vmware_ip": "127.0.0.1",
-        "vmware_prot": "5900",
-        "vmware_password": "",
-        "tab_index": 0,
-        'vid': '',
-        'pid': '',
-        'identifier': "0",
-    }
+
+
+
 
     try:
         # 如果配置文件存在，读取它
@@ -141,6 +133,19 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.role_settings = {}
         # self.sock = None
         self.setupUi(self)  # 假设这个方法是在某个UI文件中通过pyuic生成的，用于设置窗口的UI界面
+        # 让虚弱设置菜单项可勾选
+        self.GoldRecovery.setCheckable(True)
+        self.ContractRecovery.setCheckable(True)
+        self.Wait.setCheckable(True)
+        self.Ignore.setCheckable(True)
+
+        # 如果要互斥（类似单选按钮）
+        from PyQt5.QtWidgets import QActionGroup
+        weak_group = QActionGroup(self)
+        weak_group.setExclusive(True)
+        for action in [self.GoldRecovery, self.ContractRecovery, self.Wait, self.Ignore]:
+            weak_group.addAction(action)
+
         self.action12.triggered.connect(self.show_login)
         self.loadSettings("json_resources/ui_config.json")
         self.lineEdit.textChanged.connect(self.on_text_changed)
@@ -159,6 +164,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.helpBtn.clicked.connect(self.open_local_webpage)
         # self.ComboBox_2.currentIndexChanged.connect(self.on_combobox_changed)
         self.ComboBox_3.currentIndexChanged.connect(self.on_combobox_changed)
+
         self.init_content()  # 初始化窗口内容，可能是设置一些初始值或UI组件的状态
 
         self.key_press_signal = KeyPressSignal()  # 键盘检测线程
@@ -180,6 +186,12 @@ class AppMain(QMainWindow, Ui_MainWindow):
         # 初始化设置窗口
         self.settings_group_window = SettingsGroupWindow(dic=self.dic)  # 初始化设置组窗口
         self.role_settings_window = RoleSettingsWindow(dic=self.dic)  # 初始化角色设置窗口
+        self.GoldRecovery.triggered.connect(lambda: self.on_weak_setting_changed("gold"))
+        self.ContractRecovery.triggered.connect(lambda: self.on_weak_setting_changed("contract"))
+        self.Wait.triggered.connect(lambda: self.on_weak_setting_changed("wait"))
+        self.Ignore.triggered.connect(lambda: self.on_weak_setting_changed("ignore"))
+
+
 
         # 连接设置组窗口的信号
         self.settings_group_window.send_update_settings_group_signal.connect(
@@ -194,6 +206,100 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.Keyboardsettings.triggered.connect(self.open_keyboard_settings)
         self.keyboard_thread = KeyboardListenerThread(self.key_press_signal)
         self.keyboard_thread.start()  # self.yoloProcess = YoloProcess()  # self.yoloProcess.load_model()  # self.playerThread.yolo = self.yoloProcess
+
+    def on_weak_setting_changed(self, setting_type):
+        """处理虚弱设置变化"""
+        try:
+            # 如果选择的是等待，弹出输入框
+            if setting_type == "wait":
+                # 导入需要的模块
+                from PyQt5.QtWidgets import QInputDialog
+
+                # 弹出输入对话框
+                seconds, ok = QInputDialog.getInt(
+                    self,
+                    "设置等待时间",
+                    "请输入等待秒数:",
+                    value=self.wait_seconds,  # 默认值
+                    min=1,  # 最小值
+                    max=3600  # 最大值（1小时）
+                )
+
+                if ok:
+                    # 保存等待秒数
+                    self.wait_seconds = seconds
+                    self.update_weak_setting_config(setting_type, seconds)
+                    self.update_log(f"虚弱设置已更改为：等待 {seconds} 秒")
+                else:
+                    # 如果取消了，恢复之前的选择
+                    self.restore_previous_weak_setting()
+                    return
+            else:
+                # 其他选项直接保存
+                self.update_weak_setting_config(setting_type)
+                setting_names = {
+                    'gold': '金币恢复',
+                    'contract': '契约恢复',
+                    'ignore': '无视虚弱'
+                }
+                self.update_log(f"虚弱设置已更改为：{setting_names.get(setting_type, setting_type)}")
+
+        except Exception as e:
+            print(f"虚弱设置更改错误: {e}")
+            self.update_log(f"虚弱设置更改失败: {e}")
+
+    def update_weak_setting_config(self, setting_type, wait_seconds=None):
+        """更新虚弱设置到配置文件"""
+        try:
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as file:
+                settings = json.load(file)
+
+            # 更新虚弱设置
+            settings['weak_setting'] = setting_type
+
+            # 如果是等待设置，同时保存等待秒数
+            if setting_type == 'wait' and wait_seconds is not None:
+                settings['wait_seconds'] = wait_seconds
+
+            # 保存到文件
+            with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
+                json.dump(settings, file, indent=4, ensure_ascii=False)
+
+            # 更新全局变量（如果需要的话）
+            gv.weak_setting = setting_type
+            if wait_seconds is not None:
+                gv.wait_seconds = wait_seconds
+
+        except Exception as e:
+            print(f"保存虚弱设置配置错误: {e}")
+
+    def restore_previous_weak_setting(self):
+        """恢复之前的虚弱设置选择"""
+        try:
+            config = get_gui_config()
+            weak_setting = config.get('weak_setting', 'gold')
+
+            if weak_setting == 'gold':
+                self.GoldRecovery.setChecked(True)
+            elif weak_setting == 'contract':
+                self.ContractRecovery.setChecked(True)
+            elif weak_setting == 'wait':
+                self.Wait.setChecked(True)
+            elif weak_setting == 'ignore':
+                self.Ignore.setChecked(True)
+
+        except Exception as e:
+            print(f"恢复虚弱设置错误: {e}")
+            # 出错时默认选中金币恢复
+            self.GoldRecovery.setChecked(True)
+
+    def get_current_weak_setting(self):
+        """获取当前的虚弱设置"""
+        config = get_gui_config()
+        return {
+            'setting': config.get('weak_setting', 'gold'),
+            'wait_seconds': config.get('wait_seconds', 30)
+        }
 
     def open_keyboard_settings(self):
         """打开按键配置对话框"""
@@ -247,9 +353,26 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.update_roles_table_data()
 
         gui_config = get_gui_config()
+        # 初始化虚弱设置
+        weak_setting = gui_config.get('weak_setting', 'gold')  # 默认为金币恢复
+        self.wait_seconds = gui_config.get('wait_seconds', 30)  # 默认等待30秒
 
+
+        # 根据配置设置选中项
+        if weak_setting == 'gold':
+            self.GoldRecovery.setChecked(True)
+        elif weak_setting == 'contract':
+            self.ContractRecovery.setChecked(True)
+        elif weak_setting == 'wait':
+            self.Wait.setChecked(True)
+        elif weak_setting == 'ignore':
+            self.Ignore.setChecked(True)
+        else:
+            # 如果配置无效，默认选中金币恢复
+            self.GoldRecovery.setChecked(True)
         # 获取保存的索引（默认值为0，即第一个标签页）
         saved_index = gui_config.get("tab_index", 0)
+
 
         # 检查索引是否有效（必须在标签页数量范围内）
         tab_count = self.tabWidget.count()
