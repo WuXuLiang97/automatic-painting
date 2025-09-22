@@ -8,5 +8,6 @@
     "tab_index": 0,
     "vid": "",
     "pid": "",
-    "identifier": "USB3.0 UHD"
+    "identifier": "USB3.0 UHD",
+    "weak_setting": "contract"
 }

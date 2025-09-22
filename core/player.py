@@ -15,6 +15,7 @@ import keyboard
 import numpy as np
 from PyQt5.QtCore import QThread, pyqtSignal
 
+from core.Config import key_config_file, get_gui_config
 from core.directional_astar import a_star, judge_direction  # A星寻路
 from utils.api import test_view_subgroup_config, test_update_subgroup_config
 from core.common import Point, occupationInfoMap, Player, MoveInfo, a_mapInfo, a_DictInfo, map_boss_info, MAP_MIN_ROOMS
@@ -36,10 +37,9 @@ import socket
 from core import global_variable as gv
 
 from utils.logging_setup import logger
-from view.key_config_run import DEFAULT_CONFIG
+from view.key_config_run import DEFAULT_KEY_CONFIG
 
-current_path = os.path.dirname(os.path.abspath(__file__))
-root_path = os.path.abspath(os.path.join(current_path, '../'))
+
 # 基础时间单位（秒）
 MINUTE = 60
 HOUR = 60 * MINUTE
@@ -50,8 +50,7 @@ SIMILARITY_THRESHOLD = 0.7  # 相似度阈值
 
 # min_map_name = 0
 
-target_dir = os.path.join(r"C:\Program Files", "json_resources")  # 拼接子目录
-key_config_file = os.path.join(target_dir, "key_config.json")
+
 try:
     if os.path.exists(key_config_file):
         with open(key_config_file, 'r', encoding='utf-8') as f:
@@ -60,10 +59,10 @@ try:
             logger.info(f"成功加载键盘配置: {key_config_file}")
     else:
         logger.warning(f"键盘配置文件不存在: {key_config_file}，使用默认配置")
-        key_config = DEFAULT_CONFIG
+        key_config = DEFAULT_KEY_CONFIG
 except Exception as e:
     logger.error(f"加载键盘配置失败: {e}，使用默认配置")
-    key_config = DEFAULT_CONFIG
+    key_config = DEFAULT_KEY_CONFIG
 
 one_key_gather_value = key_config['one_key_gather']['key'].lower()  # 一键聚物
 move_character_value = key_config['move_character']['key'].lower()  # 移动角色
@@ -657,10 +656,19 @@ class PlayerThread(QThread):
                     pyauto.click()
                     time.sleep(0.5)
                 time.sleep(2)
-                if self.operator_module.remove_weakness():  # 移除虚弱
-                    _sleep = random.randint(300, 360)
+                ###############################虚弱设置
+                weak_config = get_gui_config()  #
+                setting = weak_config.get('weak_setting', 'gold')  #
+                if setting == 'gold' or setting == 'contract':
+                    self.operator_module.remove_weakness()
+                elif setting == 'wait':  # 移除虚弱
+                    _sleep = setting.get('wait_seconds', 30)
                     self.send_log(f"虚弱，休息{_sleep}秒")
                     time.sleep(_sleep)
+                elif setting == 'ignore':
+                    pass
+
+                ####################################
                 time.sleep(2)
                 self.select_role()  # 选择角色
                 time.sleep(2)

@@ -13,7 +13,7 @@ app.secret_key = '42a2c4e3f7a5b6d9c0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1'
 def get_db_connection():
     """创建数据库连接"""
     try:
-        return Connection(host="127.0.0.1", user="root", password="111222", database="dnf_script", autocommit=False)
+        return Connection(host="127.0.0.1", user="root", password="mhw,.216", database="dnf_script", autocommit=False)
     except Exception as e:
         return None
 

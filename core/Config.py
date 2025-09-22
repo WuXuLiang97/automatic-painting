@@ -1,3 +1,6 @@
+
+# -*- coding: utf-8 -*-
+import json
 import os
 
 from PyQt5.QtCore import Qt
@@ -32,16 +35,42 @@ default_config = {
         'vid': '',
         'pid': '',
         'identifier': "0",
-        'weak_setting': 'gold',  # �����������ã�Ĭ��Ϊ��һָ�
-        'wait_seconds': 30,  # ���ӵȴ�������Ĭ��30��
+        'weak_setting': 'gold',  # 添加虚弱设置，默认为金币恢复
+        'wait_seconds': 30,  # 添加等待秒数，默认30秒
     }
+def get_gui_config():
+    """获取GUI配置"""
+    # 默认配置
+
+    try:
+        # 如果配置文件存在，读取它
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as file:
+                file_config = json.load(file)
+                # 合并默认配置和文件配置
+                return {**default_config, **file_config}
+
+        # 如果配置文件不存在，创建默认配置
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
+            json.dump(default_config, file, indent=4, ensure_ascii=False)
+        return default_config
+
+    except json.JSONDecodeError:
+        print("Warning: Config file is corrupted or not in JSON format.")
+        return default_config
+    except Exception as e:
+        print(f"Error loading config: {e}")
+        return default_config
+
+
+
 
 target_dir = os.path.join(root_path, "json_resources")
-CONFIG_PATH = os.path.join(root_path, "json_resources/config.json")# ƴ����Ŀ¼
+CONFIG_PATH = os.path.join(root_path, "json_resources/config.json")# 拼接子目录
 key_config_file = os.path.join(target_dir, "key_config.json")
 
- # ƴ����Ŀ¼
-# �û����ݴ洢�ļ�
+ # 拼接子目录
+# 用户数据存储文件
 USER_DATA_FILE = os.path.join(target_dir, 'users.json')
-# ��ס����������ļ�
+# 记住密码的配置文件
 REMEMBER_FILE = os.path.join(target_dir, 'remember.json')
