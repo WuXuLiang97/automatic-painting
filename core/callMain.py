@@ -33,7 +33,7 @@ from utils.screenshot_util import screenshot_util
 # from utils.yjs import yjs
 from utils.cross_control import pyauto
 # from view.main0914 import Ui_MainWindow
-from view.main0917 import Ui_MainWindow
+from view.main0922 import Ui_MainWindow
 from view.key_config_run import KeyConfigDialog
 from core.device_identity_client import send_request, ret_data
 from core.device_time_utils import get_identity_mark

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/../automatic-painting/yolo/model_data/best.engine" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/../automatic-painting/yolo/model_data/min_map_best.engine" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/work_space/1/roles.ini" charset="GBK" />
     <file url="file://$PROJECT_DIR$/work_space/117/roles.ini" charset="GBK" />
     <file url="file://$PROJECT_DIR$/work_space/119/roles.ini" charset="GBK" />
@@ -9,8 +11,6 @@
     <file url="file://$PROJECT_DIR$/work_space/4/roles.ini" charset="GBK" />
     <file url="file://$PROJECT_DIR$/work_space/47/roles.ini" charset="GBK" />
     <file url="file://$PROJECT_DIR$/work_space/5/roles.ini" charset="GBK" />
-    <file url="file://$PROJECT_DIR$/yolo/model_data/best.engine" charset="UTF-8" />
-    <file url="file://$PROJECT_DIR$/yolo/model_data/min_map_best.engine" charset="UTF-8" />
     <file url="PROJECT" charset="GBK" />
   </component>
 </project>
