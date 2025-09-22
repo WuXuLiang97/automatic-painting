@@ -4643,6 +4643,7 @@ class PlayerThread(QThread):
         # 进入等待状态
         time.sleep(wait_seconds)
 
+
         # 等待结束后重置任务状态
         self.today_task_completed = False
         self.send_log("等待结束，准备开始新的任务周期")
@@ -4652,7 +4653,7 @@ class PlayerThread(QThread):
         now = datetime.datetime.now()
 
         # 计算今天早上六点的时间
-        today_6am = now.replace(hour=self.start_hour, minute=0, second=0, microsecond=0)
+        today_6am = now.replace(hour=self.start_hour, minute=random.randint(5,10), second=random.randint(1,58), microsecond=0)
 
         # 如果当前时间已经过了今天六点，则目标时间是明天六点
         if now >= today_6am:
