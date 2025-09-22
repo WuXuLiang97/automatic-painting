@@ -5,9 +5,9 @@ import onnxruntime as ort
 import platform
 
 LOCAL_RANK = int(os.getenv("LOCAL_RANK", -1))  # 分布式训练相关，默认-1
-MODEL_PATH = os.path.join(root_path, "yolo", "model_data", "yolov8n.onnx")
+MODEL_PATH = os.path.join(root_path, "yolo", "model_data", "best.onnx")
 MIN_MAP_MODEL_PATH = os.path.join(
-    root_path, "yolo", "model_data", "min_map_yolov8n.onnx"
+    root_path, "yolo", "model_data", "min_map_best.onnx"
 )
 
 
