@@ -44,7 +44,6 @@ from core.capturecardconnection import CaptureCardConnection
 from utils.cv_recognizer import vnc_mm
 from root_dir import root_path
 
-
 # 拼接文件路径
 CONFIG_PATH = os.path.join(root_path, "json_resources/config.json")
 f_program_version = '250920'
@@ -852,7 +851,13 @@ class AppMain(QMainWindow, Ui_MainWindow):
         """
         # 创建采集卡连接实例
         self.identifier = CaptureCardConnection()
-        return self.identifier.find_available_devices()
+        self.identifier.crop_region = [0, 0, 1067, 600]
+        devices = self.identifier.find_available_devices()
+        id = []
+        for i, device in enumerate(devices):
+            print(f"  {i}. {device['id']}")
+            id.append(device['id'])
+        return id
 
     def save_vnc_config(self, ip, port, password):
         """保存VNC配置到文件"""
