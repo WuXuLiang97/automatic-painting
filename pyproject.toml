@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dxf-auto"
+version = "0.1.0.dev0"
+description = "DXF Auto automation toolkit (transitional packaging stage)"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [ { name = "DXF Team" } ]
+license = { text = "Proprietary" }
+keywords = ["automation", "yolo", "ocr", "gui"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent"
+]
+# Minimal runtime deps (phase 1). Heavy components go into extras.
+dependencies = [
+  "numpy",
+  "opencv-python"
+]
+
+[project.optional-dependencies]
+# GUI layer
+gui = ["PyQt5"]
+# ML / detection
+ml = ["torch", "onnxruntime", "ultralytics"]
+# OCR
+ocr = ["paddleocr"]
+# Full install
+full = ["PyQt5", "torch", "onnxruntime", "ultralytics", "paddleocr"]
+
+[project.scripts]
+# Transitional entry points (still using legacy folders outside package)
+ dxf-auto-gui = "dxf_auto.entrypoints:run_gui"
+ dxf-auto-service = "dxf_auto.entrypoints:run_service"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true

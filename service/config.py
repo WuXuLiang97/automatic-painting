@@ -11,7 +11,8 @@ def load_ini_config(config_path):
     return config
 
 # 加载配置
-config = load_ini_config("工具人.ini")
+config_path = os.path.join(os.path.dirname(__file__), "工具人.ini")
+config = load_ini_config(config_path)
 
 SERVER_HOST = config.get("SERVER", "host", fallback="0.0.0.0")  # 服务器地址，默认
 SERVER_PORT = config.getint("SERVER", "port", fallback=12345)  # 服务器端口，默认12345

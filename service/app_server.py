@@ -2,10 +2,12 @@ import sys
 import threading
 import tkinter as tk
 from tkinter import scrolledtext
-from config import SERVER_HOST, SERVER_PORT
-from server.ThreadedServer import ThreadedServer
+from server.config_manager import settings  # 新的集中配置
+from server.threaded_server import ThreadedServer
 from server.PrintRedirector import PrintRedirector
 import socket
+import time  # 新增
+import os    # 新增
 
 
 def get_ip_address():
@@ -38,16 +40,41 @@ if __name__ == '__main__':
     # 重定向标准输出到文本框，方便查看日志
     sys.stdout = PrintRedirector(text_area)
 
-    # 启动多线程服务器（后台线程）
-    server = ThreadedServer(host=SERVER_HOST, port=SERVER_PORT)
-    server_thread = threading.Thread(target=server.start)
+    print("程序启动中...")
+
+    # 使用集中配置 settings.host / settings.port
+    server = ThreadedServer(host=settings.host, port=settings.port)
+    server_thread = threading.Thread(target=server.start, name="ServerMain")
     server_thread.daemon = True  # 主程序退出时自动关闭
     server_thread.start()
 
     def on_closing():
-        """窗口关闭事件，安全关闭服务器和GUI"""
-        server.running = False
-        root.destroy()
+        """窗口关闭事件：优雅关闭服务器并在必要时强制退出"""
+        print("正在停止服务器...")
+        try:
+            server.stop()
+        except Exception as e:
+            print(f"stop 调用异常: {e}")
+        # 等待后台线程自行结束（最多2秒）
+        for _ in range(20):
+            if not server.running:
+                break
+            try:
+                root.update_idletasks()
+            except Exception:
+                pass
+            time.sleep(0.1)
+        # 关闭 GUI
+        try:
+            root.destroy()
+        except Exception:
+            pass
+        print("已请求退出。")
+        # 兜底：再给 0.5 秒，如果进程还未退出则强制退出
+        def _force_kill():
+            print("触发兜底强制退出")
+            os._exit(0)
+        threading.Timer(0.5, _force_kill).start()
 
     # 绑定窗口关闭事件
     root.protocol("WM_DELETE_WINDOW", on_closing)

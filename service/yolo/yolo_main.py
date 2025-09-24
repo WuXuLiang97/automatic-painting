@@ -1,7 +1,6 @@
 # yolo_main.py
 import os
 from typing import Tuple
-import torch
 import cv2
 import numpy as np
 from root_dir import root_path
@@ -15,8 +14,8 @@ MIN_MAP_MODEL_PATH = os.path.join(root_path, "yolo", "model_data", "min_map_best
 
 class YoloV8:
     """
-    YOLOv8 ONNX 推理封装类
-    支持常规检测和小地图检测，自动选择 GPU/CPU。
+    YOLOv8 ONNX 推理封装类 (CPU Only)
+    仅使用 CPUExecutionProvider，满足改为 ONNX + CPU 推理的需求。
     """
 
     def __init__(self):
@@ -82,11 +81,7 @@ class YoloV8:
         ]
 
     def _detect_hardware(self):
-        """自动选择最优执行提供者：优先 GPU (CUDA)，否则 CPU"""
-        if torch.cuda.is_available():
-            return ["CUDAExecutionProvider", "CPUExecutionProvider"]
-
-        # 如果没有 GPU，使用 CPU
+        """强制使用 CPU 推理。"""
         return ["CPUExecutionProvider"]
 
     def loadModel(self):
@@ -102,14 +97,6 @@ class YoloV8:
         if not os.path.exists(MIN_MAP_MODEL_PATH):
             raise FileNotFoundError(f"小地图模型文件不存在: {MIN_MAP_MODEL_PATH}")
         self.min_map_model = ort.InferenceSession(MIN_MAP_MODEL_PATH, providers=providers)
-
-        # 可选：打印模型输入信息用于调试
-        # print(f"常规模型输入: {self.model.get_inputs()[0].name}, 形状: {self.model.get_inputs()[0].shape}")
-        # print(f"小地图模型输入: {self.min_map_model.get_inputs()[0].name}, 形状: {self.min_map_model.get_inputs()[0].shape}")
-
-        # print(f"✅ 模型已加载，使用设备: {providers[0]}")
-        # print(f"   常规模型: {os.path.basename(MODEL_PATH)}")
-        # print(f"   小地图模型: {os.path.basename(MIN_MAP_MODEL_PATH)}")
 
     def _preprocess(self, image: np.ndarray) -> Tuple[np.ndarray, float]:
         """预处理：缩放、填充、归一化"""

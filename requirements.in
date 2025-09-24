@@ -1,0 +1,21 @@
+# Core runtime
+numpy
+opencv-python
+
+# GUI (optional)
+PyQt5
+
+# ML / Detection
+torch
+onnxruntime
+ultralytics
+
+# OCR
+paddleocr
+
+# Packaging / build
+setuptools
+wheel
+
+# (Optional) dependency management
+pip-tools
