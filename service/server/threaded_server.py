@@ -217,6 +217,11 @@ class ThreadedServer:
                                     True,
                                     False,
                                 )
+
+                                if result:
+                                    print(f"识别结果：{result}")
+                                else:
+                                    cv2.imwrite(f"revice.png",image)
                         else:
                             result = {"error": "无效的请求类型"}
                             self._record_metric(req_type or "unknown", 0.0, False, True)
