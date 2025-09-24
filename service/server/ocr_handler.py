@@ -16,7 +16,7 @@ REC_KEYS_PATH = os.path.join(REC_MODEL_DIR, "keys.txt")
 DET_BIN_THRESH = 0.30
 DET_BOX_THRESH = 0.50
 DET_UNCLIP_RATIO = 1.60   # 简化外扩（几何放缩）
-REC_SCORE_THRESH = 0.70   # 使用平均字符概率后阈值可适当降低
+REC_SCORE_THRESH = 0.70  # 已不再用于过滤，只保留占位
 MAX_REC_WIDTH = 320        # 保护性限制，防极宽文本占用内存
 
 class OCRHandler:
@@ -24,8 +24,9 @@ class OCRHandler:
     process(image: np.ndarray) -> List[{text, box(4点), score}]
     """
 
-    def __init__(self, det_dir: str = DET_MODEL_DIR, rec_dir: str = REC_MODEL_DIR, debug: bool = False):
+    def __init__(self, det_dir: str = DET_MODEL_DIR, rec_dir: str = REC_MODEL_DIR, debug: bool = False, print_result: bool = False):
         self.debug = debug
+        self.print_result = print_result  # 新增：控制是否打印最终结果
         providers = ["CPUExecutionProvider"]
         if not os.path.isfile(DET_ONNX_PATH):
             raise FileNotFoundError(f"缺少检测模型: {DET_ONNX_PATH}")
@@ -132,29 +133,56 @@ class OCRHandler:
         return x[None, ...]
 
     # ------------ CTC 解码 ------------
-    def _ctc_decode(self, logits: np.ndarray) -> Tuple[str, float]:
+    def _ctc_decode(self, logits: np.ndarray):
+        """返回 (text, paddle_score, char_probs)
+        自适应输出形状：
+        - 典型 PP-OCR ONNX: [B, T, C]
+        - 有些导出: [B, C, T]
+        Paddle 评分: 取去重/去 blank 后字符概率平均值。
+        若模型输出已是概率分布（每步求和≈1），则直接用；否则 softmax。
+        """
         if logits.ndim != 3:
-            return "", 0.0
-        # 统一为 [T, C]
-        if logits.shape[1] < logits.shape[2]:
-            seq = logits[0]
+            return "", 0.0, []
+        B, A, B2 = logits.shape
+        # 判定哪个维是类别数 (= len(charset)+1)
+        num_classes = len(self.charset) + 1  # + blank
+        if A == num_classes:
+            # [B, C, T]
+            seq = logits[0].transpose(1, 0)  # -> [T, C]
+        elif B2 == num_classes:
+            # [B, T, C]
+            seq = logits[0]  # [T, C]
         else:
-            seq = logits[0].transpose(1, 0)
-        probs = self._softmax(seq)
+            # 回退到假设第二维是时间步
+            if logits.shape[1] < logits.shape[2]:
+                seq = logits[0]
+            else:
+                seq = logits[0].transpose(1, 0)
+        # 检测是否已 softmax：随机抽 5 行检查行和是否接近 1
+        sample_rows = seq[:min(5, seq.shape[0])]
+        row_sums = sample_rows.sum(axis=1)
+        if np.allclose(row_sums, 1.0, atol=1e-3):
+            probs = seq  # 已是概率
+        else:
+            # 数值稳定 softmax
+            m = seq.max(axis=1, keepdims=True)
+            e = np.exp(seq - m)
+            probs = e / e.sum(axis=1, keepdims=True)
         idxs = probs.argmax(axis=1)
         prev = -1
         chars, confs = [], []
         for i, ix in enumerate(idxs):
-            if ix == self.blank_idx or ix == prev:
+            if ix == self.blank_idx or ix == prev:  # blank 或重复
                 prev = ix
                 continue
-            if ix > 0 and ix - 1 < len(self.charset):
+            if ix > 0 and (ix - 1) < len(self.charset):
                 chars.append(self.charset[ix - 1])
-                confs.append(probs[i, ix])
+                confs.append(float(probs[i, ix]))
             prev = ix
         if not chars:
-            return "", 0.0
-        return ''.join(chars), float(np.mean(confs))
+            return "", 0.0, []
+        paddle_score = float(np.mean(confs))  # Paddle 风格：平均概率
+        return ''.join(chars), paddle_score, confs
 
     def _softmax(self, x: np.ndarray) -> np.ndarray:
         m = x.max(axis=1, keepdims=True)
@@ -194,13 +222,25 @@ class OCRHandler:
                 if self.debug:
                     print(f"[REC] box#{i} shape={rec_input.shape}")
                 logits = self.rec_session.run(None, {rec_in.name: rec_input})[0]
-                text, score = self._ctc_decode(logits)
+                text, paddle_score, char_confs = self._ctc_decode(logits)
                 if self.debug:
-                    print(f"[REC] box#{i} text='{text}' score={score:.4f}")
-                if text and score >= REC_SCORE_THRESH:
-                    results.append({'text': text, 'box': box.tolist(), 'score': round(score, 4)})
+                    print(f"[REC] box#{i} text='{text}' paddle_score={paddle_score:.4f}")
+                if text:
+                    results.append({
+                        'text': text,
+                        'box': box.tolist(),
+                        'paddle_score': round(paddle_score, 4),  # 严格对齐 Paddle
+                        'score': round(paddle_score, 4),          # 兼容旧字段
+                        'char_probs': [round(c, 4) for c in char_confs]
+                    })
             except Exception as e:
                 if self.debug:
                     print(f"[REC][ERR] box#{i}: {e}")
                 continue
-        return results
+        # if self.print_result and results:
+        #     print("[OCR][RESULT] 共识别{}条:".format(len(results)))
+        #     for idx, r in enumerate(results):
+        #         print(f"  {idx+1}. text='{r['text']}' paddle_score={r['paddle_score']}" )
+        # return results
+        rec_texts = ''.join([r['text'] for r in results])
+        return rec_texts

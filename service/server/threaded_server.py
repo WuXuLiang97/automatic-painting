@@ -13,7 +13,10 @@ from .config_manager import settings  # 新增：集中配置
 import time
 from collections import defaultdict, deque
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 
 class ThreadedServer:
     """多线程图像处理服务器"""
@@ -31,7 +34,11 @@ class ThreadedServer:
         self._model_lock = threading.Lock()
         if not settings.per_thread_models:
             # 提前加载共享模型
-            dummy = np.zeros((640, 640, 3), dtype=np.uint8) if settings.model_warmup else None
+            dummy = (
+                np.zeros((640, 640, 3), dtype=np.uint8)
+                if settings.model_warmup
+                else None
+            )
             try:
                 self._shared_yolo = YoloHandler(warmup_image=dummy)
             except Exception as e:
@@ -46,24 +53,34 @@ class ThreadedServer:
         self._req_count = 0
         self._err_count = 0
         self._req_count_by_type = defaultdict(int)
-        self._latencies_by_type: dict[str, deque] = defaultdict(lambda: deque(maxlen=200))
+        self._latencies_by_type: dict[str, deque] = defaultdict(
+            lambda: deque(maxlen=200)
+        )
         self._start_time = time.time()
         self._report_interval = 10  # 秒
 
     def start(self):
         """启动服务器"""
         self.running = True
-        print(f"以 {'独立' if settings.per_thread_models else '共享'} 模型模式启动，线程数: {settings.max_workers}")
+        print(
+            f"以 {'独立' if settings.per_thread_models else '共享'} 模型模式启动，线程数: {settings.max_workers}"
+        )
         try:
             with ThreadPoolExecutor(max_workers=settings.max_workers) as executor:
                 self._executor = executor
                 for _ in range(settings.max_workers):
                     executor.submit(self._worker)
-                listener_thread = threading.Thread(target=self._listen, name="Listener", daemon=True)
+                listener_thread = threading.Thread(
+                    target=self._listen, name="Listener", daemon=True
+                )
                 listener_thread.start()
-                self._metrics_thread = threading.Thread(target=self._metrics_loop, name="Metrics", daemon=True)
+                self._metrics_thread = threading.Thread(
+                    target=self._metrics_loop, name="Metrics", daemon=True
+                )
                 self._metrics_thread.start()
-                print(f"服务器已启动在 {self.server_address[0]}:{self.server_address[1]}")
+                print(
+                    f"服务器已启动在 {self.server_address[0]}:{self.server_address[1]}"
+                )
                 # 主循环等待停止信号而不是直接 join (允许 stop 更快退出)
                 while self.running and not self._stop_event.is_set():
                     time.sleep(0.2)
@@ -126,7 +143,11 @@ class ThreadedServer:
         yolo_handler = None
         ocr_handler = None
         if settings.per_thread_models:
-            dummy_image = np.zeros((640, 640, 3), dtype=np.uint8) if settings.model_warmup else None
+            dummy_image = (
+                np.zeros((640, 640, 3), dtype=np.uint8)
+                if settings.model_warmup
+                else None
+            )
             try:
                 yolo_handler = YoloHandler(warmup_image=dummy_image)
             except Exception as e:
@@ -171,23 +192,37 @@ class ThreadedServer:
                         if req_type == "game_windows":
                             if yolo_handler is None:
                                 result = {"error": "YOLO 未初始化"}
-                                self._record_metric(req_type or 'unknown', 0.0, False, True)
+                                self._record_metric(
+                                    req_type or "unknown", 0.0, False, True
+                                )
                             else:
                                 result = yolo_handler.process(image)
-                                self._record_metric(req_type, time.perf_counter()-start_ts, True, False)
+                                self._record_metric(
+                                    req_type,
+                                    time.perf_counter() - start_ts,
+                                    True,
+                                    False,
+                                )
                         elif req_type == "ocr":
                             if ocr_handler is None:
                                 result = {"error": "OCR 未初始化"}
-                                self._record_metric(req_type or 'unknown', 0.0, False, True)
+                                self._record_metric(
+                                    req_type or "unknown", 0.0, False, True
+                                )
                             else:
                                 result = ocr_handler.process(image)
-                                self._record_metric(req_type, time.perf_counter()-start_ts, True, False)
+                                self._record_metric(
+                                    req_type,
+                                    time.perf_counter() - start_ts,
+                                    True,
+                                    False,
+                                )
                         else:
                             result = {"error": "无效的请求类型"}
-                            self._record_metric(req_type or 'unknown', 0.0, False, True)
+                            self._record_metric(req_type or "unknown", 0.0, False, True)
                     except Exception as e:
                         result = {"error": f"处理异常: {e}"}
-                        self._record_metric(req_type or 'unknown', 0.0, False, True)
+                        self._record_metric(req_type or "unknown", 0.0, False, True)
 
                     self._send_response(conn, result, req_type)
         except Exception as e:
@@ -216,7 +251,9 @@ class ThreadedServer:
 
             image = None
             if chunks:
-                image = cv2.imdecode(np.frombuffer(b"".join(chunks), dtype=np.uint8), cv2.IMREAD_COLOR)
+                image = cv2.imdecode(
+                    np.frombuffer(b"".join(chunks), dtype=np.uint8), cv2.IMREAD_COLOR
+                )
             return header, image
         except Exception as e:
             print(f"接收消息失败: {e}")
@@ -225,8 +262,12 @@ class ThreadedServer:
     def _send_response(self, conn, data, msg_type):
         """发送响应给客户端"""
         try:
-            json_data = json.dumps(data, ensure_ascii=False).encode("utf-8")
-            header = json.dumps({"type": msg_type, "data_size": len(json_data)}, ensure_ascii=False).encode("utf-8")
+            json_data = json.dumps(data).encode("utf-8")
+            header = json.dumps({
+                                "type": msg_type, 
+                                 "data_size": len(json_data)
+                                 }).encode("utf-8")
+            
             conn.sendall(struct.pack("!I", len(header)))
             conn.sendall(header)
             conn.sendall(json_data)
@@ -248,11 +289,19 @@ class ThreadedServer:
                         lat_list = list(lat_q)
                         lat_list.sort()
                         avg = sum(lat_list) / len(lat_list)
-                        p95 = lat_list[int(len(lat_list)*0.95)-1] if len(lat_list) >= 20 else lat_list[-1]
-                        lines.append(f"  - {t}: {self._req_count_by_type[t]} 次 | 平均 {avg*1000:.1f}ms | P95 {p95*1000:.1f}ms | 最近样本 {len(lat_list)}")
+                        p95 = (
+                            lat_list[int(len(lat_list) * 0.95) - 1]
+                            if len(lat_list) >= 20
+                            else lat_list[-1]
+                        )
+                        lines.append(
+                            f"  - {t}: {self._req_count_by_type[t]} 次 | 平均 {avg*1000:.1f}ms | P95 {p95*1000:.1f}ms | 最近样本 {len(lat_list)}"
+                        )
                 print("\n".join(lines))
 
-    def _record_metric(self, req_type: str, duration: float, success: bool, error: bool):
+    def _record_metric(
+        self, req_type: str, duration: float, success: bool, error: bool
+    ):
         with self._stats_lock:
             self._req_count += 1
             self._req_count_by_type[req_type] += 1
