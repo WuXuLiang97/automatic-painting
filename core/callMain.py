@@ -807,12 +807,21 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
                 # 转换vid和pid
                 def convert_to_int(s):
-                    if s.startswith('0x') or s.startswith('0X'):
-                        # 去掉前缀，然后按16进制转换为整数，再转换为十六进制字符串（带0x前缀）
-                        return hex(int(s[2:], 16))
+                    if s.startswith(('0x', '0X')):
+                        # 提取前缀（0x或0X）和数值部分
+                        prefix = s[:2]  # 保留原始前缀的大小写（0x或0X）
+                        num_str = s[2:]  # 提取0x后面的部分（如"0001"）
+                        length = len(num_str)  # 记录原始数值部分的长度（用于补前导零）
+
+                        # 转换为整数后，按原长度补全前导零
+                        num = int(num_str, 16)
+                        # 根据前缀大小写决定格式（小写x用%x，大写X用%X）
+                        format_str = f'%0{length}x' if prefix == '0x' else f'%0{length}X'
+                        return prefix + format_str % num
                     else:
-                        # 按10进制转换为整数，再转换为十六进制字符串
-                        return hex(int(s))
+                        # 十进制转换（如果需要保留固定长度，可类似处理）
+                        num = int(s)
+                        return hex(num)
 
                 vid = convert_to_int(vid_str)
                 pid = convert_to_int(pid_str)
