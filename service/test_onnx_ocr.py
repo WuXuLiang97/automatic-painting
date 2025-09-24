@@ -10,7 +10,7 @@ from root_dir import root_path  # noqa: E402
 from server.ocr_handler import OCRHandler  # noqa: E402
 
 def main():
-    img_path = os.path.join(root_path, 'received.png')
+    img_path = os.path.join(root_path, 'revice.png')
     if not os.path.exists(img_path):
         print(f'图片不存在: {img_path}')
         return

@@ -13,11 +13,13 @@ REC_ONNX_PATH = os.path.join(REC_MODEL_DIR, "rec.onnx")
 REC_KEYS_PATH = os.path.join(REC_MODEL_DIR, "keys.txt")
 
 # 超参（可按需调整）
-DET_BIN_THRESH = 0.30
+DET_BIN_THRESH = 0.2
 DET_BOX_THRESH = 0.50
 DET_UNCLIP_RATIO = 1.60   # 简化外扩（几何放缩）
-REC_SCORE_THRESH = 0.70  # 已不再用于过滤，只保留占位
+PADDLE_SCORE_THRESH = 0.85  # Paddle 风格评分阈值，低于此值的文本可忽略
 MAX_REC_WIDTH = 320        # 保护性限制，防极宽文本占用内存
+# 新增：检测阶段希望的最小放大后最大边（小于此值的图片先放大，避免过小导致丢字）
+MIN_DET_SIDE = 256  # 可根据实际再调，如 192/224/256
 
 class OCRHandler:
     """ONNXRuntime OCR: DB 检测 + CTC 识别 (仅依赖 det.onnx / rec.onnx / keys.txt)
@@ -53,15 +55,32 @@ class OCRHandler:
             return [l.rstrip('\r\n') for l in f]
 
     # ------------ 检测预处理 ------------
-    def _resize_det(self, img: np.ndarray, limit_side_len=960) -> Tuple[np.ndarray, float, float]:
+    def _resize_det(self, img: np.ndarray, limit_side_len=960, min_side_len: int = MIN_DET_SIDE) -> Tuple[np.ndarray, float, float]:
+        """检测前尺寸调整：
+        - 若最大边 < min_side_len:  等比例放大到 min_side_len（再对齐 32）
+        - 若最大边 > limit_side_len: 等比例缩小到 limit_side_len（再对齐 32）
+        - 否则保持原尺寸（再对齐 32，最少 32）
+        返回: resized, ratio_h, ratio_w （用于还原坐标）
+        """
         h, w = img.shape[:2]
-        ratio = 1.0
         max_side = max(h, w)
-        if max_side > limit_side_len:
+        # 计算缩放比例
+        if max_side < min_side_len:
+            ratio = min_side_len / max_side
+        elif max_side > limit_side_len:
             ratio = limit_side_len / max_side
-        new_w = max(int(w * ratio / 32) * 32, 32)
-        new_h = max(int(h * ratio / 32) * 32, 32)
-        resized = cv2.resize(img, (new_w, new_h))
+        else:
+            ratio = 1.0
+        new_w = int(w * ratio + 0.5)
+        new_h = int(h * ratio + 0.5)
+        # 对齐到 32 倍数（DB 模型通常下采样 32）
+        new_w = max(32, (new_w + 31) // 32 * 32)
+        new_h = max(32, (new_h + 31) // 32 * 32)
+        if new_w == w and new_h == h:
+            resized = img
+        else:
+            resized = cv2.resize(img, (new_w, new_h))
+            
         return resized, new_h / h, new_w / w
 
     def _preprocess_det(self, img: np.ndarray):
@@ -71,11 +90,13 @@ class OCRHandler:
         std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
         x = (x - mean) / std
         x = x.transpose(2, 0, 1)[None, ...]
+        # 原先误写入 4D 张量，这里不再保存 det_input.png；若仍需可反归一化再写
         return x, {'ratio_h': rh, 'ratio_w': rw}
 
     # ------------ 检测后处理 ------------
     def _postprocess_det(self, prob_map: np.ndarray, meta: dict) -> List[np.ndarray]:
         bin_map = (prob_map > DET_BIN_THRESH).astype(np.uint8) * 255
+        
         contours, _ = cv2.findContours(bin_map, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         h, w = prob_map.shape
         boxes = []
@@ -205,6 +226,7 @@ class OCRHandler:
                 prob_map = prob[0, 0]
         else:
             prob_map = prob
+
         boxes = self._postprocess_det(prob_map, meta)
 
         rec_in = self.rec_session.get_inputs()[0]
@@ -242,5 +264,5 @@ class OCRHandler:
         #     for idx, r in enumerate(results):
         #         print(f"  {idx+1}. text='{r['text']}' paddle_score={r['paddle_score']}" )
         # return results
-        rec_texts = ''.join([r['text'] for r in results])
+        rec_texts = ''.join([r['text'] for r in results if r['paddle_score'] >= PADDLE_SCORE_THRESH])
         return rec_texts
