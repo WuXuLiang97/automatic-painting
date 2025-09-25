@@ -3,49 +3,50 @@
 # from utils.yjs import yjs
 
 import time
-from utils.common.auto_key import pyauto
-from utils.log.logging_setup import logger
+from utils.cross_control import pyauto
+from utils.logging_setup import logger
 
 
 class MovementRecorder:
     def __init__(self):
         self.last_direction = None  # 记录最后一次移动的方向
+        self.sleep = pyauto.PAUSE
 
     def left_right_move(self, left_or_right, m_time):
 
-        pyauto.KeyDownChar(left_or_right)
-        time.sleep(0.05)
-        pyauto.KeyUpChar(left_or_right)
-        time.sleep(0.05)
-        pyauto.KeyDownChar(left_or_right)
+        pyauto.keyDownChar(left_or_right)
+        time.sleep(self.sleep)
+        pyauto.keyUpChar(left_or_right)
+        time.sleep(self.sleep)
+        pyauto.keyDownChar(left_or_right)
         if m_time - 0.04 > 0:
             time.sleep(m_time - 0.04)
         else:
-            if m_time - 0.05 > 0:
-                time.sleep(m_time - 0.05)
+            if m_time - self.sleep > 0:
+                time.sleep(m_time - self.sleep)
             else:
                 time.sleep(m_time)
-        pyauto.KeyUpChar(left_or_right)
+        pyauto.keyUpChar(left_or_right)
         self.last_direction = left_or_right  # 记录方向
 
     def already_left_right_move(self, left_or_right):
         pyauto.releaseallkey()
-        time.sleep(0.05)
-        pyauto.KeyDownChar(left_or_right)
-        time.sleep(0.05)
-        pyauto.KeyUpChar(left_or_right)
-        time.sleep(0.05)
-        pyauto.KeyDownChar(left_or_right)
-        time.sleep(0.05)
+        time.sleep(self.sleep)
+        pyauto.keyDownChar(left_or_right)
+        time.sleep(self.sleep)
+        pyauto.keyUpChar(left_or_right)
+        time.sleep(self.sleep)
+        pyauto.keyDownChar(left_or_right)
+        time.sleep(self.sleep)
         self.last_direction = left_or_right  # 记录方向
 
     def up_down_move(self, up_or_down, m_time):
         pyauto.releaseallkey()
-        time.sleep(0.05)
-        pyauto.KeyDownChar(up_or_down)
+        time.sleep(self.sleep)
+        pyauto.keyDownChar(up_or_down)
         time.sleep(m_time)
-        pyauto.KeyUpChar(up_or_down)
-        time.sleep(0.05)
+        pyauto.keyUpChar(up_or_down)
+        time.sleep(self.sleep)
 
     def left_right_up_down_move_walk(self, left_or_right, up_or_down, x_time, y_time, left_right_move_status, run):
         # 当没有处于左右移动状态时（not left_right_move_status）
@@ -53,48 +54,48 @@ class MovementRecorder:
         # 且目标方向与当前方向不一致时（方向改变）
         # 释放所有按键
         pyauto.releaseallkey()
-        time.sleep(0.05)
+        time.sleep(self.sleep)
         logger.info(f"目标方向： {left_or_right} 记录方向：{self.last_direction}")
         if left_or_right != self.last_direction:
             if run:
                 logger.info("方向不同，加时0.1秒")
                 x_time = x_time + 0.1
         if not left_right_move_status and x_time != 0 or left_or_right != self.last_direction:
-            pyauto.KeyDownChar(left_or_right)
-            time.sleep(0.05)
+            pyauto.keyDownChar(left_or_right)
+            time.sleep(self.sleep)
         if x_time > y_time:
             if y_time > 0:
-                pyauto.KeyDownChar(up_or_down)
+                pyauto.keyDownChar(up_or_down)
                 time.sleep(y_time)
-                pyauto.KeyUpChar(up_or_down)
-            if x_time - y_time > 0.05:
-                time.sleep(x_time - y_time - 0.05)
+                pyauto.keyUpChar(up_or_down)
+            if x_time - y_time > self.sleep:
+                time.sleep(x_time - y_time - self.sleep)
             else:
-                time.sleep(0.05)
-            pyauto.KeyUpChar(left_or_right)
+                time.sleep(self.sleep)
+            pyauto.keyUpChar(left_or_right)
         else:
             if x_time == 0:
-                pyauto.KeyUpChar(left_or_right)
-                time.sleep(0.05)
-                pyauto.KeyDownChar(up_or_down)
-                if y_time > 0.05:
+                pyauto.keyUpChar(left_or_right)
+                time.sleep(self.sleep)
+                pyauto.keyDownChar(up_or_down)
+                if y_time > self.sleep:
                     time.sleep(y_time)
                 else:
-                    time.sleep(0.05)
-                pyauto.KeyUpChar(up_or_down)
+                    time.sleep(self.sleep)
+                pyauto.keyUpChar(up_or_down)
             else:
-                pyauto.KeyDownChar(up_or_down)
-                if x_time > 0.05:
-                    time.sleep(x_time - 0.05)
+                pyauto.keyDownChar(up_or_down)
+                if x_time > self.sleep:
+                    time.sleep(x_time - self.sleep)
                 else:
-                    time.sleep(0.05)
-                pyauto.KeyUpChar(left_or_right)
-                if y_time - x_time > 0.05:
-                    time.sleep(y_time - x_time - 0.05)
+                    time.sleep(self.sleep)
+                pyauto.keyUpChar(left_or_right)
+                if y_time - x_time > self.sleep:
+                    time.sleep(y_time - x_time - self.sleep)
                 else:
-                    time.sleep(0.05)
-                pyauto.KeyUpChar(up_or_down)
-            time.sleep(0.05)
+                    time.sleep(self.sleep)
+                pyauto.keyUpChar(up_or_down)
+            time.sleep(self.sleep)
         self.last_direction = left_or_right  # 记录方向
 
     def left_right_up_down_move(self, left_or_right, up_or_down, x_time, y_time, left_right_move_status, run):
@@ -111,35 +112,35 @@ class MovementRecorder:
         self.already_left_right_move(left_or_right)
         if x_time > y_time:
             if y_time > 0:
-                pyauto.KeyDownChar(up_or_down)
+                pyauto.keyDownChar(up_or_down)
                 time.sleep(y_time)
-                pyauto.KeyUpChar(up_or_down)
-            if x_time - y_time > 0.05:
-                time.sleep(x_time - y_time - 0.05)
+                pyauto.keyUpChar(up_or_down)
+            if x_time - y_time > self.sleep:
+                time.sleep(x_time - y_time - self.sleep)
             else:
-                time.sleep(0.05)
-            pyauto.KeyUpChar(left_or_right)
+                time.sleep(self.sleep)
+            pyauto.keyUpChar(left_or_right)
         else:
             if x_time == 0:
-                pyauto.KeyDownChar(up_or_down)
-                if y_time > 0.05:
+                pyauto.keyDownChar(up_or_down)
+                if y_time > self.sleep:
                     time.sleep(y_time)
                 else:
-                    time.sleep(0.05)
-                pyauto.KeyUpChar(up_or_down)
+                    time.sleep(self.sleep)
+                pyauto.keyUpChar(up_or_down)
             else:
-                pyauto.KeyDownChar(up_or_down)
-                if x_time > 0.05:
-                    time.sleep(x_time - 0.05)
+                pyauto.keyDownChar(up_or_down)
+                if x_time > self.sleep:
+                    time.sleep(x_time - self.sleep)
                 else:
-                    time.sleep(0.05)
-                pyauto.KeyUpChar(left_or_right)
-                if y_time - x_time > 0.05:
-                    time.sleep(y_time - x_time - 0.05)
+                    time.sleep(self.sleep)
+                pyauto.keyUpChar(left_or_right)
+                if y_time - x_time > self.sleep:
+                    time.sleep(y_time - x_time - self.sleep)
                 else:
-                    time.sleep(0.05)
-                pyauto.KeyUpChar(up_or_down)
-            time.sleep(0.05)
+                    time.sleep(self.sleep)
+                pyauto.keyUpChar(up_or_down)
+            time.sleep(self.sleep)
         self.last_direction = left_or_right  # 记录方向
 
     def left_right_up_down_move_by(self, move_info, left_right_move_status):
@@ -156,19 +157,19 @@ class MovementRecorder:
 
     def already_right_move(self):
 
-        pyauto.KeyDownChar("right")
-        time.sleep(0.05)
-        pyauto.KeyUpChar("right")
-        time.sleep(0.05)
-        pyauto.KeyDownChar("right")
+        pyauto.keyDownChar("right")
+        time.sleep(self.sleep)
+        pyauto.keyUpChar("right")
+        time.sleep(self.sleep)
+        pyauto.keyDownChar("right")
         self.last_direction = "right"  # 记录方向
 
     def already_left_move(self):
-        pyauto.KeyDownChar("left")
-        time.sleep(0.05)
-        pyauto.KeyUpChar("left")
-        time.sleep(0.05)
-        pyauto.KeyDownChar("left")
+        pyauto.keyDownChar("left")
+        time.sleep(self.sleep)
+        pyauto.keyUpChar("left")
+        time.sleep(self.sleep)
+        pyauto.keyDownChar("left")
         self.last_direction = "left"  # 记录方向
 
     def spiral_search(self, func: callable, duration=3.0):
@@ -208,7 +209,7 @@ class MovementRecorder:
                     self.up_down_move(direction, current_step)
 
                 # 添加微小停顿避免连续移动
-                time.sleep(0.05)
+                time.sleep(self.sleep)
 
                 cycle_count += 1  # 完成一轮循环
                 player_pos_x = func()

@@ -3,7 +3,9 @@ from ctypes import windll, byref, c_ubyte
 from ctypes.wintypes import RECT
 import cv2
 import numpy as np
-from global_fields import Capture_lock
+
+from core.global_variable import Capture_lock
+
 
 def Capture(handle, x1=0, y1=0, x2=None, y2=None):
     '''

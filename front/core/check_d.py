@@ -4,13 +4,13 @@ import time
 
 import cv2
 from PyQt5.QtCore import pyqtSignal, QThread
-from utils.screen.screenshot_util import screenshot_util
-from utils.common.auto_key import pyauto
-from utils.common.image import FindPic, template_match
-from utils.common.load_image import read_from_path
-from global_fields import fields
+from utils.cv_recognizer import my_imread, vnc_mm
+from utils.cv_util import template_match
+from utils.cross_control import pyauto
+from utils.screenshot_util import screenshot_util
 from root_dir import root_path
-from utils.log.logging_setup import logger
+from core import global_variable as gv
+from utils.logging_setup import logger
 
 # from utils.yjs import yjs
 
@@ -19,38 +19,31 @@ current_path = os.path.dirname(os.path.abspath(__file__))
 
 # root_path = os.path.abspath(os.path.join(current_path, '../'))
 
-
 class CheckProcess(QThread):
     ghost_state_message = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
-        self.template = read_from_path(root_path + "/res/GhostState.png")
+        self.template = my_imread(root_path + "/res/GhostState.png")
         self.template = cv2.cvtColor(self.template, cv2.COLOR_BGR2GRAY)
+        # self.template1 = cv2.imread(root_path + "/res/guanbi.png")
         self.su = screenshot_util
+        self.mm = vnc_mm
         self.running = True
-        self.vnc_connection = None
 
     def run(self):
         logger.info(f"check_d.py 启动")
         self.running = True
         is_send_false = False
+        # self.su.init_game_hwnd(mode=1)
         while self.running:
-            if fields["banzhuan"] != 0:
-                ret = FindPic(
-                    self.vnc_connection.capture(x1=0, y1=0, x2=1067, y2=600),
-                    824,
-                    446,
-                    937,
-                    500,
-                    "huiguduihua.bmp",
-                    0.9,
-                )
+            if gv.banzhuan != 0:
+                ret = self.mm.FindPic(824, 446, 937, 500, "huiguduihua.bmp", 0.9)
                 if ret:
                     logger.info(f"check_d.py：{ret}")
-                    pyauto.KeyPressChar("esc")
+                    pyauto.keyPressChar('esc')
                     time.sleep(0.2)
-                    pyauto.KeyPressChar("space")
+                    pyauto.keyPressChar('space')
                     time.sleep(0.2)
             game_image = self.su.get_game_screenshot()
             ghost_trait_img = game_image[404:464, 474:593]
@@ -62,11 +55,11 @@ class CheckProcess(QThread):
                     is_send_false = True
                 time.sleep(1)
                 continue
-            if fields["sy"]:
+            if gv.sy:
                 logger.info(f"check_d.py:深渊人物挂掉了用复活币")
-                pyauto.KeyPressChar("x")
+                pyauto.keyPressChar('x')
                 time.sleep(0.2)
-                pyauto.KeyPressChar("space")
+                pyauto.keyPressChar('space')
                 time.sleep(0.2)
             else:
                 logger.info(f"check_d.py:人物挂掉了")
