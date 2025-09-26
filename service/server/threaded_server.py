@@ -189,6 +189,8 @@ class ThreadedServer:
                     req_type = header.get("type")
                     start_ts = time.perf_counter()
                     try:
+                        print(f"收到请求类型: {req_type}，图像尺寸: {image.shape if image is not None else '无'}")
+
                         if req_type == "game_windows":
                             if yolo_handler is None:
                                 result = {"error": "YOLO 未初始化"}
@@ -197,6 +199,20 @@ class ThreadedServer:
                                 )
                             else:
                                 result = yolo_handler.process(image)
+                                self._record_metric(
+                                    req_type,
+                                    time.perf_counter() - start_ts,
+                                    True,
+                                    False,
+                                )
+                        elif req_type == "min_map":
+                            if yolo_handler is None:
+                                result = {"error": "YOLO 未初始化"}
+                                self._record_metric(
+                                    req_type or "unknown", 0.0, False, True
+                                )
+                            else:
+                                result = yolo_handler.process_minimap(image)
                                 self._record_metric(
                                     req_type,
                                     time.perf_counter() - start_ts,

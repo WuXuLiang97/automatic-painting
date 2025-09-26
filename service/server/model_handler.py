@@ -13,8 +13,9 @@ MODEL_WARMUP = True
 class ModelHandler:
     """负责初始化和处理 YOLO 和 OCR 模型的类"""
 
-    def __init__(self):
-        self.yolo = YoloV8()
+    def __init__(self, use_yolo_gpu: bool = True):
+        # 传入 use_yolo_gpu 控制 YOLO 是否用 GPU
+        self.yolo = YoloV8(use_gpu=use_yolo_gpu)
         self.yolo.loadModel()
 
         self.ocr_engine = PaddleOCR(
@@ -25,6 +26,7 @@ class ModelHandler:
             use_textline_orientation=False,
             return_word_box=False,
             text_rec_score_thresh=0.85,
+            use_gpu=False,  # 强制 OCR 仅使用 CPU
         )
 
         if MODEL_WARMUP:

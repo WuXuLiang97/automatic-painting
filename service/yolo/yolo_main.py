@@ -14,11 +14,9 @@ MIN_MAP_MODEL_PATH = os.path.join(root_path, "yolo", "model_data", "min_map_best
 
 class YoloV8:
     """
-    YOLOv8 ONNX 推理封装类 (CPU Only)
-    仅使用 CPUExecutionProvider，满足改为 ONNX + CPU 推理的需求。
+    YOLOv8 ONNX 推理封装类 (支持 GPU/CPU 选择)
     """
-
-    def __init__(self):
+    def __init__(self, use_gpu: bool = True):
         self.min_map_model = None  # ONNX Runtime session
         self.model = None          # ONNX Runtime session
         self.min_map_conf_thres = 0.5
@@ -80,23 +78,33 @@ class YoloV8:
             "map_query_1",   # 5
         ]
 
-    def _detect_hardware(self):
-        """强制使用 CPU 推理。"""
-        return ["CPUExecutionProvider"]
+        # 新增：根据可用 providers 决定最终执行设备
+        available = ort.get_available_providers()
+        if use_gpu and "CUDAExecutionProvider" in available:
+            self.providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+        else:
+            self.providers = ["CPUExecutionProvider"]
 
     def loadModel(self):
         """加载 ONNX 模型"""
-        providers = self._detect_hardware()
-
-        # 加载常规模型
-        if not os.path.exists(MODEL_PATH):
-            raise FileNotFoundError(f"模型文件不存在: {MODEL_PATH}")
-        self.model = ort.InferenceSession(MODEL_PATH, providers=providers)
-
-        # 加载小地图模型
-        if not os.path.exists(MIN_MAP_MODEL_PATH):
-            raise FileNotFoundError(f"小地图模型文件不存在: {MIN_MAP_MODEL_PATH}")
-        self.min_map_model = ort.InferenceSession(MIN_MAP_MODEL_PATH, providers=providers)
+        sess_opts = ort.SessionOptions()
+        # 适度减少内存峰值
+        sess_opts.enable_mem_pattern = True
+        sess_opts.enable_cpu_mem_arena = True
+        try:
+            self.model = ort.InferenceSession(
+                MODEL_PATH,
+                sess_options=sess_opts,
+                providers=self.providers,
+            )
+            self.min_map_model = ort.InferenceSession(
+                MIN_MAP_MODEL_PATH,
+                sess_options=sess_opts,
+                providers=self.providers,
+            )
+            print(f"YOLO 模型加载完成，providers={self.model.get_providers()}")
+        except Exception as e:
+            raise RuntimeError(f"加载 YOLO 模型失败: {e}")
 
     def _preprocess(self, image: np.ndarray) -> Tuple[np.ndarray, float]:
         """预处理：缩放、填充、归一化"""

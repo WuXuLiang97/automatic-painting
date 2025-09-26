@@ -25,3 +25,6 @@ pyinstaller app_server.py ...同上参数... --onefile
 精简体积（可选）
 生成的 ocr_server.spec 中添加 excludes=['paddle','torch']：
 修改后：pyinstaller ocr_server.spec
+
+conda install cudatoolkit=11.6 -c https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/Paddle/ -c conda-forge
+

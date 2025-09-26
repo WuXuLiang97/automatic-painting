@@ -1,1 +1,3 @@
 *.pyc
+/service/build
+/service/dist
