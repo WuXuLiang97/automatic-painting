@@ -25,7 +25,7 @@ from core.player import PlayerThread
 # from core.yolo_process import YoloProcess
 
 from utils.common_util import get_date
-# from utils.config_util import get_settings_group, get_all_role_settings, get_gui_config, set_ip, ini_file_path
+from core.Config import get_gui_config, CONFIG_PATH
 from core.callRoleSettings import RoleSettingsWindow
 from core.callSettingsGroup import SettingsGroupWindow
 from utils.screenshot_util import screenshot_util
@@ -945,7 +945,9 @@ class AppMain(QMainWindow, Ui_MainWindow):
         """
         # 创建采集卡连接实例
         self.identifier = CaptureCardConnection()
-        return self.identifier.find_available_devices()
+        devices = self.identifier.find_available_devices()
+        # 确保返回的是字符串列表
+        return [str(device) for device in devices]
 
     def save_vnc_config(self, ip, port, password):
         """保存VNC配置到文件"""

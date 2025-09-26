@@ -18,3 +18,4 @@ vid = ''
 pid = ''
 identifier = 0
 display_queue = queue.Queue(maxsize=2)  # 展示专用队列
+weak_setting = 'contract'

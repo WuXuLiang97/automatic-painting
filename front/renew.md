@@ -1,0 +1,10 @@
+pynput
+keyboard
+loguru
+opencv-python
+psutil
+PyQt5
+pywin32
+pyautogui
+ntplib==0.4.0
+vncdotool==1.2.0

@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-
-# from utils.yjs import yjs
-
 import time
 from utils.cross_control import pyauto
 from utils.logging_setup import logger
