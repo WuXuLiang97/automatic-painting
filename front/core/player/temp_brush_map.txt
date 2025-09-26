@@ -1,0 +1,3 @@
+def brush_map(self):
+        """调用GameFlowHandler的刷图方法"""
+        return self.game_flow_handler.brush_map()

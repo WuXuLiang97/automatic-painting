@@ -53,8 +53,6 @@ def send_request(f_program_version=None, state=1):
     # 发送POST请求
     response = requests.post(url, headers=headers, data=json_data)
 
-    return 200, 'success', '请求成功'
-
     # 打印响应状态码
     # print(response.status_code)
 
