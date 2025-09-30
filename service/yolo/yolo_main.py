@@ -138,7 +138,7 @@ class YoloV8:
         class_names: list
     ) -> list:
         """
-        后处理：解码输出 + NMS
+        后处理：解码输出 + 每个类别独立的 NMS
         :param output: 模型原始输出
         :param scale: 缩放比例
         :param conf_thres: 置信度阈值
@@ -174,24 +174,30 @@ class YoloV8:
         # 反缩放
         box_xyxy /= scale
 
-        # NMS
-        indices = cv2.dnn.NMSBoxes(
-            box_xyxy.tolist(), scores.tolist(), conf_thres, iou_thres
-        )
-        if len(indices) == 0:
-            return []
-
-        # 构造结果
+        # 初始化结果列表
         results = []
-        indices = indices.flatten()
-        for i in indices:
-            x1, y1, x2, y2 = map(int, box_xyxy[i])
-            confidence = float(scores[i])
-            class_id = class_ids[i]
-            if class_id >= len(class_names):
-                continue  # 防止越界（模型输出类别 ID 超出范围）
-            label = class_names[class_id]
-            results.append((label, x1, y1, x2, y2, confidence))
+        
+        # 对每个类别分别做 NMS
+        for cls_id in range(len(class_names)):
+            # 当前类别的掩码
+            cls_mask = (class_ids == cls_id)
+            cls_boxes = box_xyxy[cls_mask]
+            cls_scores = scores[cls_mask]
+            
+            # 如果当前类别没有预测框，则跳过
+            if len(cls_scores) == 0:
+                continue
+            
+            # 执行 NMS
+            keep = cv2.dnn.NMSBoxes(cls_boxes.tolist(), cls_scores.tolist(), conf_thres, iou_thres)
+            
+            if len(keep) > 0:
+                keep = keep.flatten()
+                for index in keep:
+                    x1, y1, x2, y2 = map(int, cls_boxes[index])
+                    confidence = float(cls_scores[index])
+                    label = class_names[cls_id]
+                    results.append((label, x1, y1, x2, y2, confidence))
 
         return results
 
