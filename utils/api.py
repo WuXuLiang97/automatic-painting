@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import logging
 
 # 基础配置
-BASE_URL = "http://39.98.46.105:5001"
+BASE_URL = "http://192.168.1.15:5001"
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "123456"
 TEST_USERNAME = f"testuser{random.randint(1000, 9999)}"

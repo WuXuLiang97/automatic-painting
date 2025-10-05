@@ -19,27 +19,21 @@ from core.directional_astar import a_star, judge_direction  # A星寻路
 from utils.api import test_view_subgroup_config, test_update_subgroup_config
 from core.common import Point, occupationInfoMap, Player, MoveInfo, a_mapInfo, a_DictInfo, map_boss_info, MAP_MIN_ROOMS
 from core.operator_module import OperatorModule
-# from core.player_move import left_right_up_down_move_by, already_left_right_move, \
-#     left_right_move, up_down_move,MovementRecorder
+
 from core.player_move import MovementRecorder
-# from utils.yjs import yjs
+
 from utils.cv_recognizer import vnc_mm
 from utils.common_util import sort_points_by_x, get_date
-# from utils.config_util import get_all_role_settings, update_role_brush_date
 from utils.minimap_util import miniMapUtil
 from utils.cross_control import pyauto
-# from utils.ocr_util import ocr_util
 from utils.screenshot_util import screenshot_util
-# from utils.skill_util import skill_util
 from utils.skill_util2 import skill_util
 import socket
 from core import global_variable as gv
 
 from utils.logging_setup import logger
-from view.key_config_run import DEFAULT_CONFIG
+from core.Config import DEFAULT_KEY_CONFIG, get_gui_config, get_key_config
 
-current_path = os.path.dirname(os.path.abspath(__file__))
-root_path = os.path.abspath(os.path.join(current_path, '../'))
 # 基础时间单位（秒）
 MINUTE = 60
 HOUR = 60 * MINUTE
@@ -50,20 +44,7 @@ SIMILARITY_THRESHOLD = 0.7  # 相似度阈值
 
 # min_map_name = 0
 
-target_dir = os.path.join(r"C:\Program Files", "json_resources")  # 拼接子目录
-key_config_file = os.path.join(target_dir, "key_config.json")
-try:
-    if os.path.exists(key_config_file):
-        with open(key_config_file, 'r', encoding='utf-8') as f:
-            key_config = json.load(f)
-
-            logger.info(f"成功加载键盘配置: {key_config_file}")
-    else:
-        logger.warning(f"键盘配置文件不存在: {key_config_file}，使用默认配置")
-        key_config = DEFAULT_CONFIG
-except Exception as e:
-    logger.error(f"加载键盘配置失败: {e}，使用默认配置")
-    key_config = DEFAULT_CONFIG
+key_config=get_key_config()
 
 one_key_gather_value = key_config['one_key_gather']['key'].lower()  # 一键聚物
 move_character_value = key_config['move_character']['key'].lower()  # 移动角色
@@ -657,10 +638,20 @@ class PlayerThread(QThread):
                     pyauto.click()
                     time.sleep(0.5)
                 time.sleep(2)
-                if self.operator_module.remove_weakness():  # 移除虚弱
-                    _sleep = random.randint(300, 360)
+                ###############################虚弱设置
+                weak_config = get_gui_config()  #
+                setting = weak_config.get('weak_setting', 'gold')  #
+                print('虚弱666', setting)
+                if setting == 'gold' or setting == 'contract':
+                    self.operator_module.remove_weakness()
+                elif setting == 'wait':  # 移除虚弱
+                    _sleep = setting.get('wait_seconds', 30)
                     self.send_log(f"虚弱，休息{_sleep}秒")
                     time.sleep(_sleep)
+                elif setting == 'ignore':
+                    pass
+
+                ####################################
                 time.sleep(2)
                 self.select_role()  # 选择角色
                 time.sleep(2)
@@ -1121,7 +1112,7 @@ class PlayerThread(QThread):
                         time.sleep(0.05)
                     game_img = screenshot_util.get_game_screenshot()  # 获取当前游戏屏幕的截图
                     logger.info("找门超时，随便放个技能把怪清理掉")
-                    skill = skill_util.get_release_skill(game_img)  # 获取释放普通怪物的技能
+                    skill = skill_util.get_release_skill(game_img,mode='normal')  # 获取释放普通怪物的技能
                     if skill == "x":  # 如果技能是"x"（平a）
                         pyauto.keyDownChar("x")
                         time.sleep(random.uniform(0.9, 1.2))
@@ -1835,11 +1826,11 @@ class PlayerThread(QThread):
             self.move_to_monster()  # 移动到最近的怪物
             if self.is_boss and attack_boss_count <= 2:  # 如果当前怪物是Boss
                 logger.info("当前怪物是Boss,释放打Boss的技能")
-                skill = skill_util.get_release_boss_skill(game_img)  # 获取释放Boss的技能
+                skill = skill_util.get_release_skill(game_img,mode='boss')  # 获取释放Boss的技能
                 attack_boss_count += 1
             else:
                 logger.info("当前怪物是普通怪物,释放打普通怪物的技能")
-                skill = skill_util.get_release_skill(game_img)  # 获取释放普通怪物的技能
+                skill = skill_util.get_release_skill(game_img,mode='normal')  # 获取释放普通怪物的技能
             if skill == "x":  # 如果技能是"x"（平a）
                 pyauto.keyDownChar("x")
                 time.sleep(random.uniform(0.9, 1.2))
@@ -2358,7 +2349,8 @@ class PlayerThread(QThread):
                             if self.player.map_name == "深渊：终末崇拜者":
                                 self.is_boss = True
                             else:
-                                ocr_text = self.get_text(int(data[1]), int(data[2]), int(data[3]), int(data[4]), game_image).strip()
+                                ocr_text = self.get_text(int(data[1]), int(data[2]), int(data[3]), int(data[4]),
+                                                         game_image).strip()
                                 pattern = r'[\u4e00-\u9fa5]+'
                                 # 使用 re.findall() 找出所有匹配的内容
                                 matches = re.findall(pattern, ocr_text)
@@ -2367,8 +2359,19 @@ class PlayerThread(QThread):
                                 if "领主" in t:
                                     self.is_boss = True
                     else:
-                        logger.info(f"当前地图：{self.player.map_name},识别的数据：{data}，不是本地图的怪物，应该是识别错误已跳过本条信息处理")
+                        logger.info(
+                            f"当前地图：{self.player.map_name},识别的数据：{data}，不是本地图的怪物，应该是识别错误已跳过本条信息处理")
                         continue
+
+                                # ocr_text = self.get_text(int(data[1]), int(data[2]), int(data[3]), int(data[4]), game_image).strip()
+                                # pattern = r'[\u4e00-\u9fa5]+'
+                                # # 使用 re.findall() 找出所有匹配的内容
+                                # matches = re.findall(pattern, ocr_text)
+                                # t = "".join(matches)
+                                # logger.info(f"识别领主：{ocr_text}")
+                                # if "领主" in t:
+                                #     self.is_boss = True
+
                 elif data[0] == "monster_frost":
                     # 冰霜怪物不需要额外调整
                     pass

@@ -2,6 +2,7 @@
 import re
 import time
 
+from core.Config import get_gui_config
 from utils.cross_control import pyauto
 from root_dir import root_path
 from core.common import occupationInfoMap
@@ -136,7 +137,15 @@ class OperatorModule:
                 pyauto.click()
 
                 time.sleep(0.5)
-                ret = self.mm.FindPic(398, 154, 670, 435, "契约恢复.bmp", 0.9)
+
+                weak_config = get_gui_config()  #
+                setting = weak_config.get('weak_setting', 'gold')  #
+                print('虚弱666',setting)
+                if setting == 'gold':
+                    ret = self.mm.FindPic(398, 154, 670, 435, "金币恢复.bmp", 0.9)
+                elif setting == 'contract':
+                    ret = self.mm.FindPic(398, 154, 670, 435, "契约恢复.bmp", 0.9)
+
                 if ret:
                     x, y = ret[0][1], ret[0][2]
                     self.move_to(x, y)

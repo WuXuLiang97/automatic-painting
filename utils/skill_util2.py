@@ -5,11 +5,12 @@ import numpy as np
 import json
 import os
 
-from core.capture import Capture
+
 from root_dir import root_path
 from utils.screenshot_util import screenshot_util
 from utils.logging_setup import logger
-from view.key_config_run import DEFAULT_CONFIG
+from core.Config import DEFAULT_KEY_CONFIG
+from core.Config import key_config_file
 
 class SkillUtil:
     # 默认配置
@@ -62,22 +63,21 @@ class SkillUtil:
 
     def load_key_config(self):
         """加载键盘配置文件"""
-        target_dir = os.path.join(r"C:\Program Files", "json_resources")  # 拼接子目录
-        config_file = os.path.join(target_dir, "key_config.json")
+
 
         try:
-            if os.path.exists(config_file):
-                with open(config_file, 'r', encoding='utf-8') as f:
+            if os.path.exists(key_config_file):
+                with open(key_config_file, 'r', encoding='utf-8') as f:
                     self.key_config = json.load(f)
                     self._update_skill_mapping()
-                    logger.info(f"成功加载键盘配置: {config_file}")
+                    logger.info(f"成功加载键盘配置: {key_config_file}")
             else:
-                logger.warning(f"键盘配置文件不存在: {config_file}，使用默认配置")
-                self.key_config = DEFAULT_CONFIG
+                logger.warning(f"键盘配置文件不存在: {key_config_file}，使用默认配置")
+                self.key_config = DEFAULT_KEY_CONFIG
                 self._update_skill_mapping()
         except Exception as e:
             logger.error(f"加载键盘配置失败: {e}，使用默认配置")
-            self.key_config = DEFAULT_CONFIG
+            self.key_config = DEFAULT_KEY_CONFIG
             self._update_skill_mapping()
 
     def _update_skill_mapping(self):
@@ -161,6 +161,7 @@ class SkillUtil:
                     if position_idx != 13:  # 不是最后一个技能
                         self.boss_skill_release_order.append(key)
 
+
         logger.info(f"第一排技能: {self.skill_1}")
         logger.info(f"第二排技能: {self.skill_2}")
         logger.info(f"Boss技能释放顺序: {self.boss_skill_release_order}")
@@ -192,129 +193,114 @@ class SkillUtil:
         return self.is_colored(skill_img)
 
     def is_match_template(self, skill_img, skill_img_dic):
+        """模板匹配，返回是否匹配（添加尺寸检查，避免崩溃）"""
+        if skill_img_dic is None or skill_img.shape[:2] != skill_img_dic.shape[:2]:  # 尺寸不匹配，直接 False
+            return False
+
         gray_skill_img = cv2.cvtColor(skill_img, cv2.COLOR_BGR2GRAY)
         gray_skill_img_dic = cv2.cvtColor(skill_img_dic, cv2.COLOR_BGR2GRAY)
         result = cv2.matchTemplate(gray_skill_img, gray_skill_img_dic, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, max_loc = cv2.minMaxLoc(result)
-        return max_val > 0.99
+        return max_val > 0.99  # 阈值 0.99 很严格，可调至 0.95 以防噪声
 
-    def get_release_boss_skill(self, game_img):
-        """获取可释放的Boss技能键"""
+    def get_release_skill(self, game_img, mode='normal'):
+        """获取可释放的技能键，支持 Boss 模式或普通模式"""
+        logger.info(f"开始技能检查，模式: {mode}")
         try:
-            for skill_code in self.boss_skill_release_order:
-                logger.info(f"检查Boss技能: {skill_code}")
+            # 预计算特殊技能键（Boss 专属）
+            special_skill_code = None
+            if self.player_occupation != "黑暗武士-黑暗武士":
+                special_skill_code = self.skill_key_mapping.get(6)
+            else:
+                special_skill_code = self.skill_key_mapping.get(5)
 
-                skill_img_dic = self.skill_image_dict.get(skill_code)
-                if skill_img_dic is None:
-                    logger.info(f"警告: 未找到技能 {skill_code} 的模板图片")
-                    continue
+            def find_available_skill(skill_codes, prefix="", add_to_released=True):
+                """内部辅助函数：检查技能列表中的可用技能"""
+                for skill_code in skill_codes:
+                    logger.info(f"{prefix}检查技能: {skill_code}")
+                    skill_img_dic = self.skill_image_dict.get(skill_code)
+                    if skill_img_dic is None:  # 已用 is None 检查
+                        logger.info(f"警告: 未找到技能 {skill_code} 的模板图片")
+                        continue
 
-                point = self.skill_dict.get(skill_code)
-                if not point:
-                    logger.info(f"警告: 未找到技能 {skill_code} 的坐标信息")
-                    continue
+                    point = self.skill_dict.get(skill_code)
+                    if not point:
+                        logger.info(f"警告: 未找到技能 {skill_code} 的坐标信息")
+                        continue
 
-                skill_img = game_img[point['y1']:point['y2'], point['x1']:point['x2']]
+                    skill_img = game_img[point['y1']:point['y2'], point['x1']:point['x2']]
 
-                # 检查是否是特殊技能
-                is_special_skill = False
-                if self.player_occupation != "黑暗武士-黑暗武士":
-                    is_special_skill = (skill_code == self.skill_key_mapping.get(6))
-                else:
-                    is_special_skill = (skill_code == self.skill_key_mapping.get(5))
-
-                if is_special_skill:
-                    if self.is_match_template(skill_img, skill_img_dic):
-                        logger.info(f"特殊技能 {skill_code} 可用")
-                        return skill_code
-                else:
-                    # 普通技能检查
+                    # 弓箭手特殊处理：HSV 颜色过滤
+                    process_img = skill_img
                     if self.player_occupation == "弓箭手-奇美拉":
                         lower = np.array([0, 0, 0])
                         upper = np.array([140, 255, 255])
                         hsv = cv2.cvtColor(skill_img, cv2.COLOR_BGR2HSV)
                         mask = cv2.inRange(hsv, lower, upper)
-                        result = cv2.bitwise_and(skill_img, skill_img, mask=mask)
-                        if self.is_available(result, skill_img_dic):
-                            logger.info(f"弓箭手技能 {skill_code} 可用")
-                            if skill_code not in self.already_release_skill:
-                                self.already_release_skill.append(skill_code)
-                            return skill_code
-                    else:
-                        if self.is_available(skill_img, skill_img_dic):
-                            logger.info(f"技能 {skill_code} 可用")
-                            if skill_code not in self.already_release_skill:
-                                self.already_release_skill.append(skill_code)
-                            return skill_code
+                        process_img = cv2.bitwise_and(skill_img, skill_img, mask=mask)
 
+                    # 使用 is_available 判断（彩色阈值）
+                    if self.is_available(process_img, skill_img_dic):
+                        logger.info(f"技能 {skill_code} 可用")
+                        if add_to_released and skill_code not in self.already_release_skill:
+                            self.already_release_skill.append(skill_code)
+                        return skill_code
+                return None
+
+            if mode == 'boss':
+                logger.info(f"已释放技能列表: {self.already_release_skill}")
+                # Boss 模式专属：先检查特殊技能（不添加到已释放列表）
+                if special_skill_code:
+                    logger.info(f"Boss 模式专属：检查特殊技能 {special_skill_code}")
+                    point = self.skill_dict.get(special_skill_code)
+                    if point:
+                        special_img = game_img[point['y1']:point['y2'], point['x1']:point['x2']]
+                        special_img_dic = self.skill_image_dict.get(special_skill_code)
+                        if special_img_dic is not None and self.is_match_template(special_img,
+                                                                                  special_img_dic):  # 修复：用 is not None
+                            logger.info(f"Boss 专属特殊技能 {special_skill_code} 可用")
+                            return special_skill_code  # 不添加到已释放列表
+
+                # 再检查 Boss 技能顺序（普通技能，添加到已释放列表）
+                if skill := find_available_skill(self.boss_skill_release_order, "Boss技能 - ", add_to_released=True):
+                    return skill
+
+            else:  # 'normal' 模式：完全忽略并排除特殊技能
+                logger.info(f"已释放技能列表: {self.already_release_skill}")
+                if special_skill_code:
+                    logger.info(f"普通模式：忽略并排除 Boss 专属特殊技能 {special_skill_code}")
+
+                # 从普通技能列表中过滤特殊技能
+                def filter_special_skills(skill_list):
+                    return [code for code in skill_list if code != special_skill_code]
+
+                filtered_skill_1 = filter_special_skills(self.skill_1)
+                filtered_skill_2 = filter_special_skills(self.skill_2)
+
+                # 检查第一排技能（过滤后）
+                if skill := find_available_skill(filtered_skill_1, "第一排技能 - ", add_to_released=True):
+                    return skill
+
+                # 检查第二排技能（过滤后）
+                if skill := find_available_skill(filtered_skill_2, "第二排技能 - ", add_to_released=True):
+                    return skill
+
+                # 重新检查第一排技能（过滤后）
+                logger.info("重新检查第一排技能")
+                if skill := find_available_skill(filtered_skill_1, "第一排技能(重试) - ", add_to_released=True):
+                    return skill
+
+            # 所有技能检查完毕
             if self.skill_status(game_img):
-                logger.info("所有Boss技能不可用，返回普通攻击 'x'")
+                logger.info("所有技能不可用，返回普通攻击 'x'")
                 return "x"
 
         except Exception as e:
-            logger.error(f"释放Boss技能错误: {e}")
+            logger.error(f"释放技能错误 (模式: {mode}): {e}")
             import traceback
             traceback.print_exc()
 
-        return None
-
-    def get_release_skill(self, game_img):
-        """获取可释放的技能键"""
-        logger.info(f"已释放技能列表: {self.already_release_skill}")
-
-        def find_available_skill(skill_codes, prefix=""):
-            for skill_code in skill_codes:
-                logger.info(f"{prefix}检查技能: {skill_code}")
-                point = self.skill_dict.get(skill_code)
-                if not point:
-                    logger.info(f"警告: 未找到技能 {skill_code} 的坐标信息")
-                    continue
-
-                skill_img = game_img[point['y1']:point['y2'], point['x1']:point['x2']]
-                template_img = self.skill_image_dict.get(skill_code)
-
-                if template_img is None:
-                    logger.info(f"警告: 未找到技能 {skill_code} 的模板图片")
-                    continue
-
-                if self.player_occupation == "弓箭手-奇美拉":
-                    lower = np.array([0, 0, 0])
-                    upper = np.array([140, 255, 255])
-                    hsv = cv2.cvtColor(skill_img, cv2.COLOR_BGR2HSV)
-                    mask = cv2.inRange(hsv, lower, upper)
-                    result = cv2.bitwise_and(skill_img, skill_img, mask=mask)
-                    if self.is_available(result, template_img):
-                        logger.info(f"弓箭手技能 {skill_code} 可用")
-                        if skill_code not in self.already_release_skill:
-                            self.already_release_skill.append(skill_code)
-                        return skill_code
-                else:
-                    if self.is_available(skill_img, template_img):
-                        logger.info(f"技能 {skill_code} 可用")
-                        if skill_code not in self.already_release_skill:
-                            self.already_release_skill.append(skill_code)
-                        return skill_code
-
-            return None
-
-        # 检查第一排技能
-        if skill := find_available_skill(self.skill_1, "第一排技能 - "):
-            return skill
-
-        # 检查第二排技能
-        if skill := find_available_skill(self.skill_2, "第二排技能 - "):
-            return skill
-
-        # 重新检查第一排技能（冷却可能已结束）
-        logger.info("重新检查第一排技能")
-        if skill := find_available_skill(self.skill_1, "第一排技能(重试) - "):
-            return skill
-
-        if self.skill_status(game_img):
-            logger.info("所有技能不可用，返回普通攻击 'x'")
-            return "x"
-
-        logger.info("警告: 没有找到可用技能")
+        logger.info(f"警告: {mode} 模式下没有找到可用技能")
         return None
 
     def get_release_displacement_skill(self, skill_code):
