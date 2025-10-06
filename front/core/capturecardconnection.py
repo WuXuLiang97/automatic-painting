@@ -8,8 +8,8 @@ from typing import Optional, Tuple, List, Dict
 import cv2
 import numpy as np
 
+from core.global_variable import display_queue
 from utils.logging_setup import logger
-
 
 class CaptureCardConnection:
     def __init__(self):
@@ -279,8 +279,11 @@ class CaptureCardConnection:
 
                 if width > 0 and height > 0:
                     frame = frame[y:y + height, x:x + width]
-
             self.current_frame = frame
+            if not display_queue.full():
+                # 为展示线程缩小分辨率
+                display_frame = cv2.resize(frame, (356, 200))
+                display_queue.put(display_frame)
             return frame
 
         except Exception as e:

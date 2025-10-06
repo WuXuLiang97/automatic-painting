@@ -4,6 +4,7 @@ import os
 import random
 import pydirectinput
 import time
+from utils.yjs import YJS
 from utils.logging_setup import logger
 
 # from utils.config_util import ini_file_path
@@ -12,7 +13,7 @@ ini_file_path = os.path.join('C:\\', "config.json")
 pydirectinput.PAUSE = 0
 
 
-class PYAUTO():
+class PYAUTO(YJS):
     left = 'left'
     right = 'right'
     up = 'up'

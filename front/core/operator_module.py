@@ -1,35 +1,20 @@
 # -*- coding: utf-8 -*-
+"""
+操作模块，提供游戏内各种交互操作的实现。
+
+该模块包含OperatorModule类，用于执行游戏中的各种操作，如选择角色、
+消除虚弱状态、打开/关闭窗口、菜单操作等功能。
+"""
 import re
 import time
 
 from utils.cross_control import pyauto
 from root_dir import root_path
 from core.common import occupationInfoMap
-# from dnf_ocr import recognize_text
 from utils.cv_recognizer import vnc_mm, my_imread
 import random
 from core import global_variable as gv
 from utils.logging_setup import logger
-
-
-# from utils.yjs import yjs
-
-
-# # 获取当前执行文件的绝对路径
-# current_path = os.path.dirname(os.path.abspath(__file__))
-# # 将当前执行文件的父目录（即上一级目录）的绝对路径赋值给root_path
-# # 这里的'..'代表上一级目录，os.path.join用于将路径片段组合成完整的路径
-# root_path = os.path.abspath(os.path.join(current_path, '../'))
-
-# template = {
-#     '生锈的铁片': '铁片.bmp',
-#     '破旧的皮革': '皮革.bmp',
-#     '碎布片': '碎布片1.bmp',
-#     '风化的碎骨': '碎骨.bmp',
-#     '最下级硬化剂': '硬化剂.bmp',
-#     '最下级砥石': '砥石.bmp',
-#     '炉岩核': '炉岩核.bmp',
-# }
 
 
 class OperatorModule:
@@ -48,10 +33,14 @@ class OperatorModule:
 
     def select_role(self, fun, cur_index):
         """
-        选择角色
-        :param fun:
-        :param cur_index:
-        :return:
+        选择游戏中的指定角色。
+        
+        Args:
+            fun: 用于检测界面元素的函数
+            cur_index: 要选择的角色索引（从1开始）
+            
+        Returns:
+            bool: 选择成功返回True，否则返回False
         """
         logger.info(f"当前第{cur_index}个角色")
         # 如果当前对象（self）不是处于开始游戏的界面（即is_start_game_interface()
@@ -125,8 +114,16 @@ class OperatorModule:
 
     def remove_weakness(self):
         """
-        消除弱点
-        :return:
+        消除游戏角色的虚弱状态。
+        
+        实现步骤：
+        - 最多尝试5次查找虚弱状态图标
+        - 找到后点击虚弱状态图标
+        - 查找并点击契约恢复按钮
+        - 按下ESC键关闭对话框
+        
+        Returns:
+            bool: 成功消除虚弱状态返回True，否则返回False
         """
         for i in range(5):
             ret = self.mm.FindPic(725, 462, 972, 558, "虚弱.bmp", 0.9)

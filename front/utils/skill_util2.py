@@ -5,7 +5,8 @@ import numpy as np
 import json
 import os
 
-from core.Config import key_config_file
+from core.capture import Capture
+from root_dir import root_path
 from utils.screenshot_util import screenshot_util
 from utils.logging_setup import logger
 from view.key_config_run import DEFAULT_CONFIG
@@ -61,16 +62,17 @@ class SkillUtil:
 
     def load_key_config(self):
         """加载键盘配置文件"""
-
+        target_dir = os.path.join(r"C:\Program Files", "json_resources")  # 拼接子目录
+        config_file = os.path.join(target_dir, "key_config.json")
 
         try:
-            if os.path.exists(key_config_file):
-                with open(key_config_file, 'r', encoding='utf-8') as f:
+            if os.path.exists(config_file):
+                with open(config_file, 'r', encoding='utf-8') as f:
                     self.key_config = json.load(f)
                     self._update_skill_mapping()
-                    logger.info(f"成功加载键盘配置: {key_config_file}")
+                    logger.info(f"成功加载键盘配置: {config_file}")
             else:
-                logger.warning(f"键盘配置文件不存在: {key_config_file}，使用默认配置")
+                logger.warning(f"键盘配置文件不存在: {config_file}，使用默认配置")
                 self.key_config = DEFAULT_CONFIG
                 self._update_skill_mapping()
         except Exception as e:

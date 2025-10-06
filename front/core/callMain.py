@@ -3,7 +3,6 @@ import datetime
 import json
 import os.path
 import random
-# import pprint
 import string
 import sys
 import threading
@@ -16,27 +15,21 @@ from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import pyqtSignal, QByteArray, QPoint, QSize, QThread, QUrl
 from PyQt5.QtGui import QPixmap, QImage, QDesktopServices
 from PyQt5.QtWidgets import QMainWindow, QAbstractItemView, QTableWidgetItem, QHeaderView, QMessageBox
-from core.Config import default_config, CONFIG_PATH
+
 from core.KeyboardListenerThread import KeyPressSignal, KeyboardListenerThread
-# from core.check_caton import CheckPlayerDynamics
 from core.check_d import CheckProcess
 from core.global_variable import display_queue
 from core.player import PlayerThread
-# from core.yolo_process import YoloProcess
 
 from utils.common_util import get_date
-from core.Config import get_gui_config, CONFIG_PATH
 from core.callRoleSettings import RoleSettingsWindow
 from core.callSettingsGroup import SettingsGroupWindow
 from utils.screenshot_util import screenshot_util
-# from utils.yjs import yjs
 from utils.cross_control import pyauto
-# from view.main0914 import Ui_MainWindow
-from view.main0922 import Ui_MainWindow
+from view.main0917 import Ui_MainWindow
 from view.key_config_run import KeyConfigDialog
 from core.device_identity_client import send_request, ret_data
 from core.device_time_utils import get_identity_mark
-# from core.window_position import WindowPositionUpdater
 from core import global_variable as gv
 from utils.api import test_view_subgroups, test_view_subgroup_config
 from core.vnc import VNC, api
@@ -44,14 +37,56 @@ from core.capturecardconnection import CaptureCardConnection
 from utils.cv_recognizer import vnc_mm
 from root_dir import root_path
 
-
 # 拼接文件路径
-
+CONFIG_PATH = os.path.join(root_path, "json_resources/config.json")
 f_program_version = '250920'
 Network = 0
 
 
+def get_gui_config():
+    """
+    从配置文件中读取GUI配置。
+    
+    尝试从指定的配置文件路径读取JSON格式的配置数据。
+    如果文件存在，合并默认配置和文件配置；如果文件不存在，创建默认配置文件。
+    如果读取失败，返回默认配置。
+    
+    Returns:
+        dict: 包含GUI配置的字典
+    """
+    # 默认配置
+    default_config = {
+        "ip": "192.168.1.1",
+        "yjs": 0,
+        "banzhuan": 0,
+        "vmware_ip": "127.0.0.1",
+        "vmware_prot": "5900",
+        "vmware_password": "",
+        "tab_index": 0,
+        'vid': '',
+        'pid': '',
+        'identifier': "0",
+    }
 
+    try:
+        # 如果配置文件存在，读取它
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as file:
+                file_config = json.load(file)
+                # 合并默认配置和文件配置
+                return {**default_config, **file_config}
+
+        # 如果配置文件不存在，创建默认配置
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
+            json.dump(default_config, file, indent=4, ensure_ascii=False)
+        return default_config
+
+    except json.JSONDecodeError:
+        print("Warning: Config file is corrupted or not in JSON format.")
+        return default_config
+    except Exception as e:
+        print(f"Error loading config: {e}")
+        return default_config
 
 
 class DisplayThread(QThread):
@@ -64,6 +99,16 @@ class DisplayThread(QThread):
         self.lock = threading.Lock()  # 添加线程锁
 
     def run(self):
+        """
+        线程运行方法，持续检查显示队列并发出帧更新信号。
+        
+        实现循环：
+        - 持续检查self.running标志，只要为True就继续执行
+        - 使用锁保护共享资源的访问
+        - 检查display_queue是否有新帧数据
+        - 如果队列非空，获取帧并通过update_signal信号发出
+        - 每次循环后休眠约33毫秒(约30FPS)
+        """
         while self.running:
             with self.lock:  # 使用锁保护共享资源
                 if not display_queue.empty():
@@ -87,10 +132,11 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
     def __init__(self, parent=None, dic=None):
         """
-        初始化MyWindow类实例。
+        初始化AppMain类实例。
 
         Args:
             parent (QWidget, optional): 父窗口对象。默认为None。
+            dic (dict, optional): 应用程序配置字典。默认为None。
         """
         super().__init__(parent)  # 调用父类QMainWindow的构造函数
         self.displaythread = None
@@ -107,19 +153,6 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.role_settings = {}
         # self.sock = None
         self.setupUi(self)  # 假设这个方法是在某个UI文件中通过pyuic生成的，用于设置窗口的UI界面
-        ##########################添加虚弱设置
-        self.GoldRecovery.setCheckable(True)
-        self.ContractRecovery.setCheckable(True)
-        self.Wait.setCheckable(True)
-        self.Ignore.setCheckable(True)
-
-        # 如果要互斥（类似单选按钮）
-        from PyQt5.QtWidgets import QActionGroup
-        weak_group = QActionGroup(self)
-        weak_group.setExclusive(True)
-        for action in [self.GoldRecovery, self.ContractRecovery, self.Wait, self.Ignore]:
-            weak_group.addAction(action)
-        ############################
         self.action12.triggered.connect(self.show_login)
         self.loadSettings("json_resources/ui_config.json")
         self.lineEdit.textChanged.connect(self.on_text_changed)
@@ -140,9 +173,8 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.ComboBox_3.currentIndexChanged.connect(self.on_combobox_changed)
         self.init_content()  # 初始化窗口内容，可能是设置一些初始值或UI组件的状态
 
-        self.key_press_signal = KeyPressSignal()  # 键盘检测线程
-        # self.check_player_dynamics = CheckPlayerDynamics()  # 人物卡住检测
-        # self.WindowPositionUpdater = WindowPositionUpdater()  # 初始化窗口坐标检查进程
+        # 键盘检测线程
+        self.key_press_signal = KeyPressSignal()
         self.yoloProcess = None  # YOLO处理进程初始化为None，后续可能按需加载
 
         # 标记是否为首次加载模型
@@ -151,7 +183,6 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.load_model_status = "NoReady"
 
         self.key_press_signal.key_pressed.connect(self.on_key_pressed)
-        # self.playerThread.sock_connect_message.connect(self.sock_connect)  # 连接角色表更新信号
 
         # 设置窗体禁止最大化
         self.setFixedSize(self.width(), self.height())  # 设置窗口为固定大小，防止用户最大化
@@ -159,12 +190,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         # 初始化设置窗口
         self.settings_group_window = SettingsGroupWindow(dic=self.dic)  # 初始化设置组窗口
         self.role_settings_window = RoleSettingsWindow(dic=self.dic)  # 初始化角色设置窗口
-        #############虚弱设置的四种选项
-        self.GoldRecovery.triggered.connect(lambda: self.on_weak_setting_changed("gold"))
-        self.ContractRecovery.triggered.connect(lambda: self.on_weak_setting_changed("contract"))
-        self.Wait.triggered.connect(lambda: self.on_weak_setting_changed("wait"))
-        self.Ignore.triggered.connect(lambda: self.on_weak_setting_changed("ignore"))
-        ############
+
         # 连接设置组窗口的信号
         self.settings_group_window.send_update_settings_group_signal.connect(
             self.role_settings_window.receive_update_settings_group_signal)  # 连接设置组更新信号到角色设置窗口
@@ -177,101 +203,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         # 创建并启动键盘监听线程
         self.Keyboardsettings.triggered.connect(self.open_keyboard_settings)
         self.keyboard_thread = KeyboardListenerThread(self.key_press_signal)
-        self.keyboard_thread.start()  # self.yoloProcess = YoloProcess()  # self.yoloProcess.load_model()  # self.playerThread.yolo = self.yoloProcess
-
-    def on_weak_setting_changed(self, setting_type):
-        """处理虚弱设置变化"""
-        try:
-            # 如果选择的是等待，弹出输入框
-            if setting_type == "wait":
-                # 导入需要的模块
-                from PyQt5.QtWidgets import QInputDialog
-
-                # 弹出输入对话框
-                seconds, ok = QInputDialog.getInt(
-                    self,
-                    "设置等待时间",
-                    "请输入等待秒数:",
-                    value=self.wait_seconds,  # 默认值
-                    min=1,  # 最小值
-                    max=3600  # 最大值（1小时）
-                )
-
-                if ok:
-                    # 保存等待秒数
-                    self.wait_seconds = seconds
-                    self.update_weak_setting_config(setting_type, seconds)
-                    self.update_log(f"虚弱设置已更改为：等待 {seconds} 秒")
-                else:
-                    # 如果取消了，恢复之前的选择
-                    self.restore_previous_weak_setting()
-                    return
-            else:
-                # 其他选项直接保存
-                self.update_weak_setting_config(setting_type)
-                setting_names = {
-                    'gold': '金币恢复',
-                    'contract': '契约恢复',
-                    'ignore': '无视虚弱'
-                }
-                self.update_log(f"虚弱设置已更改为：{setting_names.get(setting_type, setting_type)}")
-
-        except Exception as e:
-            print(f"虚弱设置更改错误: {e}")
-            self.update_log(f"虚弱设置更改失败: {e}")
-
-    def update_weak_setting_config(self, setting_type, wait_seconds=None):
-        """更新虚弱设置到配置文件"""
-        try:
-            with open(CONFIG_PATH, 'r', encoding='utf-8') as file:
-                settings = json.load(file)
-
-            # 更新虚弱设置
-            settings['weak_setting'] = setting_type
-
-            # 如果是等待设置，同时保存等待秒数
-            if setting_type == 'wait' and wait_seconds is not None:
-                settings['wait_seconds'] = wait_seconds
-
-            # 保存到文件
-            with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
-                json.dump(settings, file, indent=4, ensure_ascii=False)
-
-            # 更新全局变量（如果需要的话）
-            gv.weak_setting = setting_type
-            if wait_seconds is not None:
-                gv.wait_seconds = wait_seconds
-
-        except Exception as e:
-            print(f"保存虚弱设置配置错误: {e}")
-
-    def restore_previous_weak_setting(self):
-        """恢复之前的虚弱设置选择"""
-        try:
-            config = get_gui_config()
-            weak_setting = config.get('weak_setting', 'gold')
-
-            if weak_setting == 'gold':
-                self.GoldRecovery.setChecked(True)
-            elif weak_setting == 'contract':
-                self.ContractRecovery.setChecked(True)
-            elif weak_setting == 'wait':
-                self.Wait.setChecked(True)
-            elif weak_setting == 'ignore':
-                self.Ignore.setChecked(True)
-
-        except Exception as e:
-            print(f"恢复虚弱设置错误: {e}")
-            # 出错时默认选中金币恢复
-            self.GoldRecovery.setChecked(True)
-
-    def get_current_weak_setting(self):
-        """获取当前的虚弱设置"""
-        config = get_gui_config()
-        return {
-            'setting': config.get('weak_setting', 'gold'),
-            'wait_seconds': config.get('wait_seconds', 30)
-        }
+        self.keyboard_thread.start()
 
     def open_keyboard_settings(self):
         """打开按键配置对话框"""
@@ -325,22 +257,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.update_roles_table_data()
 
         gui_config = get_gui_config()
-        # 初始化虚弱设置
-        weak_setting = gui_config.get('weak_setting', 'gold')  # 默认为金币恢复
-        self.wait_seconds = gui_config.get('wait_seconds', 30)  # 默认等待30秒
 
-        # 根据配置设置选中项
-        if weak_setting == 'gold':
-            self.GoldRecovery.setChecked(True)
-        elif weak_setting == 'contract':
-            self.ContractRecovery.setChecked(True)
-        elif weak_setting == 'wait':
-            self.Wait.setChecked(True)
-        elif weak_setting == 'ignore':
-            self.Ignore.setChecked(True)
-        else:
-            # 如果配置无效，默认选中金币恢复
-            self.GoldRecovery.setChecked(True)
         # 获取保存的索引（默认值为0，即第一个标签页）
         saved_index = gui_config.get("tab_index", 0)
 
@@ -398,27 +315,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         global Network
         Network = 1
 
-        # for i in range(3):
-        #     try:
-        #         ret = send_request(f_program_version=f_program_version, state=0)
-        #         return_data_1 = ret_data(ret)
-        #         if return_data_1.response == 200 or return_data_1.response == 201:
-        #             if return_data_1.response == 201:
-        #                 self.update_log(
-        #                     return_data_1.msg)  # my_print('亲爱的用户们：\n\t我们软件已推出新版本，增加了新功能并优化了现有功能。为方便您更新，我们已在Q群提供更新文件。请您自行进入Q群下载并安装新版本。如遇问题，请随时在Q群反馈。感谢您的支持！\n祝您使用愉快')
-        #
-        #             else:
-        #                 self.update_log(f'已连接到网络')
-        #             self.setWindowTitle(f'工具人({str(f_program_version)})    {return_data_1.msg}')
-        #             global Network
-        #             Network = 1
-        #             break
-        #         else:
-        #             # my_print(f'尝试连接网络{i + 1}次')
-        #             self.update_log(return_data_1.msg)
-        #             break
-        #     except Exception as e:
-        #         self.update_log(f"机器码验证错误:{e}")
+
 
     def show_login(self):
         self.authapp.show()
@@ -495,11 +392,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
             settings = json.load(file)
         currentIndex = None
         sender_obj = self.sender()  # 使用 self.sender() 获取发送者
-        # if sender_obj == self.ComboBox_2:
-        #     currentIndex = self.ComboBox_2.currentIndex()
-        #     settings['yjs'] = currentIndex
-        #     # 更新用模拟键盘还是易键鼠
-        #     pyauto.sign = currentIndex
+
         if sender_obj == self.ComboBox_3:
             currentIndex = self.ComboBox_3.currentIndex()
             settings['banzhuan'] = currentIndex
@@ -523,15 +416,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
             ret = test_view_subgroups(self.dic.get("cookies"))
             print(ret)
             self.settingsGroupComboBox.clear()
-            # # 将获取到的设置组列表中的每个项目添加到组合框中
             self.settingsGroupComboBox.addItems(ret.get('subgroups'))
-            # # 调用get_settings_group()函数获取最新的设置组列表
-            # settings_group_list = get_settings_group()
-            # print(f"settings_group_list:{settings_group_list}")
-            # # 清除设置组组合框中现有的所有项
-            # self.settingsGroupComboBox.clear()
-            # # # 将获取到的设置组列表中的每个项目添加到组合框中
-            # self.settingsGroupComboBox.addItems(settings_group_list)
         except Exception as e:
             print("update_settings_group_data:", e)
             print("完整堆栈：")
@@ -543,25 +428,6 @@ class AppMain(QMainWindow, Ui_MainWindow):
         更新角色表数据
         :return:
         """
-
-        # role_list = get_all_role_settings(self.settingsGroupComboBox.currentText())
-        # print(f"role_list:{role_list}")
-        # if role_list is None:
-        #     return
-        # self.rolesTable.setRowCount(len(role_list))
-        # index = 0
-        # today = get_date()
-        # for role in role_list:
-        #     self.rolesTable.setItem(index, 0, QTableWidgetItem(role_list[role]['role_index']))
-        #     self.rolesTable.setItem(index, 1, QTableWidgetItem(role_list[role]['role_occupation']))
-        #     self.rolesTable.setItem(index, 2, QTableWidgetItem(role_list[role]['height']))
-        #     self.rolesTable.setItem(index, 3, QTableWidgetItem(role_list[role]['map_name']))
-        #     self.rolesTable.setItem(index, 4, QTableWidgetItem(role_list[role]['map_level']))
-        #     if today != role_list[role]['finished_time']:
-        #         self.rolesTable.setItem(index, 5, QTableWidgetItem("否"))
-        #     else:
-        #         self.rolesTable.setItem(index, 5, QTableWidgetItem("是"))
-        #     index = index + 1
 
         """
         更新角色表数据
@@ -643,16 +509,11 @@ class AppMain(QMainWindow, Ui_MainWindow):
     def start_clicked(self):
         """
         处理开始按钮点击事件的方法。
-
-        此方法首先尝试初始化游戏窗口的相关设置，包括获取窗口句柄、激活窗口以及将其置于最顶层。
-        如果在此过程中发生任何异常，则更新日志并提示用户未检测到游戏。
-        如果模型加载状态不是"Ready"，则更新日志并提示用户先加载模型。
-        如果一切正常，则设置玩家线程的角色组、YOLO处理实例，并初始化并启动玩家线程和检查进程。
-        最后，禁用开始按钮以防止重复点击。
-
-        注意：此方法依赖于多个外部定义的属性和方法，如screenshot_util, self.load_model_status,
-        self.playerThread, self.yoloProcess, self.settingsGroupComboBox, self.checkProcess,
-        以及self.startBtn等。
+        - 发送程序启动状态到服务器
+        - 确保显示线程已创建
+        - 初始化并启动玩家线程和检查进程
+        - 连接线程信号到相关处理函数
+        - 禁用开始按钮以防止重复点击
         """
         if Network == 1:
             try:
@@ -660,20 +521,18 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
                 # 确保显示线程已创建
                 if not self.displaythread:
-                    # 创建新的显示线程
                     self.displaythread = DisplayThread()
                     self.displaythread.update_signal.connect(self.update_image)
                     self.displaythread.start()
+                
                 # 初始化工作线程
                 self.playerThread = PlayerThread(dic=self.dic)  # 初始玩家刷图线程
-
                 self.checkProcess = CheckProcess()  # 初始化检查进程
-                # 连接播放器线程的信号
+                
+                # 连接线程信号到相关处理函数
                 self.playerThread.message.connect(self.update_log)  # 连接消息信号到更新日志的方法
-                # self.playerThread.player_dynamics_tuple.connect(self.update_player_dynamics_list)
                 self.playerThread.role_table_message.connect(self.update_roles_table_data)  # 连接角色表更新信号
                 self.key_press_signal.mouse_moved.connect(self.playerThread.handle_mouse_press)
-
                 self.checkProcess.ghost_state_message.connect(self.playerThread.receive_ghost_state_message)
 
             except Exception as e:
@@ -698,6 +557,19 @@ class AppMain(QMainWindow, Ui_MainWindow):
             self.startBtn.setEnabled(False)
 
     def stop_clicked(self):
+        """
+        处理停止按钮点击事件的方法。
+        负责安全停止所有工作线程，释放资源，并重置界面状态。
+        
+        实现步骤：
+        - 检查并停止玩家线程(如果存在)
+        - 检查并停止检查进程(如果存在)
+        - 释放所有键盘按键
+        - 重新启用开始按钮
+        - 更新日志显示停止信息
+        
+        异常处理：捕获并打印任何停止过程中可能发生的异常。
+        """
         try:
             # 安全停止并销毁工作线程
             if self.playerThread:
@@ -715,7 +587,6 @@ class AppMain(QMainWindow, Ui_MainWindow):
             pyauto.releaseallkey()
             self.startBtn.setEnabled(True)
             self.update_log("脚本已停止")
-
 
         except Exception as e:
             print("停止操作异常", e)
@@ -750,6 +621,12 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.update_settings_group_data()
 
     def update_log(self, log):
+        """
+        更新日志文本框，添加带时间戳的日志信息并确保滚动到底部。
+        
+        Args:
+            log: 要添加的日志信息
+        """
         timestamp = datetime.datetime.now().strftime("%H:%M:%S")
         log_entry = f"{timestamp} - {log}"
         print(log)
@@ -765,16 +642,12 @@ class AppMain(QMainWindow, Ui_MainWindow):
         # 添加日志后获取新滚动位置
         new_max = scrollbar.maximum()
 
-        # 调试信息
-        print(f"添加日志前: {prev_value}/{prev_max}")
-        print(f"添加日志后: {scrollbar.value()}/{new_max}")
-
         # 确保滚动到底部
         if new_max > prev_max:  # 只有文档长度变化时才滚动
-            # 方法1: 直接设置最大值
+            # 直接设置最大值
             scrollbar.setValue(new_max)
 
-            # 方法2: 使用文本光标
+            # 使用文本光标确保滚动到底部
             cursor = self.logPlainTextEdit.textCursor()
             cursor.movePosition(QtGui.QTextCursor.End)
             self.logPlainTextEdit.setTextCursor(cursor)
@@ -788,35 +661,44 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 scrollbar.setValue(scrollbar.maximum())
 
     def closeEvent(self, event):
+        """
+        窗口关闭事件处理函数，负责安全释放所有资源和停止所有线程。
+        - 清理VNC资源
+        - 关闭登录窗口
+        - 安全停止所有运行中的线程
+        - 保存窗口设置
+        """
         try:
             self.cleanup_vnc()
-            # 关闭登录窗口
-            self.authapp.close()
-            # 如果线程还在运行，等待它结束
+            self.authapp.close()  # 关闭登录窗口
+            
+            # 安全停止键盘监听线程
             try:
-                self.keyboard_thread.stop()  # 停止键盘监听线程
+                self.keyboard_thread.stop()
             except Exception as e:
                 print("closeEvent", e)
+            
+            # 安全停止玩家线程
             if self.playerThread:
                 self.playerThread.stop()
                 self.playerThread.wait(2000)  # 等待2秒安全退出
-
+            
+            # 安全停止检查进程
             if self.checkProcess:
                 self.checkProcess.stop()
                 self.checkProcess.wait(2000)
-
+            
+            # 安全停止显示线程
             if self.displaythread:
                 try:
                     self.displaythread.stop()
                     self.displaythread.wait(1000)
-                    self.checkProcess.terminate()
                 except:
                     pass
                 self.displaythread = None
-
+            
             # 在窗口关闭之前保存设置
             self.saveSettings("json_resources/ui_config.json")
-
 
         except Exception as e:
             print("closeEvent", e)
@@ -844,6 +726,27 @@ class AppMain(QMainWindow, Ui_MainWindow):
             json.dump(settings, file, indent=4)
 
     def connect_to_vnc(self):
+        """
+        处理VNC连接或采集卡连接的方法。
+        
+        根据调用该方法的按钮不同，执行不同的连接逻辑：
+        1. 当从startBtn_2调用时：连接到VNC服务器
+        2. 当从startBtn_4调用时：连接到采集卡设备
+        
+        连接过程包括：
+        - 检查连接状态，避免重复连接
+        - 获取用户输入的连接参数
+        - 创建相应的连接对象
+        - 测试连接（通过截图验证）
+        - 更新全局共享对象
+        - 保存连接配置
+        - 更新UI显示连接状态
+        
+        异常处理：
+        - 捕获连接过程中的任何异常
+        - 调用cleanup_vnc()清理资源
+        - 显示错误消息和状态
+        """
         sender_obj = self.sender()
         if sender_obj == self.startBtn_2:
             if self.VNC is not None:
@@ -901,12 +804,33 @@ class AppMain(QMainWindow, Ui_MainWindow):
 
                 # 转换vid和pid
                 def convert_to_int(s):
-                    if s.startswith('0x') or s.startswith('0X'):
-                        # 去掉前缀，然后按16进制转换为整数，再转换为十六进制字符串（带0x前缀）
-                        return hex(int(s[2:], 16))
+                    """
+                    将字符串形式的数字转换为整数，特殊处理十六进制格式。
+                    
+                    对于以'0x'或'0X'开头的字符串，会保留前缀大小写并按原始长度补前导零；
+                    对于其他字符串，则按十进制转换后返回十六进制表示。
+                    
+                    Args:
+                        s: 输入的数字字符串
+                    
+                    Returns:
+                        转换后的十六进制字符串
+                    """
+                    if s.startswith(('0x', '0X')):
+                        # 提取前缀（0x或0X）和数值部分
+                        prefix = s[:2]  # 保留原始前缀的大小写（0x或0X）
+                        num_str = s[2:]  # 提取0x后面的部分（如"0001"）
+                        length = len(num_str)  # 记录原始数值部分的长度（用于补前导零）
+
+                        # 转换为整数后，按原长度补全前导零
+                        num = int(num_str, 16)
+                        # 根据前缀大小写决定格式（小写x用%x，大写X用%X）
+                        format_str = f'%0{length}x' if prefix == '0x' else f'%0{length}X'
+                        return prefix + format_str % num
                     else:
-                        # 按10进制转换为整数，再转换为十六进制字符串
-                        return hex(int(s))
+                        # 十进制转换（如果需要保留固定长度，可类似处理）
+                        num = int(s)
+                        return hex(num)
 
                 vid = convert_to_int(vid_str)
                 pid = convert_to_int(pid_str)
@@ -945,9 +869,13 @@ class AppMain(QMainWindow, Ui_MainWindow):
         """
         # 创建采集卡连接实例
         self.identifier = CaptureCardConnection()
+        self.identifier.crop_region = [0, 0, 1067, 600]
         devices = self.identifier.find_available_devices()
-        # 确保返回的是字符串列表
-        return [str(device) for device in devices]
+        id = []
+        for i, device in enumerate(devices):
+            print(f"  {i}. {device['id']}")
+            id.append(device['id'])
+        return id
 
     def save_vnc_config(self, ip, port, password):
         """保存VNC配置到文件"""
@@ -961,7 +889,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
             json.dump(config, file, indent=4, ensure_ascii=False)
 
     def save_capturecardconnection_config(self, vid, pid, identifier):
-        """保存VNC配置到文件"""
+        """保存采集卡连接配置到文件"""
         config = get_gui_config()
         config.update({
             "vid": vid,
