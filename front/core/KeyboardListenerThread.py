@@ -40,8 +40,6 @@ class KeyboardListenerThread(threading.Thread):
             self.signal.mouse_moved.emit(x, y)
 
         def on_mouse_click(x, y, button, pressed):
-            # if pressed:  # 只处理按下事件
-            #     # 发送按钮名称和坐标
             button_name = str(button).split('.')[-1]  # 提取按钮名称（如 'left', 'right'）
             self.signal.mouse_pressed.emit(button_name, x, y)
 
@@ -63,11 +61,6 @@ class KeyboardListenerThread(threading.Thread):
             time.sleep(0.1)  # 降低CPU使用率
         print("输入监听器已停止")
         logging.info("输入监听器已停止")
-        # # 创建键盘监听器，并设置停止条件
-        # with keyboard.Listener(on_press=on_press) as listener:
-        #     while self.running:
-        #         time.sleep(1)
-        # print("KeyboardListenerThread 已停止")
 
     def stop(self):
         self.running = False

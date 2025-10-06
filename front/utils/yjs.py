@@ -201,7 +201,8 @@ class YJS():
         # self.__ResolutionUsed()
 
     def __del__(self):
-        self.objdll.M_ReleaseAllKey(self.hdl)
+        # self.objdll.M_ReleaseAllKey(self.hdl)
+        pass
 
     def __ResolutionUsed(self):
         # 如果使用绝对移动,则需要初始化分辨率

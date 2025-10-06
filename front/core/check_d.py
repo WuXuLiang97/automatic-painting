@@ -12,8 +12,6 @@ from root_dir import root_path
 from core import global_variable as gv
 from utils.logging_setup import logger
 
-# from utils.yjs import yjs
-
 current_path = os.path.dirname(os.path.abspath(__file__))
 
 

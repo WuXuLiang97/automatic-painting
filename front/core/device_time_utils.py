@@ -67,7 +67,3 @@ def add_days_to_datetime(datetime_str, days_to_add):
 # print(get_network_time())
 # registration_code = get_identity_mark() + get_network_time()
 # print(registration_code)
-
-# # 打印MAC地址
-# for mac in mac_addresses:
-#     print(mac)

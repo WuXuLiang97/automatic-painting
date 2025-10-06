@@ -76,21 +76,10 @@ if __name__ == '__main__':
     print(send_request())
     import uuid
 
-    # import psutil
+
     #
-    #
-    # def get_mac_addresses1():
-    #     mac_addresses = []
-    #     # 遍历网络接口
-    #     for interface, snicstats in psutil.net_if_addrs().items():
-    #         for snic in snicstats:
-    #             # 检查是否是物理接口且包含MAC地址
-    #             if snic.family == psutil.AF_LINK:
-    #                 mac_addresses.append((interface, snic.address))
-    #     return mac_addresses
+
     #
     #     # 打印所有物理接口的MAC地址
     #
     #
-    # for interface, mac in get_mac_addresses1():
-    #     print(f"Interface: {interface}, MAC: {mac}")

@@ -376,10 +376,6 @@ class AppMain(QMainWindow, Ui_MainWindow):
             text = self.lineEdit_9.text()  # 读取 self.lineEdit 的内容
             gv.pid = text
             settings["pid"] = text
-        # if sender_obj == self.lineEdit_8:
-        #     text = self.lineEdit_8.text()  # 读取 self.lineEdit 的内容
-        #     gv.identifier = text
-        #     settings["identifier"] = text
         with open(CONFIG_PATH, 'w') as file:
             json.dump(settings, file, indent=4)
 

@@ -5,7 +5,6 @@ from PyQt5.QtCore import QStringListModel
 from PyQt5.QtWidgets import QMainWindow, QMessageBox
 
 from utils.api import test_view_subgroups, test_delete_subgroup_config, test_delete_subgroup, test_add_subgroup_config, test_view_subgroup_config, test_update_subgroup_config
-# from utils.config_util import get_settings_group, get_all_role_settings, save_role_settings, delete_role_settings, delete_all_role_settings
 from view.roleSettings import Ui_Form
 
 
@@ -98,9 +97,6 @@ class RoleSettingsWindow(QMainWindow, Ui_Form):
                     self.role_settings[str(item['brush_order'])] = item
                 # self.role_settings = get_all_role_settings(self.settingsGroupComboBox.currentText())
                 # print(self.role_settings)
-                # self.list_data.clear()
-                # for key in self.role_settings:
-                #     self.list_data.append(key)
                 print(f"self.list_data:{self.list_data}")
                 self.list_model.setStringList(self.list_data)
                 self.roleIndexList.setModel(self.list_model)

@@ -9,6 +9,8 @@ import string
 from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtWidgets import (QApplication, QWidget, QStackedWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QCheckBox)
 from PyQt5.QtCore import Qt, QTimer
+
+from core.Config import REMEMBER_FILE, USER_DATA_FILE
 from utils.api import test_login, test_register, test_change_password  # 添加修改密码API
 # 这里可以添加跳转到主界面的代码
 from core.callMain import AppMain
@@ -17,11 +19,7 @@ from root_dir import root_path
 # 设置日志
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 import os
-target_dir = os.path.join(r"C:\Program Files", "json_resources")  # 拼接子目录
-# 用户数据存储文件
-USER_DATA_FILE = os.path.join(target_dir, 'users.json')
-# 记住密码的配置文件
-REMEMBER_FILE = os.path.join(target_dir, 'remember.json')
+
 
 
 def encrypt_password(password):
@@ -273,8 +271,7 @@ class LoginPage(QWidget):
         # 如果取消记住密码，自动登录也必须取消
         if not self.remember_checkbox.isChecked():
             self.auto_login_checkbox.setChecked(False)
-
-        # 如果选择自动登录，必须同时记住密码
+        # 如果选择自动登录，必须同时记住密码xs
         if self.auto_login_checkbox.isChecked():
             self.remember_checkbox.setChecked(True)
 

@@ -157,15 +157,8 @@ if __name__ == '__main__':
     x1, y1, x2, y2 = (162, 383, 256, 401)
     min_img = v.capture()[y1:y2, x1:x2]
     ret = is_colored(min_img, 50)
-    # from utils.cv_recognizer import vnc_mm
-    #
-    # vnc_mm.VNC = v
-    # ret = vnc_mm.FindPic(0, 0, 1067, 600, "移动速度.bmp", 0.9, 1, None, delta_color=([19, 0, 0], [21, 255, 255]))
-    # if ret:
-    #     x1, y1 = ret[0][3] + 60, ret[0][4] - 2
-    #     x2, y2 = x1 + 55, y1 + 15
-    # else:
-    #     print("没有找到移动坐标")
+
+
     # img_dict = {
     #     '0': ['0.bmp'], '1': ['1.bmp', '1-1.bmp'], '2': ['2.bmp', '2-1.bmp'],
     #     '3': ['3.bmp', '3-1.bmp'], '4': ['4.bmp', '4_1.bmp'],

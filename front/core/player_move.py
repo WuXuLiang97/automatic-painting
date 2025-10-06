@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# from utils.yjs import yjs
-
 import time
 from utils.cross_control import pyauto
 from utils.logging_setup import logger
@@ -108,7 +106,6 @@ class MovementRecorder:
             if run:
                 logger.info("方向不同，加时0.1秒")
                 x_time = x_time + 0.1
-        # if not left_right_move_status and x_time != 0 or left_or_right != self.last_direction:
         self.already_left_right_move(left_or_right)
         if x_time > y_time:
             if y_time > 0:

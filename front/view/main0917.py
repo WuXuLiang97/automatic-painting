@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'main0917.ui'
+# Form implementation generated from reading ui file 'main1004.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.11
 #
@@ -334,6 +334,10 @@ class Ui_MainWindow(object):
         self.menubar.setObjectName("menubar")
         self.menu = QtWidgets.QMenu(self.menubar)
         self.menu.setObjectName("menu")
+        self.menu_weak = QtWidgets.QMenu(self.menubar)
+        self.menu_weak.setObjectName("menu_weak")
+        self.menu_2 = QtWidgets.QMenu(self.menubar)
+        self.menu_2.setObjectName("menu_2")
         MainWindow.setMenuBar(self.menubar)
         self.actionc = QtWidgets.QAction(MainWindow)
         self.actionc.setObjectName("actionc")
@@ -345,11 +349,33 @@ class Ui_MainWindow(object):
         self.action12.setObjectName("action12")
         self.Keyboardsettings = QtWidgets.QAction(MainWindow)
         self.Keyboardsettings.setObjectName("Keyboardsettings")
+        self.Weaksettings = QtWidgets.QAction(MainWindow)
+        self.Weaksettings.setObjectName("Weaksettings")
+        self.goodsfilter = QtWidgets.QAction(MainWindow)
+        self.goodsfilter.setObjectName("goodsfilter")
+        self.GoldRecovery = QtWidgets.QAction(MainWindow)
+        self.GoldRecovery.setCheckable(True)
+        self.GoldRecovery.setObjectName("GoldRecovery")
+        self.ContractRecovery = QtWidgets.QAction(MainWindow)
+        self.ContractRecovery.setCheckable(True)
+        self.ContractRecovery.setObjectName("ContractRecovery")
+        self.Wait = QtWidgets.QAction(MainWindow)
+        self.Wait.setCheckable(True)
+        self.Wait.setObjectName("Wait")
+        self.Ignore = QtWidgets.QAction(MainWindow)
+        self.Ignore.setCheckable(True)
+        self.Ignore.setObjectName("Ignore")
         self.menu.addAction(self.addSettingsGroupAction)
         self.menu.addAction(self.addRoleAction)
         self.menu.addAction(self.action12)
         self.menu.addAction(self.Keyboardsettings)
+        self.menu_weak.addAction(self.GoldRecovery)
+        self.menu_weak.addAction(self.ContractRecovery)
+        self.menu_weak.addAction(self.Ignore)
+        self.menu_weak.addAction(self.Wait)
         self.menubar.addAction(self.menu.menuAction())
+        self.menubar.addAction(self.menu_weak.menuAction())
+        self.menubar.addAction(self.menu_2.menuAction())
 
         self.retranslateUi(MainWindow)
         self.tabWidget.setCurrentIndex(0)
@@ -357,7 +383,6 @@ class Ui_MainWindow(object):
         self.stopBtn.clicked.connect(MainWindow.stop_clicked) # type: ignore
         self.addSettingsGroupAction.triggered.connect(MainWindow.open_settings_group_dialog) # type: ignore
         self.addRoleAction.triggered.connect(MainWindow.open_roles_dialog) # type: ignore
-        # self.Keyboardsettings.triggered.connect(self.)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -392,8 +417,16 @@ class Ui_MainWindow(object):
         self.label_3.setText(_translate("MainWindow", "机器码："))
         self.label.setText(_translate("MainWindow", "配置组："))
         self.menu.setTitle(_translate("MainWindow", "配置刷图"))
+        self.menu_weak.setTitle(_translate("MainWindow", "虚弱设置"))
+        self.menu_2.setTitle(_translate("MainWindow", "物品过滤"))
         self.actionc.setText(_translate("MainWindow", "c"))
         self.addSettingsGroupAction.setText(_translate("MainWindow", "创建配置组"))
         self.addRoleAction.setText(_translate("MainWindow", "角色配置"))
         self.action12.setText(_translate("MainWindow", "账号登录"))
         self.Keyboardsettings.setText(_translate("MainWindow", "按键配置"))
+        self.Weaksettings.setText(_translate("MainWindow", "虚弱设置"))
+        self.goodsfilter.setText(_translate("MainWindow", "物品过滤"))
+        self.GoldRecovery.setText(_translate("MainWindow", "金币恢复"))
+        self.ContractRecovery.setText(_translate("MainWindow", "契约恢复"))
+        self.Wait.setText(_translate("MainWindow", "等待"))
+        self.Ignore.setText(_translate("MainWindow", "无视虚弱"))

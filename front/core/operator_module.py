@@ -1,13 +1,8 @@
 # -*- coding: utf-8 -*-
-"""
-操作模块，提供游戏内各种交互操作的实现。
-
-该模块包含OperatorModule类，用于执行游戏中的各种操作，如选择角色、
-消除虚弱状态、打开/关闭窗口、菜单操作等功能。
-"""
 import re
 import time
 
+from core.Config import get_gui_config
 from utils.cross_control import pyauto
 from root_dir import root_path
 from core.common import occupationInfoMap
@@ -15,7 +10,6 @@ from utils.cv_recognizer import vnc_mm, my_imread
 import random
 from core import global_variable as gv
 from utils.logging_setup import logger
-
 
 class OperatorModule:
 
@@ -29,18 +23,14 @@ class OperatorModule:
     def initialize(self):
         self.weakness_template = my_imread(root_path + "/res/xuruo.png")
         self.back_down_template = my_imread(
-            root_path + "/res/back_down.png")  # logger.info("game_x:", self.game_x, "game_y:", self.game_y)  # for idx, my_char in enumerate(template):  #     img = my_imread(root_path + f"/map_depot/{template[my_char]}")  #     mask = self.mm.get_mask(img, ([92, 128, 0], [96, 150, 255]))  #     # # 创建SIFT对象  #     # sift = cv2.SIFT_create()  # SIFT算法不需要设置阈值参数（或者你可以查看文档以了解是否有可选参数）  #     # # 检测关键点和描述符  #     # keypoints1, descriptors1 = sift.detectAndCompute(mask, None)  #     self.filter.append(mask)
+            root_path + "/res/back_down.png")
 
     def select_role(self, fun, cur_index):
         """
-        选择游戏中的指定角色。
-        
-        Args:
-            fun: 用于检测界面元素的函数
-            cur_index: 要选择的角色索引（从1开始）
-            
-        Returns:
-            bool: 选择成功返回True，否则返回False
+        选择角色
+        :param fun:
+        :param cur_index:
+        :return:
         """
         logger.info(f"当前第{cur_index}个角色")
         # 如果当前对象（self）不是处于开始游戏的界面（即is_start_game_interface()
@@ -100,10 +90,6 @@ class OperatorModule:
         if self.player_instance.similarity(chinese_only, "游戏开始") >= 0.7:
             return True
         return False
-        # ret = self.mm.FindPic(447, 539, 635, 597, "开始游戏.bmp", 0.9)
-        # if ret:
-        #     return True
-        # return False
 
     def is_celia_room(self, fun):
         ret = fun([758, 566, 815, 588], '商城', r'[\u4e00-\u9fa5]+', 2)
@@ -114,16 +100,8 @@ class OperatorModule:
 
     def remove_weakness(self):
         """
-        消除游戏角色的虚弱状态。
-        
-        实现步骤：
-        - 最多尝试5次查找虚弱状态图标
-        - 找到后点击虚弱状态图标
-        - 查找并点击契约恢复按钮
-        - 按下ESC键关闭对话框
-        
-        Returns:
-            bool: 成功消除虚弱状态返回True，否则返回False
+        消除弱点
+        :return:
         """
         for i in range(5):
             ret = self.mm.FindPic(725, 462, 972, 558, "虚弱.bmp", 0.9)
@@ -133,7 +111,15 @@ class OperatorModule:
                 pyauto.click()
 
                 time.sleep(0.5)
-                ret = self.mm.FindPic(398, 154, 670, 435, "契约恢复.bmp", 0.9)
+
+                weak_config = get_gui_config()  #
+                setting = weak_config.get('weak_setting', 'gold')  #
+                print('虚弱666',setting)
+                if setting == 'gold':
+                    ret = self.mm.FindPic(398, 154, 670, 435, "金币恢复.bmp", 0.9)
+                elif setting == 'contract':
+                    ret = self.mm.FindPic(398, 154, 670, 435, "契约恢复.bmp", 0.9)
+
                 if ret:
                     x, y = ret[0][1], ret[0][2]
                     self.move_to(x, y)
@@ -218,13 +204,7 @@ class OperatorModule:
         else:
             logger.info("选择菜单未打开")
         return False
-        # ret = self.mm.FindPic(454, 17, 623, 101, "选择菜单.bmp", 0.9)
-        # if ret:
-        #     logger.info("选择菜单已打开")
-        #     return True
-        # else:
-        #     logger.info("选择菜单未打开")
-        # return False
+
 
     def has_two_common_chars(self, input_str, target_set):
 
@@ -235,8 +215,6 @@ class OperatorModule:
             if len(common_chars) >= 2:
                 return True
         return False
-
-        # time.sleep(0.5)
 
     def get_randint_xy(self, x1, y1, x2, y2):
         """
@@ -261,20 +239,6 @@ class OperatorModule:
         pyauto.keyPressChar('a')
 
         time.sleep(0.5)
-        # pyauto.KeyPressChar('a')
-        #
-        # time.sleep(0.2)
-        # pyauto.KeyPressChar('space')
-        #
-        # time.sleep(0.2)
-        # pyauto.KeyPressChar('left')
-        # time.sleep(0.2)
-        # pyauto.KeyPressChar('space')
-        #
-        # time.sleep(0.2)
-        # self.move_to(561, 228)
-        # time.sleep(0.2)
-        # pyauto.click()
         # 识别并操作出售装备
         sell()
         time.sleep(0.2)
@@ -427,11 +391,6 @@ class OperatorModule:
                 time.sleep(0.5)
                 # 不关这个会卡图
                 # ret = self.mm.FindPic(55, 57, 210, 113, "进行栏位操作.bmp", 0.9, drag=None)
-                # if ret:
-                #     self.move_to(1002, 41)
-                #     time.sleep(0.1)
-                #     pyauto.click()
-                #     time.sleep(0.2)
                 return True
             else:
                 pyauto.keyPressChar("n")
@@ -464,11 +423,8 @@ class OperatorModule:
                 time.sleep(0.1)
                 # 用传进来的方法识别
                 results = func(824, 570, 930, 589, amplify=True)
-                # results = self.mm.screenshot_OCR_str(824, 570, 930, 589, '0.png|1.png|2.png|3.png|4.png|5.png|6.png|7.png|8.png|9.png', 0.99, get_colour=([0, 0, 0], [0, 0, 255]))
-                # results = recognize_text(933, 690, 1033, 709)
                 if contains_digit(results):
                     pl_int = re.search(r'(\d+)/', results).group(1)
-                    # pl_int = int(results[:-3])
                     if pl_int:
                         pl_int = int(pl_int)
                         logger.info(f"当前疲劳值：{pl_int}")
@@ -479,10 +435,7 @@ class OperatorModule:
                         continue
                 else:
                     # 用传进来的方法识别
-                    # results = self.mm.screenshot_OCR_str(641, 518, 762, 537, '0.png|1.png|2.png|3.png|4.png|5.png|6.png|7.png|8.png|9.png', 0.99, get_colour=([0, 0, 0], [0, 0, 255]))
                     results = func(641, 518, 762, 533, amplify=True)
-                    # results = recognize_text(770, 638, 864, 655)
-                    # pl_int = int(results[:-3])
                     pl_int = re.search(r'(\d+)/', results).group(1)
                     if pl_int:
                         pl_int = int(pl_int)
@@ -494,7 +447,6 @@ class OperatorModule:
                         continue
                 self.move_to(random.randint(500, 560), 30)
                 time.sleep(0.1)
-                # logger.info("当前疲劳值：", pl)
                 return pl_int
             except Exception as e:
                 logger.info(e)
@@ -502,27 +454,7 @@ class OperatorModule:
         self.move_to(random.randint(500, 560), 30)
         time.sleep(0.1)
 
-    # def get_base_speed(self, player_occupation, plain_speed):
-    #     """
-    #     获得基本速度
-    #     :param player_occupation:玩家职业
-    #     :param plain_speed:普通速度
-    #     :return:
-    #     """
-    #     plain_speed = plain_speed * 100
-    #     for i in range(1, 10, 1):
-    #         min_ = 30 * i
-    #         max_ = 30 * (i + 1)
-    #         if min_ <= plain_speed <= max_:
-    #             if plain_speed - min_ > max_ - plain_speed:
-    #                 base_x = occupationInfoMap[player_occupation].get("x_speed").get(str(min_))
-    #                 base_y = occupationInfoMap[player_occupation].get("y_speed").get(str(min_))
-    #             else:
-    #                 base_x = occupationInfoMap[player_occupation].get("x_speed").get(str(max_))
-    #                 base_y = occupationInfoMap[player_occupation].get("y_speed").get(str(max_))
-    #             logger.info(f"min_={min_}\tmax_={max_}")
-    #             return base_x, base_y
-    #     return None, None
+
     def get_base_speed(self, player_occupation, plain_speed):
         """
         获得基本速度
@@ -547,5 +479,4 @@ class OperatorModule:
         y = gv.last_position[1] + y
         logger.info("move_to:窗口左上角x = {}\t窗口左上角y = {}\tx={}\ty={}".format(gv.last_position[0], gv.last_position[1], x, y))
         pyauto.moveTo(x, y)
-        # yjs.MoveTo(x, y)
         time.sleep(0.2)

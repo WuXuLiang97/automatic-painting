@@ -41,33 +41,8 @@ class MoveInfo:
         self.run = run
 
 
-# class BuffKey:
-#     def __init__(self, up, down, left, right, space):
-#         self.up = up
-#         self.down = down
-#         self.left = left
-#         self.right = right
-#         self.space = space
-
-
-# buff_key = BuffKey("up", "down", "left", "right", "space")
-
-# role_info_pos_trait = (444, 532, 107, 129)  # 角色信息pos特征
-# select_player_pos_trait = (590, 650, 577, 602)  # 选择玩家pos特征
-# select_menu_pos_trait = (598, 128, 694, 158)  # 选择菜单pos特性
-# return_town_in_map_pos_trait = (1194, 667, 1260, 681)  # 地图pos特征中的回城
-# map_name_pos_trait = (74, 410, 221, 437)  # 地图名称pos特征
-# weakness_pos_trait = (808, 561, 1035, 682)  # 弱点pos特征
-# weakness_recovery_pos_trait = (640, 453, 697, 480)  # 虚弱恢复pos特征
-
 # 地图水平难度
 mapLevelDict = {"普通": 1, "冒险": 2, "勇士": 3, "王者": 4, "噩梦": 5}
-# # 映射第一个房间id
-# map_first_room_id = {
-#     '流雨瀑布': {'2-0'},
-#     '风暴幽城': {(1, 0), (0, 1), (1, 1)},
-#     '风暴逆鳞普通': {(0, 2), (1, 3)},
-# }
 # # 映射第一个房间id
 # map_first_room_id = {'流雨瀑布': {'2-0'}, '风暴幽城': {(2, 0), (0, 2), (2, 2)}, '风暴逆鳞普通': {(0, 2), (1, 3)}, }
 # # 映射boss房间前一个房间的id
@@ -599,20 +574,10 @@ a_DictInfo = {
 #         "y_speed": {"30": 120, "60": 120, "90": 120, "120": 120, "150": 120, "180": 120, "210": 120, "240": 120, "270": 120, "300": 120},
 #         "height": 215, "buffer": "right,right,space"}}
 if __name__ == '__main__':
-    # print(map_pos_info)
-    # print(map_pos_info.get("流雨瀑布"))
-    # m = map_pos_info.get("流雨瀑布")
-    # min_map = None
-    # if m:
-    #     print(m["x1"], m["y1"], m["x2"], m["y2"])
-    # else:
-    #     print("map_pos_info无小地图数据，请检查")
-    # pass
-    # from core.capture import Capture
+    pass
     #
     # image = Capture(4916870, 0, 0, 1067, 600)
     # min_map_img = image[m["y1"]:m["y2"], m["x1"]:m["x2"]]
-    # import cv2
     #
     # cv2.imshow('123', min_map_img)
     # cv2.waitKey(0)
@@ -626,12 +591,3 @@ if __name__ == '__main__':
                 count += 1  # 计数器加1
 
     print("0的数量（方法1）:", count)  # 输出: 0的数量（方法1）: 0
-    # if any('111' in key for key in mapDictInfo) is False:
-    #     print('不在')
-    # else:
-    #     print("在")
-    # if "风暴幽城" in has_query_mapInfo:
-    #     print((has_query_mapInfo["风暴幽城"]))
-    #     print('在')
-    # else:
-    #     print('不在')

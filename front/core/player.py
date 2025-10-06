@@ -4,7 +4,6 @@ import os
 import random
 import re
 import struct
-# import re
 import time
 import traceback
 from copy import deepcopy
@@ -19,27 +18,23 @@ from core.directional_astar import a_star, judge_direction  # A星寻路
 from utils.api import test_view_subgroup_config, test_update_subgroup_config
 from core.common import Point, occupationInfoMap, Player, MoveInfo, a_mapInfo, a_DictInfo, map_boss_info, MAP_MIN_ROOMS
 from core.operator_module import OperatorModule
-# from core.player_move import left_right_up_down_move_by, already_left_right_move, \
-#     left_right_move, up_down_move,MovementRecorder
+
 from core.player_move import MovementRecorder
-# from utils.yjs import yjs
+
 from utils.cv_recognizer import vnc_mm
 from utils.common_util import sort_points_by_x, get_date
-# from utils.config_util import get_all_role_settings, update_role_brush_date
 from utils.minimap_util import miniMapUtil
 from utils.cross_control import pyauto
-# from utils.ocr_util import ocr_util
 from utils.screenshot_util import screenshot_util
-# from utils.skill_util import skill_util
 from utils.skill_util2 import skill_util
 import socket
 from core import global_variable as gv
 
 from utils.logging_setup import logger
-from view.key_config_run import DEFAULT_CONFIG
+from core.Config import DEFAULT_KEY_CONFIG, get_gui_config, get_key_config
+from core.playerHelper.wait_Handler import WaitHandler
+from core.playerHelper.move_Handler import MoveHandler
 
-current_path = os.path.dirname(os.path.abspath(__file__))
-root_path = os.path.abspath(os.path.join(current_path, '../'))
 # 基础时间单位（秒）
 MINUTE = 60
 HOUR = 60 * MINUTE
@@ -48,22 +43,7 @@ HOUR = 60 * MINUTE
 target_items = ["风化的碎骨", "破旧的皮革", "碎布片", "生锈的铁片", "最下级硬化剂", "最下级砥石", "炉岩核", "协调结晶体", "嘿", "嗯", "呀"]
 SIMILARITY_THRESHOLD = 0.7  # 相似度阈值
 
-# min_map_name = 0
-
-target_dir = os.path.join(r"C:\Program Files", "json_resources")  # 拼接子目录
-key_config_file = os.path.join(target_dir, "key_config.json")
-try:
-    if os.path.exists(key_config_file):
-        with open(key_config_file, 'r', encoding='utf-8') as f:
-            key_config = json.load(f)
-
-            logger.info(f"成功加载键盘配置: {key_config_file}")
-    else:
-        logger.warning(f"键盘配置文件不存在: {key_config_file}，使用默认配置")
-        key_config = DEFAULT_CONFIG
-except Exception as e:
-    logger.error(f"加载键盘配置失败: {e}，使用默认配置")
-    key_config = DEFAULT_CONFIG
+key_config=get_key_config()
 
 one_key_gather_value = key_config['one_key_gather']['key'].lower()  # 一键聚物
 move_character_value = key_config['move_character']['key'].lower()  # 移动角色
@@ -74,13 +54,10 @@ challenge_again_value = key_config['challenge_again']['key'].lower()  # 再次�
 class PlayerThread(QThread):
     message = pyqtSignal(str)
     role_table_message = pyqtSignal()
-    # player_dynamics_tuple = pyqtSignal(tuple)
     MAX_PICKUP_TIME = 30  # 最大捡取时长
 
     def __init__(self, dic=None):
         super().__init__()
-        # 设定每日开始时间为早上6点
-        self.start_hour = 6
         self.today_task_completed = False
         self.door_direction = ''
         self.attack_boss_sy = []
@@ -137,6 +114,9 @@ class PlayerThread(QThread):
         self.room_item_pickup_counts = {}  # 记录每个房间拾取次数
         self.doorOpenState = {}  # 记录每个房间开门状态
         self.Number_of_moves_to_the_next_room = {}  # 记录前往下个房间的移动次数
+
+        self.wait_handler = WaitHandler(self)
+        self.move_handler = MoveHandler(self)
 
     def set_big_break_time(self):
         # 计算3-4小时后的随机时间点（以秒为单位）
@@ -224,7 +204,6 @@ class PlayerThread(QThread):
         # 获取新数据
         list_data = []
         # 获取当前角色组的所有角色设置
-        # self.all_role_settings = get_all_role_settings(self.current_role_group)
         ret = test_view_subgroup_config(self.dic.get("cookies"), self.current_role_group)
         # 检查是否有配置数据
         if not ret or 'configs' not in ret or not ret['configs']:
@@ -305,13 +284,6 @@ class PlayerThread(QThread):
                     self.send_log("暂无可刷角色,脚本停止")
                     self.today_task_completed = True
 
-                    # self.stop()
-                    # # 刷完关机
-                    # minutes = 1
-                    # # 计算总秒数
-                    # total_seconds = minutes * 60
-                    # os.system(f"shutdown -s -t {total_seconds}")
-                    # return
                 if self.today_task_completed:
                     # 等待到次日六点
                     self.wait_until_next_start()
@@ -324,7 +296,6 @@ class PlayerThread(QThread):
                 # 传递一个ocr方法
                 pl_value = self.operator_module.ocr_pl(self.get_text, self.send_log)
                 if pl_value is not None and isinstance(pl_value, (int, float)) and pl_value <= self.player.pl_value:
-                    # update_role_brush_date(self.current_role_group, self.current_role_index)
                     # 从所有角色设置中根据当前角色索引获取当前角色的设置
                     role_settings = self.all_role_settings[self.current_role_index]
                     dic_data = {'career': role_settings['career'],
@@ -352,8 +323,6 @@ class PlayerThread(QThread):
                     time.sleep(0.1)
                 # 存、取
                 self.access()
-                # 检查自动捡物
-                # self.auto_pick()
                 # 进图
                 if self.enter_map() == 0:
                     self.send_log("金绿柱石不够")
@@ -591,7 +560,6 @@ class PlayerThread(QThread):
     def stop(self):
         self.running = False
         self.brush_running = False
-        # screenshot_util.cancel_window_topping()
         self.send_log("脚本已停止，可关闭窗口")
 
     def send_log(self, log):
@@ -657,10 +625,20 @@ class PlayerThread(QThread):
                     pyauto.click()
                     time.sleep(0.5)
                 time.sleep(2)
-                if self.operator_module.remove_weakness():  # 移除虚弱
-                    _sleep = random.randint(300, 360)
+                ###############################虚弱设置
+                weak_config = get_gui_config()  #
+                setting = weak_config.get('weak_setting', 'gold')  #
+                print('虚弱666', setting)
+                if setting == 'gold' or setting == 'contract':
+                    self.operator_module.remove_weakness()
+                elif setting == 'wait':  # 移除虚弱
+                    _sleep = setting.get('wait_seconds', 30)
                     self.send_log(f"虚弱，休息{_sleep}秒")
                     time.sleep(_sleep)
+                elif setting == 'ignore':
+                    pass
+
+                ####################################
                 time.sleep(2)
                 self.select_role()  # 选择角色
                 time.sleep(2)
@@ -1008,12 +986,9 @@ class PlayerThread(QThread):
                                 random_number = random.randint(2000, 2100)
                                 # 将整数转换为字符串
                                 random_number_str = str(random_number)
-                                # # 输出结果
-                                # logger.info(random_number_str)
                                 for st in random_number_str:
                                     pyauto.keyPressChar(st)
                                     time.sleep(random.uniform(0.1, 0.15))
-                                # keyboard.write(random_number_str, delay=random.uniform(0.1, 0.15))
                                 time.sleep(random.uniform(1, 1.55))
                                 # 点物品
                                 self.operator_module.move_to(x, y + 30)
@@ -1022,7 +997,7 @@ class PlayerThread(QThread):
                                 time.sleep(1)
                                 # 按下esc
                                 pyauto.keyPressChar("esc")
-                                time.sleep(0.1)  # # 回车  # pyauto.KeyPressChar("enter")  # time.sleep(0.1)
+                                time.sleep(0.1)
         else:
             # 点箱子
             self.operator_module.move_to(368, 370)
@@ -1121,14 +1096,12 @@ class PlayerThread(QThread):
                         time.sleep(0.05)
                     game_img = screenshot_util.get_game_screenshot()  # 获取当前游戏屏幕的截图
                     logger.info("找门超时，随便放个技能把怪清理掉")
-                    skill = skill_util.get_release_skill(game_img)  # 获取释放普通怪物的技能
+                    skill = skill_util.get_release_skill(game_img,mode='normal')  # 获取释放普通怪物的技能
                     if skill == "x":  # 如果技能是"x"（平a）
                         pyauto.keyDownChar("x")
                         time.sleep(random.uniform(0.9, 1.2))
                         pyauto.keyUpChar("x")
                         time.sleep(0.05)
-                        # pyauto.KeyPressChar(skill)
-                        # game_img = screenshot_util.get_game_screenshot()  # 重新截图
                         continue  # 跳过后续代码，继续下一次循环
                     if skill is not None:  # 如果技能不是None
                         if self.player.player_occupation == "弓箭手-缪斯" and skill == "q":
@@ -1218,7 +1191,6 @@ class PlayerThread(QThread):
             self.get_min_map_yolo_res()
             door_pos = None
             logger.info(f"self.player.map_name:{self.player.map_name}")
-            # # 获取玩家所在的房间ID
             if self.player.map_name != "深渊：终末崇拜者":
                 # 如果房间ID为None，则跳过本次循环
                 if self.player.player_room_id is None:
@@ -1237,9 +1209,6 @@ class PlayerThread(QThread):
             # 如果没有找到门的位置，则根据当前位置和移动方向尝试左右移动
             if isinstance(door_pos, Point):
                 logger.info(f"door_pos:{door_pos.x}, {door_pos.y}")
-                # if abs(self.player_pos.x - door_pos.x) < 40:
-                #     self.player_left_right_move()
-                #     continue
                 if 0 < door_pos.x < 150:
                     door_pos.x = 1
                 elif 1067 > door_pos.x > 1067 - 150:
@@ -1266,12 +1235,6 @@ class PlayerThread(QThread):
                         self.Number_of_moves_to_the_next_room[current_room_id] += 1  # 现在可以安全执行
                         logger.info(f"当前房间 {current_room_id}移动次数+1")
                         logger.info(f"当前房间{current_room_id}移动次数: {moves_count}")
-                # move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)
-                # if move_info is None:
-                #     continue
-
-                # # 移动人物
-                # self.movement_recorder.left_right_up_down_move_by(move_info, already_move)
                 self.to_door_count += 1
                 logger.info(f"朝门移动耗时：{time.time() - st}秒")
                 already_move = False
@@ -1298,57 +1261,11 @@ class PlayerThread(QThread):
                             logger.info("尝试向下移动")
                             self.movement_recorder.up_down_move("down", 1)
                             up_and_down_move = False
-                        self.test_move()
+                        self.move_handler.try_move()
                         logger.info(f"解除卡点重置为0")
                         # 解除卡点重置为0
                         self.Number_of_moves_to_the_next_room[current_room_id] = 0  # 手动初始化
-                # if time.time() - frame_time > 5:
-                #     frame_time = time.time()
-                #     self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
-                #     if self.player_pos.x is None:
-                #         continue
-                #     frame2_detections = (self.player_pos.x, self.player_pos.y)
-                #
-                #     frames = [frame1_detections, frame2_detections]
-                #     logger.info("检测人物frames:{}".format(frames))
-                #     # 设置一个位置变化的阈值（这里以像素为单位）
-                #     movement_threshold = 10  # 如果x或y方向上的变化超过10像素，则认为物体在移动
-                #     # 跟踪人物并检测运动
-                #     last_position = None
-                #     for frame_idx, (x, y) in enumerate(frames):
-                #         # 检查当前位置是否为None
-                #         if (x is None) or (y is None):
-                #             logger.info(f"在帧 {frame_idx + 1} 中，人物位置数据缺失。")
-                #             break
-                #         # 如果是第一帧，则没有上一个位置可以比较，直接跳过
-                #         if last_position is None:
-                #             last_position = (x, y)
-                #             continue
-                #         # 计算当前位置与上一个位置的变化
-                #         current_position = (x, y)
-                #         dx, dy = abs(current_position[0] - last_position[0]), abs(current_position[1] - last_position[1])
-                #
-                #         # 判断是否移动
-                #         if dx > movement_threshold or dy > movement_threshold:
-                #             logger.info(f"在帧 {frame_idx + 1} 中，人物移动了。")
-                #         else:
-                #             logger.info(f"在帧 {frame_idx + 1} 中，人物是静止的。")
-                #             already_move = False
-                #             if not up_and_down_move:
-                #                 logger.info("尝试向上移动")
-                #                 self.movement_recorder.up_down_move("up", 1)
-                #                 up_and_down_move = True
-                #             else:
-                #                 logger.info("尝试向下移动")
-                #                 self.movement_recorder.up_down_move("down", 1)
-                #                 up_and_down_move = False
-                #             self.test_move()
-                #             # if self.player_pos.y < 458:
-                #             #     logger.info("人物位置在上面卡住了")
-                #             #     self.movement_recorder.up_down_move("down", 1)
-                #             # else:
-                #             #     logger.info("人物位置在下面卡住了")
-                #             #     self.movement_recorder.up_down_move("up", 1)
+
 
             if isinstance(door_pos, str) and door_pos == "down":
                 down = True
@@ -1360,15 +1277,11 @@ class PlayerThread(QThread):
                 if next_direction == "right" and self.player_pos.x > 750:
                     logger.info("现在方向向右，且玩家X轴坐标{}大于750，弹起前进的方向，现在向左走".format(int(self.player_pos.x)))
                     self.movement_recorder.already_left_right_move("left")
-                    # pyauto.KeyDownChar(next_direction)
-                    # time.sleep(0.05)
                     next_direction = "left"
                     already_move = True
                 if next_direction == "left" and self.player_pos.x < 375:
                     logger.info("现在方向向左，且玩家X轴坐标{}小于450，弹起前进的方向，现在向右走".format(int(self.player_pos.x)))
                     self.movement_recorder.already_left_right_move("right")
-                    # pyauto.KeyDownChar(next_direction)
-                    # time.sleep(0.05)
                     next_direction = "right"
                     already_move = True
                 if not already_move:
@@ -1417,13 +1330,7 @@ class PlayerThread(QThread):
                                 logger.info("尝试向下移动")
                                 self.movement_recorder.up_down_move("down", 1)
                                 up_and_down_move = False
-                            self.test_move()
-                            # if self.player_pos.y < 458:
-                            #     logger.info("人物位置在上面卡住了")
-                            #     self.movement_recorder.up_down_move("down", 1)
-                            # else:
-                            #     logger.info("人物位置在下面卡住了")
-                            #     self.movement_recorder.up_down_move("up", 1)
+                                self.move_handler.try_move()
 
                 continue
             logger.info("结束找门")
@@ -1523,70 +1430,7 @@ class PlayerThread(QThread):
                     #
                     #     x_diff = abs(self.player_pos.x - the_first_item.x)
                     #     if x_diff <= 15:
-                    #         x_reached = True
-                    #         break
-                    #
-                    #     # 确定需要按下的方向键
-                    #     target_key = "left" if self.player_pos.x > the_first_item.x else "right"
-                    #
-                    #     # 只有当未按下目标键时，才执行按下操作（避免重复按下）
-                    #     if x_pressed_key != target_key:
-                    #         # 先释放可能按下的另一个方向键（比如从左移切换到右移时）
-                    #         if x_pressed_key is not None:
-                    #             pyauto.KeyUpChar(x_pressed_key)
-                    #         # 按下目标键并更新标记
-                    #         pyauto.KeyDownChar(target_key)
-                    #         x_pressed_key = target_key
-                    #
-                    #     time.sleep(0.01)
-                    #
-                    # # 释放X方向按键（无论是否按下，确保最终释放）
-                    # if x_pressed_key is not None:
-                    #     pyauto.KeyUpChar(x_pressed_key)
-                    #     x_pressed_key = None  # 清空标记
-                    # # 额外保险：释放左右键（防止标记异常时按键未释放）
-                    # pyauto.KeyUpChar("left")
-                    # pyauto.KeyUpChar("right")
-                    #
-                    # # 处理Y方向移动：同理添加按键状态标记
-                    # y_reached = False
-                    # y_pressed_key = None  # 记录当前按下的Y方向键（None表示未按下）
-                    # while not y_reached and self.brush_running and not self.ghost_state:
-                    #     # 实时更新状态和目标
-                    #     self.get_yolo_res()
-                    #     if len(self.goods) == 0 or self.player_pos.x is None:
-                    #         break
-                    #     goods_pos = sort_points_by_x(self.goods)
-                    #     if not goods_pos:
-                    #         break
-                    #     the_first_item = Point(goods_pos[0][0], goods_pos[0][1])
-                    #
-                    #     y_diff = abs(self.player_pos.y - the_first_item.y)
-                    #     if y_diff <= 15:
-                    #         y_reached = True
-                    #         break
-                    #
-                    #     # 确定需要按下的方向键
-                    #     target_key = "up" if self.player_pos.y > the_first_item.y else "down"
-                    #
-                    #     # 只有当未按下目标键时，才执行按下操作
-                    #     if y_pressed_key != target_key:
-                    #         # 先释放可能按下的另一个方向键（比如从上移切换到下移时）
-                    #         if y_pressed_key is not None:
-                    #             pyauto.KeyUpChar(y_pressed_key)
-                    #         # 按下目标键并更新标记
-                    #         pyauto.KeyDownChar(target_key)
-                    #         y_pressed_key = target_key
-                    #
-                    #     time.sleep(0.01)
-                    #
-                    # # 释放Y方向按键
-                    # if y_pressed_key is not None:
-                    #     pyauto.KeyUpChar(y_pressed_key)
-                    #     y_pressed_key = None  # 清空标记
-                    # # 额外保险：释放上下键
-                    # pyauto.KeyUpChar("up")
-                    # pyauto.KeyUpChar("down")  # 修正之前的笔误（原代码是KeyDownChar）
+
 
             if '金币' in goods_pos[0][2]:
                 pass
@@ -1594,8 +1438,6 @@ class PlayerThread(QThread):
                 time.sleep(0.1)
                 pyauto.keyPressChar("x")
                 time.sleep(0.05)
-            # move_info = self.compute_move_info(self.player_pos, the_first_item, 0, 0)
-            # self.movement_recorder.left_right_up_down_move_by(move_info, False)
             if time.time() - frame_time > 5:
                 frame_time = time.time()
                 self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
@@ -1635,15 +1477,13 @@ class PlayerThread(QThread):
                             logger.info("尝试向下移动")
                             self.movement_recorder.up_down_move("down", 1)
                             up_and_down_move = False
-                        self.test_move()
+                        self.move_handler.try_move()
                         # if self.player_pos.y < 458:
                         #     logger.info("人物位置在上面卡住了")
                         #     self.movement_recorder.up_down_move("down", 1)
                         # else:
                         #     logger.info("人物位置在下面卡住了")
                         #     self.movement_recorder.up_down_move("up", 1)
-            # 执行捡取与结果验证
-            # self._execute_pickup_action()
         logger.info("拾取物品结束")
         pyauto.releaseallkey()
 
@@ -1662,10 +1502,6 @@ class PlayerThread(QThread):
     def _recover_player_position(self):
         """ 玩家位置丢失恢复策略 """
         logger.info("尝试螺旋搜索恢复位置")
-        # pyauto.KeyPressChar('=')
-        # time.sleep(0.05)
-        # pyauto.KeyPressChar('space')
-        # time.sleep(0.05)
         self.movement_recorder.spiral_search(self.get_player_position, duration=2)
         self.get_yolo_res()
 
@@ -1835,18 +1671,16 @@ class PlayerThread(QThread):
             self.move_to_monster()  # 移动到最近的怪物
             if self.is_boss and attack_boss_count <= 2:  # 如果当前怪物是Boss
                 logger.info("当前怪物是Boss,释放打Boss的技能")
-                skill = skill_util.get_release_boss_skill(game_img)  # 获取释放Boss的技能
+                skill = skill_util.get_release_skill(game_img,mode='boss')  # 获取释放Boss的技能
                 attack_boss_count += 1
             else:
                 logger.info("当前怪物是普通怪物,释放打普通怪物的技能")
-                skill = skill_util.get_release_skill(game_img)  # 获取释放普通怪物的技能
+                skill = skill_util.get_release_skill(game_img,mode='normal')  # 获取释放普通怪物的技能
             if skill == "x":  # 如果技能是"x"（平a）
                 pyauto.keyDownChar("x")
                 time.sleep(random.uniform(0.9, 1.2))
                 pyauto.keyUpChar("x")
                 time.sleep(0.05)
-                # pyauto.KeyPressChar(skill)
-                # game_img = screenshot_util.get_game_screenshot()  # 重新截图
                 continue  # 跳过后续代码，继续下一次循环
             if skill is not None:  # 如果技能不是None
                 if self.player.player_occupation == "弓箭手-缪斯" and skill == "q":
@@ -2011,7 +1845,6 @@ class PlayerThread(QThread):
             logger.info(f"当前遍历的door_pos:{(door_pos.x, door_pos.y)}")
             if (room_info['min_x'] < door_pos.x < room_info['max_x'] and  # 门的x坐标在房间x坐标范围内
                     room_info['min_y'] < door_pos.y <= room_info['max_y']):  # 门的y坐标在房间y坐标范围内
-                # logger.info(f'door_x:{door_pos.x},door_y:{door_pos.y}')  # 打印找到的门的位置，用于调试
                 logger.info("已找到门，结束找门")
                 if map_direction == "up":
                     logger.info("向上的门")
@@ -2044,13 +1877,6 @@ class PlayerThread(QThread):
         logger.info("结束找门,没有找到门")
         return map_direction  # 如果没有找到符合条件的门，则返回None
 
-    # def get_next_door_direction(self):
-    #     if len(self.doors) <= 0 or self.player.map_name not in mapDictInfo:
-    #         return None
-    #     room_info_map = mapDictInfo.get(self.player.map_name)
-    #     room_info = room_info_map.get(self.player.player_room_id)
-    #     return room_info['direction']
-
     def get_move_speed(self):
         def open_window():
             for _ in range(5):
@@ -2077,7 +1903,6 @@ class PlayerThread(QThread):
                 else:
                     self.send_log("没有找到移动坐标")
                     continue
-                # results = self.waiting_for_the_text_to_appear([x1, y1, x2, y2], "0123456789", r'[0-9]+', 0.5, amplify=False)
                 img_dict = {
                     '0': ['0.bmp'], '1': ['1.bmp', '1-1.bmp'], '2': ['2.bmp', '2-1.bmp'],
                     '3': ['3.bmp', '3-1.bmp'], '4': ['4.bmp', '4_1.bmp'],
@@ -2302,7 +2127,6 @@ class PlayerThread(QThread):
             logger.info(f"data:{data}")
             # 处理玩家位置
             if data[0] == "player":
-                # if (item[1] + item[3]) / 2 < 1180:
                 if data[4] + self.player.player_height < 620:
                     self.player_pos.x = (data[1] + data[3]) / 2  # 玩家x坐标取边界中点
                     self.player_pos.y = data[4] + self.player.player_height  # 玩家y坐标考虑玩家高度
@@ -2358,7 +2182,8 @@ class PlayerThread(QThread):
                             if self.player.map_name == "深渊：终末崇拜者":
                                 self.is_boss = True
                             else:
-                                ocr_text = self.get_text(int(data[1]), int(data[2]), int(data[3]), int(data[4]), game_image).strip()
+                                ocr_text = self.get_text(int(data[1]), int(data[2]), int(data[3]), int(data[4]),
+                                                         game_image).strip()
                                 pattern = r'[\u4e00-\u9fa5]+'
                                 # 使用 re.findall() 找出所有匹配的内容
                                 matches = re.findall(pattern, ocr_text)
@@ -2367,8 +2192,19 @@ class PlayerThread(QThread):
                                 if "领主" in t:
                                     self.is_boss = True
                     else:
-                        logger.info(f"当前地图：{self.player.map_name},识别的数据：{data}，不是本地图的怪物，应该是识别错误已跳过本条信息处理")
+                        logger.info(
+                            f"当前地图：{self.player.map_name},识别的数据：{data}，不是本地图的怪物，应该是识别错误已跳过本条信息处理")
                         continue
+
+                                # ocr_text = self.get_text(int(data[1]), int(data[2]), int(data[3]), int(data[4]), game_image).strip()
+                                # pattern = r'[\u4e00-\u9fa5]+'
+                                # # 使用 re.findall() 找出所有匹配的内容
+                                # matches = re.findall(pattern, ocr_text)
+                                # t = "".join(matches)
+                                # logger.info(f"识别领主：{ocr_text}")
+                                # if "领主" in t:
+                                #     self.is_boss = True
+
                 elif data[0] == "monster_frost":
                     # 冰霜怪物不需要额外调整
                     pass
@@ -2433,20 +2269,6 @@ class PlayerThread(QThread):
                 x = (data[1] + data[3]) / 2  # 障碍x坐标取边界中点
                 y = (data[4] + 90)  # 障碍y坐标取边界中点
                 self.box.append(Point(x, y))  # 将障碍添加到列表中
-        # recording_time = time.time()
-        # if len(self.goods) > 0 and self.image_save_interval_time is None or len(self.goods) > 0 and recording_time - self.image_save_interval_time > 5:
-        #     self.2  = recording_time
-        #     self.save_count += 1
-        #     filename = os.path.join("Images", f"{self.save_count}.png")
-        #     game_image = screenshot_util.get_game_screenshot()
-        #     cv2.imwrite(filename, game_image)  # 假设 pic 已经是有效的图像数据
-        #     # 更新编号文件
-        #     with open(self.counter_file, 'w') as f:
-        #         f.write(str(self.save_count))
-        #     logger.info(f"图片：{self.save_count}.png\t已保存")
-        # 如果存在门、继续选项或奖励，则清除怪物列表（可能为了优化或逻辑需要）
-        # if len(self.goods) > 0 or self.has_continue or self.has_rewards:
-        #     self.doors.clear()
         room_id = self.player.player_room_id
         if gv.banzhuan == 0:
             should_process = (len(self.doors) > 0 or self.has_continue or self.has_rewards)
@@ -3408,95 +3230,7 @@ class PlayerThread(QThread):
             time.sleep(0.1)
             return
 
-    # def sell(self):
-    #     """次元风暴分解史诗"""
-    #
-    #     def calculate_brightness(img):
-    #         # # 读取图像
-    #         # img = cv2.imread(image_path)
-    #
-    #         # 检查图像是否成功加载
-    #         if img is None:
-    #             logger.info("Error: 图像未成功加载。")
-    #             return None
-    #
-    #             # 如果图像是彩色的，转换为灰度图像
-    #         if len(img.shape) == 3:
-    #             gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    #         else:
-    #             gray_img = img
-    #
-    #             # 计算平均亮度
-    #         # 注意：OpenCV中灰度图像的像素值范围是0-255
-    #         brightness = np.mean(gray_img)
-    #
-    #         return brightness
-    #
-    #     while self.brush_running:
-    #         click_status = self.operator_module.click_menu_item("传送阵")
-    #         if not click_status:
-    #             logger.info("点击传送阵失败")
-    #             continue
-    #         # 点击风暴次元
-    #         self.operator_module.move_to(347, 282)
-    #         pyauto.click()
-    #
-    #         time.sleep(1)
-    #         # 点击分解机
-    #         self.operator_module.move_to(41, 272)
-    #         time.sleep(0.05)
-    #         pyauto.click()
-    #         time.sleep(0.1)
-    #         for _ in range(3):
-    #             ret = self.mm.FindPic_sleep(0, 170, 210, 720, "分解装备.bmp", 0.9, delta_color=([0, 0, 0], [19, 255, 255]), time_s=5)
-    #             if ret:
-    #                 x, y = ret[0][1], ret[0][2]
-    #                 self.operator_module.move_to(x, y)
-    #                 time.sleep(0.1)
-    #                 pyauto.click()
-    #
-    #                 time.sleep(0.1)
-    #                 break
-    #         game_image = screenshot_util.get_game_screenshot()
-    #         for row in range(3):
-    #             for col in range(8):
-    #                 x1 = 714 + col * 30
-    #                 x2 = x1 + 30
-    #                 y1 = 358 + row * 30
-    #                 y2 = y1 + 30
-    #                 min_img = game_image[y1:y2, x1:x2]
-    #                 brightness = calculate_brightness(min_img)
-    #                 logger.info(f"图像的平均亮度为: {brightness}")
-    #                 if brightness > 40:
-    #                     self.operator_module.move_to(x1 + 15, y1 + 15)
-    #                     time.sleep(0.1)
-    #                     pyauto.click()
-    #
-    #                     time.sleep(0.1)
-    #         self.operator_module.move_to(560, 468)
-    #         time.sleep(0.05)
-    #         pyauto.click()
-    #
-    #         time.sleep(0.5)
-    #         ret = self.mm.FindPic(419, 360, 527, 392, "高价值装备.bmp", 0.9, delta_color=([0, 0, 0], [0, 255, 255]))
-    #         if ret:
-    #             self.operator_module.move_to(444, 397)
-    #             time.sleep(0.05)
-    #             pyauto.click()
-    #
-    #             time.sleep(0.1)
-    #             self.operator_module.move_to(498, 463)
-    #             time.sleep(0.05)
-    #             pyauto.click()
-    #             time.sleep(0.1)
-    #         pyauto.KeyPressChar("space")
-    #         time.sleep(0.1)
-    #         pyauto.KeyPressChar("space")
-    #         time.sleep(0.1)
-    #         time.sleep(6)
-    #         pyauto.KeyPressChar("esc")
-    #         time.sleep(0.1)
-    #         return
+
 
     def daily_tasks(self):
         """
@@ -3958,48 +3692,6 @@ class PlayerThread(QThread):
                 while self.brush_running:
                     ret = self.mm.FindPic(78, 277, 233, 329, "深渊.bmp", 0.9)
                     if ret:
-                        # text = self.get_text(232, 383, 295, 399)
-                        # pattern = r'[0-9]+'
-                        # # 使用 re.findall() 找出所有匹配的内容
-                        # matches = re.findall(pattern, text)
-                        # t = ''.join(matches)
-                        # if t and int(''.join(t)) < 30:
-
-                        # x1, y1, x2, y2 = (232, 383, 295, 399)
-                        # min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
-                        # ret = self.mm.is_colored(min_img, 15)
-                        # if not ret:
-                        #     self.send_log("深渊票不足，跳过当前角色")
-                        #     self.ghost_state = False
-                        #     # update_role_brush_date(self.current_role_group, self.current_role_index)
-                        #     role_settings = self.all_role_settings[self.current_role_index]
-                        #     dic_data = {'career': role_settings['career'],
-                        #                 'convert_career': role_settings['convert_career'],
-                        #                 'height': role_settings['height'],
-                        #                 'map': role_settings['map'],
-                        #                 'difficulty': role_settings['difficulty'],
-                        #                 "brush_map_expire_time": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                        #                 'leave_pl': self.player.pl_value}
-                        #     test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.current_role_index, dic_data)
-                        #     self.brush_running = False
-                        #     return 0
-                        # time.sleep(0.05)
-                        # pyauto.KeyDownChar("shift")
-                        #
-                        # time.sleep(0.05)
-                        # pyauto.KeyDownChar("left")
-                        #
-                        # time.sleep(0.05)
-                        # pyauto.KeyUpChar("left")
-                        #
-                        # time.sleep(0.05)
-                        # pyauto.KeyUpChar("shift")
-                        # # yjs.KeyUpChar("shift")
-                        # time.sleep(0.05)
-                        # for i in range(1, self.player.map_level, 1):
-                        #     pyauto.KeyPressChar("right")
-                        #
-                        #     time.sleep(0.2)
                         # 初始化地图
                         self.room_info_map = deepcopy(a_mapInfo.get(self.player.map_name))
                         logger.info('初始化地图')
@@ -4309,13 +4001,7 @@ class PlayerThread(QThread):
                         time.sleep(0.2)
                     if time.time() - stat_time > 10:
                         break
-                # self.operator_module.move_to(240, 225)
-                # time.sleep(0.2)
-                # pyauto.click()
-                # time.sleep(0.1)
-                # pyauto.KeyPressChar("space")
                 while self.brush_running:
-                    # self.mm.FindPic_sleep(883, 25, 970, 50, "min_切斯特小镇.bmp", 0.9, time_s=10, my_sleep=0.1)
                     ret = self.waiting_for_the_text_to_appear([883, 25, 970, 50], '切斯特小镇', r'[\u4e00-\u9fa5]+', 15)
                     if not ret:
                         click_status = self.operator_module.click_menu_item("传送阵")
@@ -4606,61 +4292,4 @@ class PlayerThread(QThread):
 
     def handle_mouse_press(self, x, y):
         if gv.banzhuan == 2:
-            # if button == "middle":
             self.mouse_pos = (x, y)
-            # self.send_log(f"鼠标事件: 移动 - 位置({x}, {y})")
-
-    def test_move(self):
-        if self.player_pos.x > 1067 / 2:
-            if abs(self.player_pos.x - 244) < 200:
-                move_info = self.compute_move_info_walk(self.player_pos, Point(244, 468), 0, 0)  # 计算到最近货物的移动信息
-                logger.info("卡点了，尝试移动：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
-                self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
-            else:
-                move_info = self.compute_move_info(self.player_pos, Point(244, 468), 0, 0)  # 计算到最近货物的移动信息
-                logger.info("卡点了，尝试跑步：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
-                self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
-        else:
-            if abs(self.player_pos.x - 244) < 200:
-                move_info = self.compute_move_info_walk(self.player_pos, Point(848, 468), 0, 0)  # 计算到最近货物的移动信息
-                logger.info("卡点了，尝试移动：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
-                self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
-            else:
-                move_info = self.compute_move_info(self.player_pos, Point(848, 468), 0, 0)  # 计算到最近货物的移动信息
-                logger.info("卡点了，尝试跑步：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
-                self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
-
-    def wait_until_next_start(self):
-        """等待到下一个开始时间（早上六点）"""
-        wait_seconds = self.calculate_wait_time()
-
-        # 转换等待时间为小时、分钟、秒，便于阅读
-        hours, remainder = divmod(int(wait_seconds), 3600)
-        minutes, seconds = divmod(remainder, 60)
-
-        self.send_log(f"本日任务已完成，将在 {hours}小时{minutes}分钟{seconds}秒后（即次日{self.start_hour}点）继续运行")
-
-        # 进入等待状态
-        time.sleep(wait_seconds)
-
-
-        # 等待结束后重置任务状态
-        self.today_task_completed = False
-        self.send_log("等待结束，准备开始新的任务周期")
-
-    def calculate_wait_time(self):
-        """计算距离次日早上六点需要等待的秒数"""
-        now = datetime.datetime.now()
-
-        # 计算今天早上六点的时间
-        today_6am = now.replace(hour=self.start_hour, minute=random.randint(5,10), second=random.randint(1,58), microsecond=0)
-
-        # 如果当前时间已经过了今天六点，则目标时间是明天六点
-        if now >= today_6am:
-            tomorrow_6am = today_6am + datetime.timedelta(days=1)
-            wait_seconds = (tomorrow_6am - now).total_seconds()
-        else:
-            # 如果还没到今天六点，则等待到今天六点
-            wait_seconds = (today_6am - now).total_seconds()
-
-        return wait_seconds

@@ -720,7 +720,23 @@
     <addaction name="action12"/>
     <addaction name="Keyboardsettings"/>
    </widget>
+   <widget class="QMenu" name="menu_weak">
+    <property name="title">
+     <string>虚弱设置</string>
+    </property>
+    <addaction name="GoldRecovery"/>
+    <addaction name="ContractRecovery"/>
+    <addaction name="Ignore"/>
+    <addaction name="Wait"/>
+   </widget>
+   <widget class="QMenu" name="menu_2">
+    <property name="title">
+     <string>物品过滤</string>
+    </property>
+   </widget>
    <addaction name="menu"/>
+   <addaction name="menu_weak"/>
+   <addaction name="menu_2"/>
   </widget>
   <action name="actionc">
    <property name="text">
@@ -745,6 +761,48 @@
   <action name="Keyboardsettings">
    <property name="text">
     <string>按键配置</string>
+   </property>
+  </action>
+  <action name="Weaksettings">
+   <property name="text">
+    <string>虚弱设置</string>
+   </property>
+  </action>
+  <action name="goodsfilter">
+   <property name="text">
+    <string>物品过滤</string>
+   </property>
+  </action>
+  <action name="GoldRecovery">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>金币恢复</string>
+   </property>
+  </action>
+  <action name="ContractRecovery">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>契约恢复</string>
+   </property>
+  </action>
+  <action name="Wait">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>等待</string>
+   </property>
+  </action>
+  <action name="Ignore">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>无视虚弱</string>
    </property>
   </action>
  </widget>
