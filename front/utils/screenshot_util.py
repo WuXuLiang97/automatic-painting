@@ -2,18 +2,13 @@ import ctypes
 import random
 import time
 import cv2
-# import dxcam
 import numpy as np
 import pywintypes
 import win32api
 import win32con
 import win32gui
-# from mss import mss
 from core import capture
 from utils.logging_setup import logger
-
-
-# from yolo.yolo_main import YoloV8
 
 
 class ScreenshotUtil:

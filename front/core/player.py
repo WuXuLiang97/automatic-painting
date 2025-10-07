@@ -28,12 +28,14 @@ from utils.cross_control import pyauto
 from utils.screenshot_util import screenshot_util
 from utils.skill_util2 import skill_util
 import socket
+
+from core.playerHelper.yolo_Handler import YoloHandler
 from core import global_variable as gv
+from core.playerHelper.socket_Handler import SocketHandler
 
 from utils.logging_setup import logger
 from core.Config import DEFAULT_KEY_CONFIG, get_gui_config, get_key_config
-from core.playerHelper.wait_Handler import WaitHandler
-from core.playerHelper.move_Handler import MoveHandler
+
 
 # 基础时间单位（秒）
 MINUTE = 60
@@ -101,7 +103,10 @@ class PlayerThread(QThread):
         self.save_count = 0
         self.counter_file = None
         self.Image_count_initialization()
-        self.sock_connect_flags = False
+        # 初始化SocketHandler实例
+        self.socket_handler = SocketHandler(gv.server_ip, gv.server_port)
+        # 初始化YoloHandler实例
+        self.yolo_handler = YoloHandler()
         self.running_time = None
         self.big_break_time_s = None
         self.big_break_time_text = ''
@@ -114,9 +119,6 @@ class PlayerThread(QThread):
         self.room_item_pickup_counts = {}  # 记录每个房间拾取次数
         self.doorOpenState = {}  # 记录每个房间开门状态
         self.Number_of_moves_to_the_next_room = {}  # 记录前往下个房间的移动次数
-
-        self.wait_handler = WaitHandler(self)
-        self.move_handler = MoveHandler(self)
 
     def set_big_break_time(self):
         # 计算3-4小时后的随机时间点（以秒为单位）
@@ -176,15 +178,13 @@ class PlayerThread(QThread):
     def sock_connect(self):
         """
         连接socket
-        :return: 
+        :return: bool - 连接是否成功
         """
-        server_address = (gv.server_ip, gv.server_port)
-        logger.info(server_address)
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect(server_address)
-        self.sock.settimeout(1)
-        self.sock_connect_flags = True
-        logger.info(self.sock)
+        self.sock = self.socket_handler.connect(gv.server_ip, gv.server_port)
+        if self.sock:
+            logger.info(self.sock)
+            return True
+        return False
 
     def read_role_config(self):
         """
@@ -2095,593 +2095,72 @@ class PlayerThread(QThread):
         logger.info("结束向最近怪物移动，朝向: {}".format(monster_direction))
         return True
 
-    def process_detect_message(self, cls, game_image):
-        """
-        处理检测到的消息，根据消息内容更新游戏状态。
 
-        Args:
-            cls (list): 包含多个元组的列表，每个元组代表一个检测到的游戏元素（如玩家、物品、怪物等）。
-
-        每个元组的结构通常为 [元素类型, x坐标, y坐标, 宽度, 高度]。
-        """
-        # 清除之前存储的游戏元素信息
-        self.attack_boss_sy.clear()  # 清除深渊机制物品坐标
-        self.goods.clear()  # 清除物品列表
-        self.doors.clear()  # 清除门列表
-        self.monsters.clear()  # 清除怪物列表
-        self.box.clear()  # 清除障碍列表
-        self.forward = False  # 重置前进方向
-        # 重置奖励和继续标志
-        self.has_rewards = False  # 是否有奖励
-        self.has_continue = False  # 是否有继续游戏的选项
-        # 重置玩家位置
-        self.player_pos = Point(None, None)  # 初始化玩家位置为None
-        # logger.info(f"物品列表已清空:{self.goods}")
-        # logger.info(f"门列表已清空:{self.doors}")
-        # logger.info(f"怪物列表已清空:{self.monsters}")
-        # logger.info(f"障碍列表已清空:{self.box}")
-        # count = 0
-        # 遍历检测到的每个元素
-        goods = []
-        for data in cls:
-            logger.info(f"data:{data}")
-            # 处理玩家位置
-            if data[0] == "player":
-                if data[4] + self.player.player_height < 620:
-                    self.player_pos.x = (data[1] + data[3]) / 2  # 玩家x坐标取边界中点
-                    self.player_pos.y = data[4] + self.player.player_height  # 玩家y坐标考虑玩家高度
-                else:
-                    logger.info(f"玩家位置识别错误！！！")
-            # 处理物品
-            elif data[0].startswith("attack_boss_sy"):
-                # 如果物品位置在特定区域外，也跳过
-                if 5 < data[1] < 22 and 408 < data[2] < 425:
-                    continue
-                x = (data[1] + data[3]) / 2  # 门x坐标取边界中点
-                y = data[4]
-                self.attack_boss_sy.append((x, y))  # 将attack_boss_sy添加到列表中
-
-            # 处理继续游戏的选项
-            elif data[0] == "continue":
-                x = (data[1] + data[3]) / 2  # 门x坐标取边界中点
-                y = (data[2] + data[4]) / 2  # 门x坐标取边界中点
-                box = (871, 29, 1013, 79)  # 矩形框的坐标：(左, 上, 右, 下)
-                if box[0] < x < box[2] and box[1] < y < box[3]:
-                    self.has_continue = True  # 标记有继续游戏的选项
-                    self.is_boss = True  # 假设遇到继续即视为Boss关
-                logger.info(f"{data}")
-                continue
-            elif data[0].startswith("goods") and data[5] > 0.5:
-                if not self.is_boss and self.player.map_name == "深渊：终末崇拜者":
-                    logger.info(f"刷深渊中，当前不是boss房不捡物品")
-                    continue
-                # 如果物品位置在特定区域外，也跳过
-                if 5 < data[1] < 22 and 340 < data[2] < 354:
-                    continue
-                goods.append((int(data[1]), int(data[2]), int(data[3]), int(data[4])))  # 将物品添加到列表中  # x = (data[1] + data[3]) / 2  # 物品x坐标取边界中点  # y = data[4] + 25  # 物品y坐标调整  # self.goods.append((x, y))  # 将物品添加到列表中  # logger.info(f"物品x = {x}\ty = {y}")
-
-            # 处理怪物和Boss
-            elif data[0].startswith(("monster", "boss")):
-                logger.info(data)
-
-                # 计算怪物x坐标（所有怪物类型通用）
-                x = (data[1] + data[3]) / 2
-
-                # 计算怪物y坐标（根据不同怪物类型进行调整）
-                y = data[4]  # 默认值
-
-                if data[0].startswith("boss") and data[5] > 0.5:
-                    # 从地图BOSS信息中获取高度数据
-                    boss_info = map_boss_info.get(self.player.map_name, "").get(data[0])
-                    if boss_info:
-                        y += boss_info.get('height', 0)  # 使用height值，如果没有则默认为0
-                        min_rooms = MAP_MIN_ROOMS.get(self.player.map_name, 2)
-                        logger.info(f"yolo处理 最少房间要求为：{min_rooms}")
-                        if self.getOpenedRoomsCount() >= min_rooms:
-                            logger.info(f"yolo处理 当前房间是boss房")
-                            if self.player.map_name == "深渊：终末崇拜者":
-                                self.is_boss = True
-                            else:
-                                ocr_text = self.get_text(int(data[1]), int(data[2]), int(data[3]), int(data[4]),
-                                                         game_image).strip()
-                                pattern = r'[\u4e00-\u9fa5]+'
-                                # 使用 re.findall() 找出所有匹配的内容
-                                matches = re.findall(pattern, ocr_text)
-                                t = "".join(matches)
-                                logger.info(f"识别领主：{ocr_text}")
-                                if "领主" in t:
-                                    self.is_boss = True
-                    else:
-                        logger.info(
-                            f"当前地图：{self.player.map_name},识别的数据：{data}，不是本地图的怪物，应该是识别错误已跳过本条信息处理")
-                        continue
-
-                                # ocr_text = self.get_text(int(data[1]), int(data[2]), int(data[3]), int(data[4]), game_image).strip()
-                                # pattern = r'[\u4e00-\u9fa5]+'
-                                # # 使用 re.findall() 找出所有匹配的内容
-                                # matches = re.findall(pattern, ocr_text)
-                                # t = "".join(matches)
-                                # logger.info(f"识别领主：{ocr_text}")
-                                # if "领主" in t:
-                                #     self.is_boss = True
-
-                elif data[0] == "monster_frost":
-                    # 冰霜怪物不需要额外调整
-                    pass
-                elif data[0].startswith("monster_115"):
-                    # 从地图BOSS信息中获取高度数据
-                    monster_info = map_boss_info.get(self.player.map_name, "").get(data[0])
-                    if monster_info:
-                        y += monster_info.get('height', 0)  # 使用height值，如果没有则默认为0
-                else:
-                    # 其他怪物类型的默认调整
-                    y += 120
-
-                # 将怪物添加到列表中
-                self.monsters.append((x, y))
-                if data[0].startswith("boss_sy") and self.player.map_name == "深渊：终末崇拜者" and self.to_door_count >= 3:
-                    logger.info(f"当前过门次数self.to_door_count：{self.to_door_count}")
-                    self.is_boss = True  # 假设遇到继续即视为Boss关
-                    continue
-
-            # 处理门
-            elif data[0].startswith("door"):
-                x = (data[1] + data[3]) / 2  # 门x坐标取边界中点
-                y = data[4] - 17.5  # 门y坐标调整
-                if self.player.map_name == "风暴逆鳞普通":
-                    if 291 < x < 824 and 474 < y < 600:
-                        y = 600
-                else:
-                    room_info = a_DictInfo.get(self.player.map_name).get("down")
-                    if room_info['min_x'] < x < room_info['max_x'] and y > 480:
-                        if self.player.map_name == "德洛斯矿山外围":
-                            y = 600
-                        else:
-                            y = 560
-                # elif self.player.map_name == "德洛斯矿山外围" and y > 480 and self.door_direction == "down":
-                #
-                #
-                # elif y > 480 and 250 < x < 933:
-                #     y = 560
-                self.doors.append(Point(x, y))  # 将门添加到列表中
-            elif data[0].startswith("forward") and self.player.map_name == "深渊：终末崇拜者":
-                self.forward = True
-                if data[1] > 1067 / 2:
-                    self.doors.append(Point(random.randint(1350, 1467), random.randint(400, 450)))  # 将门添加到列表中
-                else:
-                    continue
-                    # self.doors.append(Point(random.randint(20, 30), random.randint(400, 450)))  # 将门添加到列表中
-
-
-
-            # 处理奖励
-            elif data[0] == "reward":
-                # 判断是否在这个区域，不然可能误判
-                x = (data[1] + data[3]) / 2  # 门x坐标取边界中点
-                y = (data[2] + data[4]) / 2  # 门x坐标取边界中点
-                box = (398, 0, 566, 72)  # 矩形框的坐标：(左, 上, 右, 下)
-                if box[0] < x < box[2] and box[1] < y < box[3]:
-                    self.has_rewards = True  # 标记有奖励
-                    self.is_boss = True  # 假设遇到奖励即视为Boss关
-
-            # 处理障碍
-            elif data[0] == "box_lypb":
-                x = (data[1] + data[3]) / 2  # 障碍x坐标取边界中点
-                y = (data[4] + 90)  # 障碍y坐标取边界中点
-                self.box.append(Point(x, y))  # 将障碍添加到列表中
-        room_id = self.player.player_room_id
-        if gv.banzhuan == 0:
-            should_process = (len(self.doors) > 0 or self.has_continue or self.has_rewards)
-            if should_process:
-                self.monsters.clear()
-                if room_id not in self.doorOpenState:
-                    self.doorOpenState[room_id] = True  # 记录已开门
-        else:
-            should_process = (not self.monsters or self.has_continue or self.has_rewards)
-        current_room_id = self.player.player_room_id
-        pickup_count = self.room_item_pickup_counts.get(current_room_id, 0)
-        # 调试输出：打印两个条件的值
-        logger.info(f"\n拾取物品的条件：\n\tshould_process : {should_process}"
-                    f"\n\tself.doorOpenState.get(room_id) : {self.doorOpenState.get(room_id)}"
-                    f"\n\tpickup_count : {pickup_count}")
-
-        if (should_process or self.doorOpenState.get(room_id)) and pickup_count < 10:
-            # 公共的商品处理逻辑
-            filtered_goods = []
-            for dx, dy, dx1, dy1 in goods:
-                text = self.get_text(dx, dy, dx1, dy1, game_image)
-                logger.info(f"识别物品：{text}")
-                cleaned_text = re.sub(r'[^\u4e00-\u9fa5]', '', text)
-
-                # 检查是否需要过滤此物品
-                should_filter = any(
-                    self.similarity(cleaned_text, item) >= SIMILARITY_THRESHOLD
-                    for item in target_items
-                )
-
-                if should_filter:
-                    logger.info(f"已筛选掉：{text}")
-                else:
-                    filtered_goods.append((dx, dy, dx1, dy1, cleaned_text))
-
-            # 计算商品中心点坐标
-            self.goods = [(int((dx + dx1) / 2), dy1 + 20, text) for dx, dy, dx1, dy1, text in filtered_goods]
-            logger.info(f"self.goods:{self.goods}")
-
-    def similarity(self, s1, s2):
-        """计算字符串相似度（0-1）"""
-        # 计算编辑距离
-        m, n = len(s1), len(s2)
-        dp = [[0] * (n + 1) for _ in range(m + 1)]
-
-        for i in range(m + 1):
-            for j in range(n + 1):
-                if i == 0:
-                    dp[i][j] = j
-                elif j == 0:
-                    dp[i][j] = i
-                else:
-                    cost = 0 if s1[i - 1] == s2[j - 1] else 1
-                    dp[i][j] = min(dp[i - 1][j] + 1,  # 删除
-                                   dp[i][j - 1] + 1,  # 插入
-                                   dp[i - 1][j - 1] + cost)  # 替换
-
-        distance = dp[m][n]
-        max_len = max(m, n)
-        return 1 - distance / max_len if max_len > 0 else 1.0
-
-    def min_map_process_detect_message(self, cls):
-        self.player.player_room_id = None
-        self.query_room_id = None
-        self.elite_room_id = None
-        self.boss_room_id = None
-        self.special_room_id = None
-        query_room_id_list = []
-        elite_room_id_list = []
-        for data in cls:
-            # if data[5] > 0.6:
-            # logger.info(f"item:{item[0]}")
-            # 处理玩家位置
-            if data[0] == "map_hero":
-                x = int((data[1] + data[3]) / 2)
-                y = int((data[2] + data[4]) / 2)
-                self.player.player_room_id = miniMapUtil.compute_room_id(x, y)
-                logger.info(f"{data[0]}_room_id:{self.player.player_room_id}")
-                x, y = self.player.player_room_id
-                self.room_info_map[x][y] = 0
-            if data[0] == "map_boss":
-                x = int((data[1] + data[3]) / 2)
-                y = int((data[2] + data[4]) / 2)
-                self.boss_room_id = miniMapUtil.compute_room_id(x, y)
-                logger.info(f"{data[0]}_room_id:{self.boss_room_id}")
-                x, y = self.boss_room_id
-                self.room_info_map[x][y] = 0
-            if data[0].startswith("map_query"):
-                x = int((data[1] + data[3]) / 2)
-                y = int((data[2] + data[4]) / 2)
-                xy = miniMapUtil.compute_room_id(x, y)
-                logger.info(f"{data[0]}_room_id:{xy}")
-                query_room_id_list.append(xy)
-            if data[0] == "map_elite":
-                x = int((data[1] + data[3]) / 2)
-                y = int((data[2] + data[4]) / 2)
-                # 计算房间位置
-                xy = miniMapUtil.compute_room_id(x, y)
-                logger.info(f"{data[0]}_room_id:{xy}")
-                elite_room_id_list.append(xy)
-            if data[0] == "map_special":
-                x = int((data[1] + data[3]) / 2)
-                y = int((data[2] + data[4]) / 2)
-                # 计算房间位置
-                self.special_room_id = miniMapUtil.compute_room_id(x, y)
-                logger.info(f"{data[0]}_room_id:{self.special_room_id}")
-                elite_room_id_list.append(self.special_room_id)
-
-        screen_out = []
-        if self.player.map_name == "德洛斯矿山外围" and self.player.player_room_id == (1, 4):
-            logger.info("矿山这里向上")
-            query_room_id_list.append((0, 4))
-        if self.player.map_name == "德洛斯矿山外围" and self.player.player_room_id == (1, 5):
-            logger.info("矿山这里向左")
-            query_room_id_list.append((1, 4))
-        # 如果问号房间和boss房间不为空，找到最接近boss房间的问号房间
-        if query_room_id_list and self.boss_room_id:
-            if self.player.map_name == "德洛斯矿山外围" and len(query_room_id_list) > 1:
-                self.query_room_id = max(query_room_id_list, key=lambda x: x[0])
-            else:
-                # 初始化最小距离为无穷大，以及最近的坐标
-                min_distance = float('inf')
-                # 遍历坐标列表
-                for coord in query_room_id_list:
-                    # 计算当前坐标与target的距离的平方（避免使用sqrt以提高效率）
-                    distance_squared = (coord[0] - self.player.player_room_id[0]) ** 2 + (coord[1] - self.player.player_room_id[1]) ** 2
-                    # 如果当前距离的平方小于已知的最小距离的平方，则更新最小距离和最近的坐标
-                    if distance_squared < min_distance:
-                        min_distance = distance_squared
-                        self.query_room_id = coord
-                        screen_out.append(coord)
-        # 如果精英房间和人物房间不为空，找到最接近人物房间的精英房间
-        if elite_room_id_list and self.player.player_room_id:
-            logger.info(f"精英房间和人物房间不为空,elite_room_id_list:{elite_room_id_list}")
-            # 初始化最小距离为无穷大，以及最近的坐标
-            min_distance = float('inf')
-            # 遍历坐标列表
-            for coord in elite_room_id_list:
-                # 计算当前坐标与target的距离的平方（避免使用sqrt以提高效率）
-                distance_squared = (coord[0] - self.player.player_room_id[0]) ** 2 + (coord[1] - self.player.player_room_id[1]) ** 2
-                # 如果当前距离的平方小于已知的最小距离的平方，则更新最小距离和最近的坐标
-                if distance_squared < min_distance:
-                    min_distance = distance_squared
-                    if min_distance == 1:
-                        self.elite_room_id = coord
-                        screen_out.append(coord)
-                        logger.info(f"筛选出精英房间：{coord}")
-        if self.player.map_name == "流雨瀑布":
-            # 如果精英房间和人物房间不为空，找到最接近人物房间的精英房间
-            if screen_out and self.boss_room_id:
-                logger.info(f"精英房间或问号房间不为空:{screen_out},取最接近boss房的房间设置为问号房间，因为问号房间优先")
-                # 初始化最小距离为无穷大，以及最近的坐标
-                min_distance = float('inf')
-                # 遍历坐标列表
-                for coord in screen_out:
-                    # 计算当前坐标与target的距离的平方（避免使用sqrt以提高效率）
-                    distance_squared = (coord[0] - self.boss_room_id[0]) ** 2 + (coord[1] - self.boss_room_id[1]) ** 2
-                    # 如果当前距离的平方小于已知的最小距离的平方，则更新最小距离和最近的坐标
-                    if distance_squared < min_distance:
-                        min_distance = distance_squared
-                        self.query_room_id = coord
-                        logger.info(f"取最接近boss房的房间设置为问号房间：{coord}")
-        if self.player.player_room_id is None and self.boss_room_id and self.special_room_id:
-            priority_direction = 'right'
-            # 查找终点房间的路径
-            end_direction = a_star(self.room_info_map, self.special_room_id, self.boss_room_id, priority_direction)
-            if end_direction is not None:
-                logger.info(f"special_room_id到boss_room_id路径:{end_direction}")
-                logger.info(f"获取不到玩家所在房间时，特殊房间到boss房间路径能走通，玩家应该在boss房，不做特殊处理")
-            else:
-                self.player.player_room_id = self.special_room_id
-                logger.info(f"获取不到玩家所在房间时，特殊房间到boss房间路径走不通，则玩家当前在特殊房间{self.player.player_room_id}")
-                if elite_room_id_list and self.player.player_room_id:
-                    logger.info(f"精英房间和人物房间不为空,elite_room_id_list:{elite_room_id_list}")
-                    # 初始化最小距离为无穷大，以及最近的坐标
-                    min_distance = float('inf')
-                    # 遍历坐标列表
-                    for coord in elite_room_id_list:
-                        # 计算当前坐标与target的距离的平方（避免使用sqrt以提高效率）
-                        distance_squared = (coord[0] - self.player.player_room_id[0]) ** 2 + (coord[1] - self.player.player_room_id[1]) ** 2
-                        # 如果当前距离的平方小于已知的最小距离的平方，则更新最小距离和最近的坐标
-                        if distance_squared < min_distance:
-                            min_distance = distance_squared
-                            if min_distance == 1:
-                                self.elite_room_id = coord
-                                screen_out.append(coord)
-                                logger.info(f"筛选出精英房间：{coord}")
 
     def send_with_retry(self, data, message):
         """封装发送逻辑，带自动重连"""
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                self.sock.sendall(data)
-                logger.info(f"成功发送 {message}")
-                return True
-            except socket.error as e:
-                logger.info(f"发送失败（尝试 {attempt + 1}/{max_retries}）: {e}")
-                traceback.print_exc()
-                self._reconnect()
-                time.sleep(3)
-        return False
+        return self.socket_handler.send_with_retry(data, message)
 
     def _reconnect(self):
         """关闭旧连接并建立新连接"""
-        server_address = (gv.server_ip, gv.server_port)
-        logger.info(server_address)
-        self.sock.close()
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect(server_address)
-        self.sock.settimeout(5.0)
+        self.sock = self.socket_handler.reconnect()
 
     def get_yolo_res(self, game_image=None):
         try:
-            logger.info(f"进入 get_yolo_res")
-            if game_image is None:
-                # st = time.time()
-                logger.info(f"开始截图")
-                game_image = screenshot_util.get_game_screenshot()  # logger.info(f"截图用时：{time.time() - st}")  # game_image = Capture(hwnd, 0, 0, 1067, 600)
-                logger.info(f"截图完毕")
-            # 1. 转换图片为二进制
-            img_bytes = cv2.imencode('.jpg', game_image)[1].tobytes()
-            image_size = len(img_bytes)
-
-            # 2. 创建消息头
-            header_data = json.dumps({"type": "game_windows", "width": 1067, "height": 600, "image_size": image_size  # 添加图片大小到header
-                                      }).encode('utf-8')
-
-            # 3. 打包消息头长度（4字节）
-            header_length = struct.pack('!I', len(header_data))
-
-            # 4. 发送数据（带自动重试）
-            if not self.send_with_retry(header_length, "消息头长度"):
-                return False
-
-            if not self.send_with_retry(header_data, "消息头内容"):
-                return False
-
-            if not self.send_with_retry(img_bytes, f"图片数据({image_size}字节)"):
-                return False
-
-            # 接收服务端的返回信息
-            # 假设这里已经连接到服务端，并且sock是socket对象
-            header, cls = self.receive_message_from_server()
-            if header["type"] == "game_windows":
-                # if game_image is None:
-                #     cls = self.yolo.detect()
-                # else:
-                #     cls = self.yolo.detect_by_img(game_image)
-                self.process_detect_message(cls, game_image)
-            logger.info(f"退出 get_yolo_res")
-
+            # 定义处理函数，获取结果并应用到context
+            def process_and_apply(cls, img):
+                result = self.yolo_handler.process_detect_message(self, cls, img)
+                self.yolo_handler.apply_to_context(self, result)
+                return result  # 返回结果对象，但保持原有功能
+                
+            return self.socket_handler.get_yolo_res(
+                game_image=game_image,
+                screenshot_util=screenshot_util,
+                process_detect_message=process_and_apply
+            )
         except Exception as e:
             logger.info(f"发送过程中发生未处理异常: {e}")
             traceback.print_exc()
             self._reconnect()
             return False
 
-        return True
-
     def _recv_exact(self, n):
         """确保接收指定长度的数据"""
-        buf = bytearray(n)
-        received = 0
-        while received < n:
-            chunk = self.sock.recv(min(n - received, 4096))
-            if not chunk:
-                raise ConnectionError("连接意外关闭")
-            buf[received:received + len(chunk)] = chunk
-            received += len(chunk)
-        return bytes(buf)
+        return self.socket_handler._recv_exact(n)
 
     def receive_message_from_server(self):
         """
         从服务器接收完整消息（含协议头+数据）
-
-        返回:
-            tuple: (header_dict, data_bytes)
-                   header_dict: 解析后的消息头字典
-                   data_bytes: 原始数据字节流
-        异常:
-            ConnectionError: 接收过程中连接中断
-            ValueError: 协议格式错误
         """
-
-        try:
-            # 接收消息头长度
-            header_len_buf = self._recv_exact(4)
-            header_len = struct.unpack('!I', header_len_buf)[0]
-
-            # 接收并解析消息头
-            header_data = self._recv_exact(header_len)
-            header = json.loads(header_data.decode('utf-8'))
-
-            # 验证必要字段
-            if 'type' not in header or 'data_size' not in header:
-                raise ValueError("无效的协议头格式")
-
-            # 接收实际数据
-            data_size = header['data_size']
-            data_buf = self._recv_exact(data_size)
-            data = json.loads(data_buf.decode('utf-8'))
-
-            return header, data
-
-        except (OSError, json.JSONDecodeError) as e:
-            logger.exception(f"接收消息失败:{e}")
-            traceback.print_exc()
-            raise ConnectionError("连接异常")
+        return self.socket_handler.receive_message_from_server()
 
     def get_text(self, x1, y1, x2, y2, img_numpy=None, amplify=False):
         try:
-            logger.info(f"进入 ocr")
-            if img_numpy is not None:
-                game_image = img_numpy[y1:y2, x1:x2]
-
-            else:
-                img_numpy = screenshot_util.get_game_screenshot()
-                game_image = img_numpy[y1:y2, x1:x2]
-            if amplify:
-                # 定义缩放比例（例如放大2倍）
-                scale_factor = 1.5
-
-                # 计算新尺寸
-                new_width = int(game_image.shape[1] * scale_factor)
-                new_height = int(game_image.shape[0] * scale_factor)
-                new_size = (new_width, new_height)
-
-                # 按比例放大图像
-                game_image = cv2.resize(game_image, new_size, interpolation=cv2.INTER_LINEAR)
-            _image_rgb = cv2.cvtColor(game_image, cv2.COLOR_BGR2GRAY)
-            # 1. 转换图片为二进制
-            img_bytes = cv2.imencode('.jpg', _image_rgb)[1].tobytes()
-            image_size = len(img_bytes)
-
-            # 2. 创建消息头
-            header_data = json.dumps({"type": "ocr", "width": 1, "height": 1, "image_size": image_size  # 添加图片大小到header
-                                      }).encode('utf-8')
-
-            # 3. 打包消息头长度（4字节）
-            header_length = struct.pack('!I', len(header_data))
-
-            # 4. 发送数据（带自动重试）
-            if not self.send_with_retry(header_length, "消息头长度"):
-                return False
-
-            if not self.send_with_retry(header_data, "消息头内容"):
-                return False
-
-            if not self.send_with_retry(img_bytes, f"图片数据({image_size}字节)"):
-                return False
-
-            # 接收服务端的返回信息
-            # 假设这里已经连接到服务端，并且sock是socket对象
-            header, response = self.receive_message_from_server()
-            if header["type"] == "ocr":
-                logger.info(f"ocr 已获取识别数据: {response}")
-
-            logger.info(f"退出 ocr")
-
+            return self.socket_handler.get_text(x1, y1, x2, y2, img_numpy, amplify)
         except Exception as e:
             logger.exception(f"发送过程中发生未处理异常:{e}")
             traceback.print_exc()
             self._reconnect()
             return ''
 
-        return response
-
     def get_min_map_yolo_res(self):
-        # global min_map_name
         try:
-            logger.info(f"进入 get_min_map_yolo_res")
-            min_map = miniMapUtil.min_map_capture(self.player.map_name)
-            logger.info(f"get_min_map_yolo_res")
-            # cv2.imwrite(f"D:/automatic-painting/min_map/{min_map_name}.png", min_map)
-            # min_map_name += 1
-            # 1. 转换图片为二进制
-            img_bytes = cv2.imencode('.jpg', min_map)[1].tobytes()
-            image_size = len(img_bytes)
-
-            # 2. 创建消息头
-            header_data = json.dumps({"type": "min_map", "width": 1, "height": 1, "image_size": image_size  # 添加图片大小到header
-                                      }).encode('utf-8')
-
-            # 3. 打包消息头长度（4字节）
-            header_length = struct.pack('!I', len(header_data))
-
-            # 4. 发送数据（带自动重试）
-            if not self.send_with_retry(header_length, "消息头长度"):
-                return False
-
-            if not self.send_with_retry(header_data, "消息头内容"):
-                return False
-
-            if not self.send_with_retry(img_bytes, f"图片数据({image_size}字节)"):
-                return False
-
-            # 接收服务端的返回信息
-            # 假设这里已经连接到服务端，并且sock是socket对象
-            header, cls = self.receive_message_from_server()
-            if header["type"] == "min_map":
-                logger.info(f"get_min_map_yolo_res 已获取识别数据: {cls}")
-                self.min_map_process_detect_message(cls)
-
-            logger.info(f"退出 get_min_map_yolo_res")
-
+            # 定义处理函数，获取结果并应用到context
+            def process_and_apply(cls):
+                result = self.yolo_handler.min_map_process_detect_message(self, cls)
+                self.yolo_handler.min_map_apply_to_context(self, result)
+                return result  # 返回结果对象，但保持原有功能
+                
+            return self.socket_handler.get_min_map_yolo_res(
+                miniMapUtil=miniMapUtil,
+                player_map_name=self.player.map_name,
+                min_map_process_detect_message=process_and_apply
+            )
         except Exception as e:
             logger.exception(f"发送过程中发生未处理异常:{e}")
             traceback.print_exc()
             self._reconnect()
             return False
-
-        return True
 
     def deposit_goods(self):
         if self.player.map_name in ("跌宕群岛", "妖气追踪"):
@@ -4293,3 +3772,59 @@ class PlayerThread(QThread):
     def handle_mouse_press(self, x, y):
         if gv.banzhuan == 2:
             self.mouse_pos = (x, y)
+
+    def try_move(self):
+        if self.player_pos.x > 1067 / 2:
+            if abs(self.player_pos.x - 244) < 200:
+                move_info = self.compute_move_info_walk(self.player_pos, Point(244, 468), 0, 0)  # 计算到最近货物的移动信息
+                self.send_log("卡点了，尝试移动：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
+                self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
+            else:
+                move_info = self.compute_move_info(self.player_pos, Point(244, 468), 0, 0)  # 计算到最近货物的移动信息
+                self.send_log("卡点了，尝试跑步：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
+                self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
+        else:
+            if abs(self.player_pos.x - 244) < 200:
+                move_info = self.compute_move_info_walk(self.player_pos, Point(848, 468), 0, 0)  # 计算到最近货物的移动信息
+                self.send_log("卡点了，尝试移动：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
+                self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
+            else:
+                move_info = self.compute_move_info(self.player_pos, Point(848, 468), 0, 0)  # 计算到最近货物的移动信息
+                self.send_log("卡点了，尝试跑步：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
+                self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
+
+  
+    def calculate_wait_time(self):
+        """计算距离次日早上六点需要等待的秒数"""
+        now = datetime.datetime.now()
+
+        # 计算今天早上六点的时间
+        today_6am = now.replace(hour=self.start_hour, minute=random.randint(5,10), second=random.randint(1,58), microsecond=0)
+
+        # 如果当前时间已经过了今天六点，则目标时间是明天六点
+        if now >= today_6am:
+            tomorrow_6am = today_6am + datetime.timedelta(days=1)
+            wait_seconds = (tomorrow_6am - now).total_seconds()
+        else:
+            # 如果还没到今天六点，则等待到今天六点
+            wait_seconds = (today_6am - now).total_seconds()
+
+        return wait_seconds
+        
+
+    def wait_until_next_start(self):
+        """等待到下一个开始时间（早上六点）"""
+        wait_seconds = self.calculate_wait_time()
+
+        # 转换等待时间为小时、分钟、秒，便于阅读
+        hours, remainder = divmod(int(wait_seconds), 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        self.send_log(f"本日任务已完成，将在 {hours}小时{minutes}分钟{seconds}秒后（即次日{self.start_hour}点）继续运行")
+
+        # 进入等待状态
+        time.sleep(wait_seconds)
+
+        # 等待结束后重置任务状态
+        self.today_task_completed = False
+        self.send_log("等待结束，准备开始新的任务周期")

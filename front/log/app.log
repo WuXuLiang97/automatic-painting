@@ -3157,3 +3157,127 @@
 2025-10-07T00:02:50.450720+0800 - INFO - 成功加载键盘配置: C:\automatic-painting\front\json_resources\key_config.json
 2025-10-07T00:02:50.455734+0800 - INFO - 成功加载键盘配置: C:\automatic-painting\front\json_resources\key_config.json
 2025-10-07T00:02:53.160093+0800 - INFO - 找到 0 个可用设备
+2025-10-07T14:08:55.453214+0800 - INFO - 从指定的模板路径中加载所有PNG图片到内存用了 0.7804720401763916 秒
+2025-10-07T14:08:55.636708+0800 - INFO - 技能按键映射: {0: 'q', 1: 'w', 2: 'e', 3: 'r', 4: 't', 5: 'y', 6: 'ctrl', 7: 'a', 8: 's', 9: 'd', 10: 'f', 11: 'g', 12: 'h', 13: 'v'}
+2025-10-07T14:08:55.638153+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T14:09:10.879057+0800 - INFO - 从指定的模板路径中加载所有PNG图片到内存用了 0.012674570083618164 秒
+2025-10-07T14:09:10.937752+0800 - INFO - 技能按键映射: {0: 'q', 1: 'w', 2: 'e', 3: 'r', 4: 't', 5: 'y', 6: 'ctrl', 7: 'a', 8: 's', 9: 'd', 10: 'f', 11: 'g', 12: 'h', 13: 'v'}
+2025-10-07T14:09:10.937752+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T14:09:10.938765+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T14:09:16.594370+0800 - INFO - 找到 1 个可用设备
+2025-10-07T14:39:37.601917+0800 - INFO - 从指定的模板路径中加载所有PNG图片到内存用了 0.012688159942626953 秒
+2025-10-07T14:39:37.658735+0800 - INFO - 技能按键映射: {0: 'q', 1: 'w', 2: 'e', 3: 'r', 4: 't', 5: 'y', 6: 'ctrl', 7: 'a', 8: 's', 9: 'd', 10: 'f', 11: 'g', 12: 'h', 13: 'v'}
+2025-10-07T14:39:37.658735+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T14:50:39.217001+0800 - INFO - 从指定的模板路径中加载所有PNG图片到内存用了 0.011998414993286133 秒
+2025-10-07T14:50:39.272939+0800 - INFO - 技能按键映射: {0: 'q', 1: 'w', 2: 'e', 3: 'r', 4: 't', 5: 'y', 6: 'ctrl', 7: 'a', 8: 's', 9: 'd', 10: 'f', 11: 'g', 12: 'h', 13: 'v'}
+2025-10-07T14:50:39.272939+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T14:50:39.276533+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T14:50:43.856147+0800 - INFO - 找到 1 个可用设备
+2025-10-07T14:50:49.419711+0800 - INFO - 找到 1 个可用设备
+2025-10-07T14:54:08.538011+0800 - INFO - 从指定的模板路径中加载所有PNG图片到内存用了 0.014057636260986328 秒
+2025-10-07T14:54:08.575009+0800 - INFO - 技能按键映射: {0: 'q', 1: 'w', 2: 'e', 3: 'r', 4: 't', 5: 'y', 6: 'ctrl', 7: 'a', 8: 's', 9: 'd', 10: 'f', 11: 'g', 12: 'h', 13: 'v'}
+2025-10-07T14:54:08.575009+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T14:54:08.577060+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T14:54:13.117546+0800 - INFO - 找到 1 个可用设备
+2025-10-07T14:54:16.512417+0800 - INFO - 找到 1 个可用设备
+2025-10-07T15:42:46.591961+0800 - INFO - 从指定的模板路径中加载所有PNG图片到内存用了 0.348313570022583 秒
+2025-10-07T15:42:46.705257+0800 - INFO - 技能按键映射: {0: 'q', 1: 'w', 2: 'e', 3: 'r', 4: 't', 5: 'y', 6: 'ctrl', 7: 'a', 8: 's', 9: 'd', 10: 'f', 11: 'g', 12: 'h', 13: 'v'}
+2025-10-07T15:42:46.705257+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T15:42:46.707336+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T15:42:52.448683+0800 - INFO - 找到 1 个可用设备
+2025-10-07T15:43:10.340391+0800 - INFO - 文件夹 Images 已创建。
+2025-10-07T15:43:13.487220+0800 - INFO - VNC键盘弹起所有键
+2025-10-07T15:43:40.374475+0800 - INFO - 从指定的模板路径中加载所有PNG图片到内存用了 0.013281583786010742 秒
+2025-10-07T15:43:40.428256+0800 - INFO - 技能按键映射: {0: 'q', 1: 'w', 2: 'e', 3: 'r', 4: 't', 5: 'y', 6: 'ctrl', 7: 'a', 8: 's', 9: 'd', 10: 'f', 11: 'g', 12: 'h', 13: 'v'}
+2025-10-07T15:43:40.428256+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T15:43:40.429272+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T15:43:45.221630+0800 - INFO - 找到 1 个可用设备
+2025-10-07T15:43:52.330789+0800 - INFO - 文件夹 Images 已存在。
+2025-10-07T15:43:52.336933+0800 - INFO - check_d.py 启动
+2025-10-07T15:43:52.337999+0800 - INFO - VNC截图
+2025-10-07T15:43:52.342571+0800 - INFO - socket连接成功: ('192.168.3.35', 12345)
+2025-10-07T15:43:52.342571+0800 - INFO - <socket.socket fd=3936, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=0, laddr=('192.168.3.2', 49626), raddr=('192.168.3.35', 12345)>
+2025-10-07T15:43:52.423776+0800 - INFO - ghost_state_message：false
+2025-10-07T15:43:53.424819+0800 - INFO - VNC截图
+2025-10-07T15:43:54.483298+0800 - INFO - VNC截图
+2025-10-07T15:43:55.367955+0800 - INFO - move_to:窗口左上角x = 0	窗口左上角y = 0	x=640	y=40
+2025-10-07T15:43:55.373264+0800 - INFO - VNC鼠标移动：(640, 40)
+2025-10-07T15:43:55.569376+0800 - INFO - VNC截图
+2025-10-07T15:43:55.693774+0800 - INFO - VNC鼠标左点击：left
+2025-10-07T15:43:56.053517+0800 - INFO - {'brush_map_expire_time': '2025-10-07 10:50:53', 'brush_order': 1, 'career': '男魔法师', 'convert_career': '逐风者', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1454, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.053517+0800 - INFO - {'brush_map_expire_time': '2025-10-07 11:21:38', 'brush_order': 2, 'career': '男鬼剑士', 'convert_career': '阿修罗', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1455, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.054739+0800 - INFO - {'brush_map_expire_time': '2025-10-07 11:52:48', 'brush_order': 3, 'career': '暗夜使者', 'convert_career': '黑夜术士', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1456, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.054739+0800 - INFO - {'brush_map_expire_time': '2025-10-07 12:23:33', 'brush_order': 4, 'career': '男鬼剑士', 'convert_career': '阿修罗', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1457, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.054739+0800 - INFO - {'brush_map_expire_time': '2025-10-07 12:58:29', 'brush_order': 5, 'career': '男魔法师', 'convert_career': '元素爆破师', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1458, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.055780+0800 - INFO - {'brush_map_expire_time': '2025-10-07 13:34:13', 'brush_order': 6, 'career': '男光职者', 'convert_career': '光明骑士', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1459, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.055780+0800 - INFO - {'brush_map_expire_time': '2025-10-07 14:28:06', 'brush_order': 7, 'career': '男鬼剑士', 'convert_career': '剑影', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1460, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.055780+0800 - INFO - {'brush_map_expire_time': '2025-10-06 18:16:37', 'brush_order': 8, 'career': '枪剑士', 'convert_career': '暗刃', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1461, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.055780+0800 - INFO - {'brush_map_expire_time': '2025-10-06 18:51:33', 'brush_order': 9, 'career': '女神枪手', 'convert_career': '协战师', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1462, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.056838+0800 - INFO - {'brush_map_expire_time': '2025-10-06 19:34:07', 'brush_order': 10, 'career': '魔枪士', 'convert_career': '征战者', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1463, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.056838+0800 - INFO - {'brush_map_expire_time': '2025-10-06 20:15:09', 'brush_order': 11, 'career': '男鬼剑士', 'convert_career': '剑魂', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1536, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.056838+0800 - INFO - {'brush_map_expire_time': '2025-10-06 20:57:55', 'brush_order': 12, 'career': '男鬼剑士', 'convert_career': '剑魂', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1841, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.056838+0800 - INFO - {'brush_map_expire_time': '2025-10-06 21:38:11', 'brush_order': 13, 'career': '男魔法师', 'convert_career': '元素爆破师', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '妖气追踪', 'subgroup_config_id': 1851, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.057859+0800 - INFO - {'brush_map_expire_time': '2025-10-06 21:50:27', 'brush_order': 14, 'career': '男格斗家', 'convert_career': '气功师', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '深渊：终末崇拜者', 'subgroup_config_id': 1886, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.057859+0800 - INFO - {'brush_map_expire_time': '2025-10-06 22:17:39', 'brush_order': 15, 'career': '魔枪士', 'convert_career': '征战者', 'difficulty': '1', 'everyday_tasks': '是', 'height': 0, 'leave_pl': 0, 'map': '深渊：终末崇拜者', 'subgroup_config_id': 2377, 'subgroup_name': '649345323', 'today_task_completed': '是', 'username': '123123'}
+2025-10-07T15:43:56.057859+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.057859+0800 - INFO - 302expire_date:2025-10-07
+2025-10-07T15:43:56.059363+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.059363+0800 - INFO - 302expire_date:2025-10-07
+2025-10-07T15:43:56.059363+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.059363+0800 - INFO - 302expire_date:2025-10-07
+2025-10-07T15:43:56.059363+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.060878+0800 - INFO - 302expire_date:2025-10-07
+2025-10-07T15:43:56.060878+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.060878+0800 - INFO - 302expire_date:2025-10-07
+2025-10-07T15:43:56.060878+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.060878+0800 - INFO - 302expire_date:2025-10-07
+2025-10-07T15:43:56.062393+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.062393+0800 - INFO - 302expire_date:2025-10-07
+2025-10-07T15:43:56.062905+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.062905+0800 - INFO - 302expire_date:2025-10-06
+2025-10-07T15:43:56.062905+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.062905+0800 - INFO - 302expire_date:2025-10-06
+2025-10-07T15:43:56.063904+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.063904+0800 - INFO - 302expire_date:2025-10-06
+2025-10-07T15:43:56.063904+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.063904+0800 - INFO - 302expire_date:2025-10-06
+2025-10-07T15:43:56.063904+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.065494+0800 - INFO - 302expire_date:2025-10-06
+2025-10-07T15:43:56.065494+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.066012+0800 - INFO - 302expire_date:2025-10-06
+2025-10-07T15:43:56.066012+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.066012+0800 - INFO - 302expire_date:2025-10-06
+2025-10-07T15:43:56.067365+0800 - INFO - 疲劳阈值:0
+2025-10-07T15:43:56.067365+0800 - INFO - 302expire_date:2025-10-06
+2025-10-07T15:43:56.067365+0800 - INFO - ['8', '9', '10', '11', '12', '13', '14', '15']
+2025-10-07T15:43:56.067365+0800 - INFO - 8
+2025-10-07T15:43:56.068868+0800 - INFO - 枪剑士-暗刃
+2025-10-07T15:43:56.069903+0800 - INFO - 妖气追踪
+2025-10-07T15:43:56.069903+0800 - INFO - 当前第8个角色
+2025-10-07T15:43:56.070901+0800 - INFO - 进入 ocr
+2025-10-07T15:43:56.070901+0800 - INFO - VNC截图
+2025-10-07T15:43:56.122104+0800 - INFO - 成功发送 消息头长度
+2025-10-07T15:43:56.122104+0800 - INFO - 成功发送 消息头内容
+2025-10-07T15:43:56.122104+0800 - INFO - 成功发送 图片数据(1746字节)
+2025-10-07T15:43:56.257280+0800 - INFO - ocr 已获取识别数据: 游戏开始
+2025-10-07T15:43:56.257280+0800 - INFO - 退出 ocr
+2025-10-07T15:43:56.258652+0800 - INFO - VNC键盘点击：down
+2025-10-07T15:43:56.441290+0800 - INFO - VNC键盘点击：space
+2025-10-07T15:43:56.613199+0800 - INFO - VNC截图
+2025-10-07T15:43:57.691605+0800 - INFO - VNC截图
+2025-10-07T15:43:58.727694+0800 - INFO - check_d.py 终止
+2025-10-07T15:43:59.729073+0800 - INFO - VNC键盘弹起所有键
+2025-10-07T16:46:04.049879+0800 - INFO - 从指定的模板路径中加载所有PNG图片到内存用了 0.01468038558959961 秒
+2025-10-07T16:46:04.103594+0800 - INFO - 技能按键映射: {0: 'q', 1: 'w', 2: 'e', 3: 'r', 4: 't', 5: 'y', 6: 'ctrl', 7: 'a', 8: 's', 9: 'd', 10: 'f', 11: 'g', 12: 'h', 13: 'v'}
+2025-10-07T16:46:04.103594+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T16:46:20.366339+0800 - INFO - 从指定的模板路径中加载所有PNG图片到内存用了 0.013270854949951172 秒
+2025-10-07T16:46:20.422157+0800 - INFO - 技能按键映射: {0: 'q', 1: 'w', 2: 'e', 3: 'r', 4: 't', 5: 'y', 6: 'ctrl', 7: 'a', 8: 's', 9: 'd', 10: 'f', 11: 'g', 12: 'h', 13: 'v'}
+2025-10-07T16:46:20.422157+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T16:46:47.118639+0800 - INFO - 从指定的模板路径中加载所有PNG图片到内存用了 0.01580953598022461 秒
+2025-10-07T16:46:47.155661+0800 - INFO - 技能按键映射: {0: 'q', 1: 'w', 2: 'e', 3: 'r', 4: 't', 5: 'y', 6: 'ctrl', 7: 'a', 8: 's', 9: 'd', 10: 'f', 11: 'g', 12: 'h', 13: 'v'}
+2025-10-07T16:46:47.155661+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T16:47:09.399609+0800 - INFO - 从指定的模板路径中加载所有PNG图片到内存用了 0.013916492462158203 秒
+2025-10-07T16:47:09.433341+0800 - INFO - 技能按键映射: {0: 'q', 1: 'w', 2: 'e', 3: 'r', 4: 't', 5: 'y', 6: 'ctrl', 7: 'a', 8: 's', 9: 'd', 10: 'f', 11: 'g', 12: 'h', 13: 'v'}
+2025-10-07T16:47:09.433341+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T16:47:09.442677+0800 - INFO - 成功加载键盘配置: D:\dxf\dxf_auto\front\json_resources\key_config.json
+2025-10-07T16:47:14.335405+0800 - INFO - 找到 1 个可用设备
