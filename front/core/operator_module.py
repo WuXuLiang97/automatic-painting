@@ -86,8 +86,8 @@ class OperatorModule:
 
     def is_start_game_interface(self):
         text = self.player_instance.get_text(490, 552, 588, 575)
-        chinese_only = re.sub(r'[^\u4e00-\u9fff]', '', text)
-        if self.player_instance.similarity(chinese_only, "游戏开始") >= 0.7:
+        chinese_only = re.sub(r'[^一-鿿]', '', text)
+        if self.player_instance.yolo_handler.similarity(chinese_only, "游戏开始") >= 0.7:
             return True
         return False
 
@@ -197,8 +197,8 @@ class OperatorModule:
             pyauto.click()
             time.sleep(0.5)
         text = self.player_instance.get_text(484, 45, 584, 75)
-        chinese_only = re.sub(r'[^\u4e00-\u9fff]', '', text)
-        if self.player_instance.similarity(chinese_only, "选择菜单") >= 0.7:
+        chinese_only = re.sub(r'[^一-鿿]', '', text)
+        if self.player_instance.yolo_handler.similarity(chinese_only, "选择菜单") >= 0.7:
             logger.info("选择菜单已打开")
             return True
         else:
@@ -424,26 +424,54 @@ class OperatorModule:
                 # 用传进来的方法识别
                 results = func(824, 570, 930, 589, amplify=True)
                 if contains_digit(results):
-                    pl_int = re.search(r'(\d+)/', results).group(1)
-                    if pl_int:
-                        pl_int = int(pl_int)
-                        logger.info(f"当前疲劳值：{pl_int}")
-                        func1(f"当前疲劳值：{pl_int}")
+                    match = re.search(r'(\d+)/', results)
+                    if match:
+                        pl_int = match.group(1)
+                        if pl_int:
+                            pl_int = int(pl_int)
+                            logger.info(f"当前疲劳值：{pl_int}")
+                            func1(f"当前疲劳值：{pl_int}")
+                        else:
+                            logger.info("满级角色ocr疲劳没有找到匹配项")
+                            func1("满级角色ocr疲劳没有找到匹配项")
+                            continue
                     else:
-                        logger.info("满级角色ocr疲劳没有找到匹配项")
-                        func1("满级角色ocr疲劳没有找到匹配项")
+                        logger.info("满级角色ocr疲劳正则匹配失败")
+                        func1("满级角色ocr疲劳正则匹配失败")
                         continue
                 else:
                     # 用传进来的方法识别
                     results = func(641, 518, 762, 533, amplify=True)
-                    pl_int = re.search(r'(\d+)/', results).group(1)
-                    if pl_int:
-                        pl_int = int(pl_int)
-                        logger.info(f"当前疲劳值：{pl_int}")
-                        func1(f"当前疲劳值：{pl_int}")
+                    logger.debug(f"未满级角色疲劳值识别原始结果: {results}")
+                    
+                    # 尝试多种可能的正则表达式匹配格式
+                    match = None
+                    patterns = [
+                        r'(\d+)/',       # 标准格式 如: 156/
+                        r'(\d+)\\s*点?',  # 带或不带"点"字 如: 156点或156
+                        r'(\d+)\\s*疲劳', # 带"疲劳"字样 如: 156疲劳
+                        r'疲劳值\\s*[:：]?\s*(\d+)', # 疲劳值: 156
+                        r'^(\d+)$'       # 只有数字
+                    ]
+                    
+                    for pattern in patterns:
+                        match = re.search(pattern, results)
+                        if match:
+                            break
+                    
+                    if match:
+                        pl_int = match.group(1)
+                        if pl_int:
+                            pl_int = int(pl_int)
+                            logger.info(f"当前疲劳值：{pl_int}")
+                            func1(f"当前疲劳值：{pl_int}")
+                        else:
+                            logger.info("未满级角色ocr疲劳没有找到匹配项")
+                            func1("未满级角色ocr疲劳没有找到匹配项")
+                            continue
                     else:
-                        logger.info("未满级角色ocr疲劳没有找到匹配项")
-                        func1("未满级角色ocr疲劳没有找到匹配项")
+                        logger.info(f"未满级角色ocr疲劳正则匹配失败，尝试了多种格式")
+                        func1("未满级角色ocr疲劳正则匹配失败")
                         continue
                 self.move_to(random.randint(500, 560), 30)
                 time.sleep(0.1)
@@ -453,6 +481,9 @@ class OperatorModule:
                 continue
         self.move_to(random.randint(500, 560), 30)
         time.sleep(0.1)
+        # 所有尝试都失败后，默认返回0表示疲劳为空
+        logger.info("多次尝试识别疲劳值失败，默认返回0")
+        return 0
 
 
     def get_base_speed(self, player_occupation, plain_speed):

@@ -7,6 +7,7 @@ from typing import List, Tuple, Optional
 from utils.logging_setup import logger
 from core.common import Point
 from utils.minimap_util import miniMapUtil
+from core import global_variable as gv
 
 # 常量定义
 SIMILARITY_THRESHOLD = 0.6
@@ -168,7 +169,9 @@ class YoloHandler:
                     if 291 < x < 824 and 474 < y < 600:
                         y = 600
                 else:
-                    room_info = context.a_DictInfo.get(context.player.map_name).get("down")
+                    # 直接使用导入的a_DictInfo，而不是通过context对象访问
+                    from core.common import a_DictInfo
+                    room_info = a_DictInfo.get(context.player.map_name).get("down")
                     if room_info['min_x'] < x < room_info['max_x'] and y > 480:
                         if context.player.map_name == "德洛斯矿山外围":
                             y = 600
@@ -199,7 +202,7 @@ class YoloHandler:
                 result.box.append(Point(x, y))  # 将障碍添加到列表中
         
         room_id = context.player.player_room_id
-        if context.gv.banzhuan == 0:
+        if gv.banzhuan == 0:
             should_process = (len(result.doors) > 0 or result.has_continue or result.has_rewards)
             if should_process:
                 result.monsters.clear()

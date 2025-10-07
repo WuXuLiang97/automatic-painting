@@ -16,6 +16,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 
 from core.directional_astar import a_star, judge_direction  # A星寻路
 from utils.api import test_view_subgroup_config, test_update_subgroup_config
+from core.configuration_manager import ConfigurationManager
 from core.common import Point, occupationInfoMap, Player, MoveInfo, a_mapInfo, a_DictInfo, map_boss_info, MAP_MIN_ROOMS
 from core.operator_module import OperatorModule
 
@@ -32,6 +33,8 @@ import socket
 from core.playerHelper.yolo_Handler import YoloHandler
 from core import global_variable as gv
 from core.playerHelper.socket_Handler import SocketHandler
+from core.playerHelper.player_state_monitor import PlayerStateMonitor
+from core.communication_service import CommunicationService
 
 from utils.logging_setup import logger
 from core.Config import DEFAULT_KEY_CONFIG, get_gui_config, get_key_config
@@ -69,20 +72,18 @@ class PlayerThread(QThread):
         self.yolo = None
         self.movement_recorder = MovementRecorder()
         self.special_room_id = None
-        self.sock = None
         self.elite_room_id = None
         self.room_info_map = None
         self.query_room_id = None
         self.boss_room_id = None
+        self.start_hour = 6  # 每日开始任务的时间（早上6点）
+        self.target_items = target_items  # 引用全局定义的目标物品列表
 
         self.running = True
         self.operator_module = None
         self.current_role_group = None
-        self.all_role_settings = {}
-        self.role_index_list = []
+        self.configuration_manager = ConfigurationManager()  # 初始化配置管理器
         self.player = Player()
-        self.current_role_index = -1  # 当前角色指数
-        self.player_pos = None  # 玩家坐标
         self.buffer_is_release = False
         self.goods = []  # 金币坐标
         self.monsters = []  # 怪物坐标
@@ -94,9 +95,6 @@ class PlayerThread(QThread):
         self.has_rewards = False  # 有奖励
         self.is_first_attack_monster = False  # 是第一攻击怪物
         self.first_press_to_exit = True
-        self.brush_cnt = 0  # 刷图次数
-        self.brush_running = True  # 刷图中
-        self.ghost_state = False  # 挂了
         self.pass_room_id = []
         self.find_player_direction = "right"  # 查找玩家方向
         self.mm = vnc_mm
@@ -105,8 +103,18 @@ class PlayerThread(QThread):
         self.Image_count_initialization()
         # 初始化SocketHandler实例
         self.socket_handler = SocketHandler(gv.server_ip, gv.server_port)
+        # 初始化CommunicationService实例，封装所有网络通信逻辑
+        self.communication_service = CommunicationService(gv.server_ip, gv.server_port, self.message)
+        self.communication_service.set_socket_handler(self.socket_handler)
         # 初始化YoloHandler实例
         self.yolo_handler = YoloHandler()
+        # 初始化角色状态监控器（确保在yolo_handler初始化后）
+        self.state_monitor = PlayerStateMonitor(
+            operator_module=self.operator_module,
+            player=self.player,
+            yolo_handler=self.yolo_handler,
+            movement_recorder=self.movement_recorder
+        )
         self.running_time = None
         self.big_break_time_s = None
         self.big_break_time_text = ''
@@ -155,6 +163,9 @@ class PlayerThread(QThread):
     def initialize(self):
         self.operator_module = OperatorModule(self)
         self.operator_module.initialize()
+        # 更新state_monitor的operator_module引用
+        if hasattr(self, 'state_monitor'):
+            self.state_monitor.operator_module = self.operator_module
 
     def Image_count_initialization(self):
         folder_path = 'Images'
@@ -180,76 +191,35 @@ class PlayerThread(QThread):
         连接socket
         :return: bool - 连接是否成功
         """
-        self.sock = self.socket_handler.connect(gv.server_ip, gv.server_port)
-        if self.sock:
-            logger.info(self.sock)
+        sock = self.communication_service.connect_server(gv.server_ip, gv.server_port)
+        if sock:
+            logger.info(sock)
             return True
         return False
 
     def read_role_config(self):
         """
         读取当前角色组的配置，并设置当前角色的索引。
-
-        首先清空当前的角色索引列表，然后获取当前角色组的所有角色设置。
-        如果角色设置为空，则将当前角色索引设置为-1并返回。
-        遍历所有角色设置，排除已完成的角色（即完成时间等于当前日期的角色），
-        将剩余角色的索引添加到角色索引列表中。
-        如果角色索引列表为空，则将当前角色索引设置为-1并返回。
-        否则，将当前角色索引设置为角色索引列表中的第一个索引，
-        并打印角色索引列表和当前角色索引，最后读取当前角色的配置。
+        使用ConfigurationManager统一管理配置读取逻辑。
         """
-        # 清空当前的角色索引列表
-        self.role_index_list.clear()
-
-        # 获取新数据
-        list_data = []
-        # 获取当前角色组的所有角色设置
-        ret = test_view_subgroup_config(self.dic.get("cookies"), self.current_role_group)
-        # 检查是否有配置数据
-        if not ret or 'configs' not in ret or not ret['configs']:
-            self.current_role_index = -1
+        # 设置当前角色组
+        self.configuration_manager.set_current_role_group(self.current_role_group)
+        
+        # 使用配置管理器读取角色配置
+        success = self.configuration_manager.read_role_config(self.dic.get("cookies"))
+        
+        # 如果读取失败，记录日志
+        if not success:
+            logger.warning("读取角色配置失败")
             return
-
-        # 处理数据
-        for item in ret['configs']:
-            logger.info(item)
-            list_data.append(str(item['brush_order']))
-            self.all_role_settings[str(item['brush_order'])] = item
-        # 按刷图顺序排序角色
-        self.all_role_settings = dict(sorted(self.all_role_settings.items(), key=lambda x: int(x[0])))
-
-        # 如果角色设置为空，则设置当前角色索引为-1并返回
-        if len(self.all_role_settings) == 0:
-            self.current_role_index = -1
-            return
-
-            # 遍历所有角色设置
-        for role_index in self.all_role_settings:
-            logger.info(f"疲劳阈值:{self.all_role_settings[role_index].get('leave_pl')}")
-            # 转换为日期对象进行比较
-            expire_date = datetime.datetime.strptime(self.all_role_settings[role_index].get("brush_map_expire_time"), '%Y-%m-%d %H:%M:%S')
-            if expire_date.hour < 6:
-                previous_day = expire_date - datetime.timedelta(days=1)
-                expire_date = previous_day.strftime("%Y-%m-%d")
-            else:
-                expire_date = expire_date.strftime("%Y-%m-%d")
-            logger.info(f"302expire_date:{expire_date}")
-            # 如果角色的完成时间等于当前日期，则跳过该角色
-            if get_date() == expire_date:
-                continue  # 否则，将角色索引添加到角色索引列表中
-            self.role_index_list.append(role_index)
-
-            # 如果角色索引列表为空，则设置当前角色索引为-1并返回
-        if len(self.role_index_list) == 0:
-            self.current_role_index = -1
-            return
-        # 将当前角色索引设置为角色索引列表中的第一个索引
-        self.current_role_index = self.role_index_list[0]
+            
+        # 读取当前角色的配置并应用到玩家对象
+        self.read_current_role_config()
         self.role_table_message.emit()
 
         # 打印角色索引列表和当前角色索引
-        logger.info(self.role_index_list)
-        logger.info(self.current_role_index)
+        logger.info(self.configuration_manager.get_role_index_list())
+        logger.info(self.configuration_manager.get_current_role_index())
 
         # 读取当前角色的配置
         self.read_current_role_config()
@@ -276,9 +246,9 @@ class PlayerThread(QThread):
             pyauto.click()
             time.sleep(0.1)
             while self.running:
-                self.brush_running = True
+                self.state_monitor.set_brush_running(True)
                 self.read_role_config()
-                if self.current_role_index == -1:
+                if self.configuration_manager.get_current_role_index() == -1:
                     # 这里防止站街，回到赛丽亚房间，脚本停止
                     self.select_role()
                     self.send_log("暂无可刷角色,脚本停止")
@@ -292,12 +262,12 @@ class PlayerThread(QThread):
                 screenshot_util.activate_window_by_handle()  # 激活窗口
                 # 选择角色
                 self.select_role()
-                self.send_log(f"当前执行到第{self.current_role_index}个角色")
+                self.send_log(f"当前执行到第{self.configuration_manager.get_current_role_index()}个角色")
                 # 传递一个ocr方法
-                pl_value = self.operator_module.ocr_pl(self.get_text, self.send_log)
+                pl_value = self.state_monitor.ocr_pl(self.get_text, self.send_log)
                 if pl_value is not None and isinstance(pl_value, (int, float)) and pl_value <= self.player.pl_value:
-                    # 从所有角色设置中根据当前角色索引获取当前角色的设置
-                    role_settings = self.all_role_settings[self.current_role_index]
+                    # 从ConfigurationManager获取当前角色的设置
+                    role_settings = self.configuration_manager.get_current_role_config()
                     dic_data = {'career': role_settings['career'],
                                 'convert_career': role_settings['convert_career'],
                                 'height': role_settings['height'],
@@ -306,7 +276,7 @@ class PlayerThread(QThread):
                                 "brush_map_expire_time": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                 'leave_pl': self.player.pl_value}
 
-                    test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.current_role_index, dic_data)
+                    test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.configuration_manager.get_current_role_index(), dic_data)
                     continue
                 self.mm.FindPic_sleep(758, 564, 818, 589, "商城图标.bmp", 0.9, time_s=10, my_sleep=0.5)
                 if self.player.map_name == "风暴逆鳞普通":
@@ -350,7 +320,7 @@ class PlayerThread(QThread):
                         text = self.get_text(927, 2, 1031, 22, game_image)
                         logger.info(f"识别右上角文字：{text}")
                         cleaned_text = re.sub(r'[^\u4e00-\u9fa5]', '', text)
-                        if self.similarity(cleaned_text, "深渊：终末崇拜者") >= 0.7:
+                        if self.yolo_handler.similarity(cleaned_text, "深渊：终末崇拜者") >= 0.7:
                             break
                         else:
                             logger.info("深渊图检测1——未检测到在图中,等待...")
@@ -368,8 +338,7 @@ class PlayerThread(QThread):
             # 打印完整的堆栈跟踪信息
             traceback.print_exc()
         finally:
-            self.sock.close()
-            self.sock = None
+            self.communication_service.disconnect_server()
 
     def juqing(self):
         try:
@@ -385,7 +354,7 @@ class PlayerThread(QThread):
             pyauto.click()
             time.sleep(0.1)
             while self.running:
-                self.brush_running = True
+                self.state_monitor.set_brush_running(True)
 
                 # 构造玩家的职业字符串，格式为“职业类型-具体职业”
                 self.player.player_occupation = "通用" + "-" + "通用"
@@ -417,7 +386,7 @@ class PlayerThread(QThread):
                 screenshot_util.activate_window_by_handle()  # 激活窗口
                 self.send_log(f"半自动剧情")
                 # 传递一个ocr方法
-                pl_value = self.operator_module.ocr_pl(self.get_text, self.send_log)
+                pl_value = self.state_monitor.ocr_pl(self.get_text, self.send_log)
                 if pl_value == 0:
                     self.send_log(f"疲劳为空")
                     return
@@ -443,7 +412,7 @@ class PlayerThread(QThread):
                         text = self.get_text(927, 2, 1031, 22, game_image)
                         logger.info(f"识别右上角文字：{text}")
                         cleaned_text = re.sub(r'[^\u4e00-\u9fa5]', '', text)
-                        if self.similarity(cleaned_text, "深渊：终末崇拜者") >= 0.7:
+                        if self.yolo_handler.similarity(cleaned_text, "深渊：终末崇拜者") >= 0.7:
                             break
                         else:
                             logger.info("深渊图检测1——未检测到在图中,等待...")
@@ -461,8 +430,7 @@ class PlayerThread(QThread):
             # 打印完整的堆栈跟踪信息
             traceback.print_exc()
         finally:
-            self.sock.close()
-            self.sock = None
+            self.communication_service.disconnect_server()
 
     def juqing_2(self):
         try:
@@ -478,7 +446,7 @@ class PlayerThread(QThread):
             pyauto.click()
             time.sleep(0.1)
             while self.running:
-                self.brush_running = True
+                self.state_monitor.set_brush_running(True)
 
                 # 构造玩家的职业字符串，格式为“职业类型-具体职业”
                 self.player.player_occupation = "通用" + "-" + "通用"
@@ -510,7 +478,7 @@ class PlayerThread(QThread):
                 screenshot_util.activate_window_by_handle()  # 激活窗口
                 self.send_log(f"半自动剧情2")
                 # 传递一个ocr方法
-                pl_value = self.operator_module.ocr_pl(self.get_text, self.send_log)
+                pl_value = self.state_monitor.ocr_pl(self.get_text, self.send_log)
                 if pl_value == 0:
                     self.send_log(f"疲劳为空")
                     return
@@ -536,7 +504,7 @@ class PlayerThread(QThread):
                         text = self.get_text(927, 2, 1031, 22, game_image)
                         logger.info(f"识别右上角文字：{text}")
                         cleaned_text = re.sub(r'[^\u4e00-\u9fa5]', '', text)
-                        if self.similarity(cleaned_text, "深渊：终末崇拜者") >= 0.7:
+                        if self.yolo_handler.similarity(cleaned_text, "深渊：终末崇拜者") >= 0.7:
                             break
                         else:
                             logger.info("深渊图检测1——未检测到在图中,等待...")
@@ -554,12 +522,11 @@ class PlayerThread(QThread):
             # 打印完整的堆栈跟踪信息
             traceback.print_exc()
         finally:
-            self.sock.close()
-            self.sock = None
+            self.communication_service.disconnect_server()
 
     def stop(self):
         self.running = False
-        self.brush_running = False
+        self.state_monitor.set_brush_running(False)
         self.send_log("脚本已停止，可关闭窗口")
 
     def send_log(self, log):
@@ -586,7 +553,7 @@ class PlayerThread(QThread):
         # 获取移速
         if not self.player.has_get_speed:
             self.get_move_speed()
-        while self.brush_running and not self.ghost_state:
+        while self.state_monitor.is_brushing() and self.state_monitor.is_player_alive():
             logger.info("技能初始化")
             init_status = skill_util.init(screenshot_util.get_game_screenshot(), self.player.player_occupation)
             if init_status:
@@ -599,8 +566,8 @@ class PlayerThread(QThread):
             pyauto.click()
             time.sleep(0.05)
         logger.info('开始刷图')
-        while self.brush_running:
-            if self.ghost_state:
+        while self.state_monitor.is_brushing():
+            if not self.state_monitor.is_player_alive():
                 self.direction_dic.clear()
                 # 重置boss状态
                 self.is_boss = False
@@ -642,11 +609,11 @@ class PlayerThread(QThread):
                 time.sleep(2)
                 self.select_role()  # 选择角色
                 time.sleep(2)
-                pl_value = self.operator_module.ocr_pl(self.get_text, self.send_log)  # 识别疲劳值
+                pl_value = self.state_monitor.ocr_pl(self.get_text, self.send_log)  # 识别疲劳值
                 if pl_value is not None and isinstance(pl_value, (int, float)) and pl_value <= self.player.pl_value:
-                    self.ghost_state = False
-                    # update_role_brush_date(self.current_role_group, self.current_role_index)
-                    role_settings = self.all_role_settings[self.current_role_index]
+                    self.state_monitor.set_ghost_state(False)
+                    # update_role_brush_date(self.current_role_group, self.configuration_manager.get_current_role_index())
+                    role_settings = self.configuration_manager.get_current_role_config()
                     dic_data = {'career': role_settings['career'],
                                 'convert_career': role_settings['convert_career'],
                                 'height': role_settings['height'],
@@ -654,7 +621,7 @@ class PlayerThread(QThread):
                                 'difficulty': role_settings['difficulty'],
                                 "brush_map_expire_time": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                 'leave_pl': self.player.pl_value}
-                    test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.current_role_index, dic_data)
+                    test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.configuration_manager.get_current_role_index(), dic_data)
                     self.brush_running = False
                     return
                 self.mm.FindPic_sleep(758, 564, 818, 589, "商城图标.bmp", 0.9, time_s=10, my_sleep=0.5)
@@ -831,7 +798,8 @@ class PlayerThread(QThread):
                     return
 
                 # 如果玩家位置为None，则尝试左右移动
-                if self.player_pos.x is None or self.player_pos.y is None:
+                player_pos = self.state_monitor.get_player_full_position()
+                if player_pos.x is None or player_pos.y is None:
 
                     logger.info("player_pos is none")
                     player_pos_none_count += 1
@@ -844,7 +812,8 @@ class PlayerThread(QThread):
                 while self.brush_running and not self.ghost_state:
                     data = self.mouse_pos
                     self.get_yolo_res()  # enter_door获取YOLO检测结果
-                    if isinstance(data, tuple) and self.player_pos.x:
+                    player_pos = self.state_monitor.get_player_full_position()
+                    if isinstance(data, tuple) and player_pos.x:
                         # 接收到退出元组，退出循环
                         break
                     # 其他情况，即使数据是None或者其他内容，都不退出，继续处理
@@ -859,16 +828,17 @@ class PlayerThread(QThread):
                 logger.info(f"door_pos:{type(door_pos)}")
                 logger.info(door_pos)
                 # 如果没有找到门的位置，则根据当前位置和移动方向尝试左右移动
+                player_pos = self.state_monitor.get_player_full_position()
                 if isinstance(door_pos, Point):
-                    logger.info(f"player_pos：{self.player_pos.x}, {self.player_pos.y}\tdoor_pos:{door_pos.x}, {door_pos.y}")
+                    logger.info(f"player_pos：{player_pos.x}, {player_pos.y}\tdoor_pos:{door_pos.x}, {door_pos.y}")
 
-                    if abs(self.player_pos.x - door_pos.x) > 200:
-                        move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
+                    if abs(player_pos.x - door_pos.x) > 200:
+                        move_info = self.compute_move_info(player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
                         logger.info("向门奔跑：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                         self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
 
                     else:
-                        move_info = self.compute_move_info_walk(self.player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
+                        move_info = self.compute_move_info_walk(player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
                         logger.info("向门步行：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                         self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
 
@@ -1070,14 +1040,15 @@ class PlayerThread(QThread):
         while self.brush_running and not self.ghost_state:
             # 如果执行时间过长，则进入幽灵状态并返回
             if time.time() - start_time > 30:
-                self.ghost_state = True
+                self.state_monitor.set_ghost_state(True)
                 return
             self.get_yolo_res()  # enter_door获取YOLO检测结果
             if time.time() - start_time > 10 and not attack:
-                if self.player_pos.x is None:
+                player_pos = self.state_monitor.get_player_full_position()
+                if player_pos.x is None:
                     continue
 
-                move_info = self.compute_move_info(self.player_pos, Point(562, 392), 0, 0)
+                move_info = self.compute_move_info(player_pos, Point(562, 392), 0, 0)
                 if move_info is None:
                     continue
                 # 移动人物
@@ -1176,7 +1147,8 @@ class PlayerThread(QThread):
                 return
 
             # 如果玩家位置为None，则尝试左右移动
-            if self.player_pos.x is None or self.player_pos.y is None:
+            player_pos = self.state_monitor.get_player_full_position()
+            if player_pos.x is None or player_pos.y is None:
 
                 logger.info("player_pos is none")
                 player_pos_none_count += 1
@@ -1213,16 +1185,16 @@ class PlayerThread(QThread):
                     door_pos.x = 1
                 elif 1067 > door_pos.x > 1067 - 150:
                     door_pos.x = 1100
-                frame1_detections = (self.player_pos.x, self.player_pos.y)
+                frame1_detections = (player_pos.x, player_pos.y)
 
                 st = time.time()
-                if abs(self.player_pos.x - door_pos.x) > 200:
-                    move_info = self.compute_move_info(self.player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
+                if abs(player_pos.x - door_pos.x) > 200:
+                    move_info = self.compute_move_info(player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
                     logger.info("向门奔跑：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                     self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
 
                 else:
-                    move_info = self.compute_move_info_walk(self.player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
+                    move_info = self.compute_move_info_walk(player_pos, door_pos, 0, 0)  # 计算到最近货物的移动信息
                     logger.info("向门步行：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                     self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
                 # 不是深渊
@@ -1273,14 +1245,15 @@ class PlayerThread(QThread):
                 self.movement_recorder.up_down_move("down", 1)
 
             else:
-                frame1_detections = (self.player_pos.x, self.player_pos.y)
-                if next_direction == "right" and self.player_pos.x > 750:
-                    logger.info("现在方向向右，且玩家X轴坐标{}大于750，弹起前进的方向，现在向左走".format(int(self.player_pos.x)))
+                player_pos = self.state_monitor.get_player_full_position()
+                frame1_detections = (player_pos.x, player_pos.y)
+                if next_direction == "right" and player_pos.x > 750:
+                    logger.info("现在方向向右，且玩家X轴坐标{}大于750，弹起前进的方向，现在向左走".format(int(player_pos.x)))
                     self.movement_recorder.already_left_right_move("left")
                     next_direction = "left"
                     already_move = True
-                if next_direction == "left" and self.player_pos.x < 375:
-                    logger.info("现在方向向左，且玩家X轴坐标{}小于450，弹起前进的方向，现在向右走".format(int(self.player_pos.x)))
+                if next_direction == "left" and player_pos.x < 375:
+                    logger.info("现在方向向左，且玩家X轴坐标{}小于450，弹起前进的方向，现在向右走".format(int(player_pos.x)))
                     self.movement_recorder.already_left_right_move("right")
                     next_direction = "right"
                     already_move = True
@@ -1292,10 +1265,11 @@ class PlayerThread(QThread):
                 if time.time() - frame_time > 5:
                     frame_time = time.time()
                     self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
-                    if self.player_pos.x is None:
+                    player_pos = self.state_monitor.get_player_full_position()
+                    if player_pos.x is None:
                         logger.info("第二帧没有识别到玩家")
                         continue
-                    frame2_detections = (self.player_pos.x, self.player_pos.y)
+                    frame2_detections = (player_pos.x, player_pos.y)
 
                     frames = [frame1_detections, frame2_detections]
                     logger.info("检测人物frames:{}".format(frames))
@@ -1373,12 +1347,15 @@ class PlayerThread(QThread):
                 time.sleep(0.1)
                 continue
 
+            # 获取玩家位置
+            player_pos = self.state_monitor.get_player_full_position()
+            
             # 玩家位置恢复
-            if self.player_pos.x is None:
+            if player_pos.x is None:
                 # self._recover_player_position()
                 self.movement_recorder.spiral_search(self.get_player_position, duration=2)
                 continue
-            frame1_detections = (self.player_pos.x, self.player_pos.y)
+            frame1_detections = (player_pos.x, player_pos.y)
             # 障碍物清除
             self.clearingobstacles()
 
@@ -1391,13 +1368,13 @@ class PlayerThread(QThread):
             current_room_id = self.player.player_room_id
             pickup_count = self.room_item_pickup_counts.get(current_room_id, 0)
 
-            if abs(self.player_pos.x - the_first_item.x) > 200 and pickup_count < 3:
-                move_info = self.compute_move_info(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
+            if abs(player_pos.x - the_first_item.x) > 200 and pickup_count < 3:
+                move_info = self.compute_move_info(player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                 logger.info("向物品奔跑：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                 self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
 
             else:
-                move_info = self.compute_move_info_walk(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
+                move_info = self.compute_move_info_walk(player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                 logger.info("向物品步行：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                 self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
             if self.player.player_room_id is not None:
@@ -1411,7 +1388,8 @@ class PlayerThread(QThread):
             pickup_count = self.room_item_pickup_counts.get(current_room_id)
             if isinstance(pickup_count, int) and pickup_count > 5 and not self.is_boss:
                 logger.info(f"房间{current_room_id}拾取次数大于或等于5次，重新识别移速")
-                if self.player_pos.x:
+                player_pos = self.state_monitor.get_player_full_position()
+                if player_pos.x:
                     # 重新识别移速
                     self.get_move_speed()
                     # 实时移动
@@ -1441,9 +1419,10 @@ class PlayerThread(QThread):
             if time.time() - frame_time > 5:
                 frame_time = time.time()
                 self.get_yolo_res()  # 重新获取YOLO结果，可能是为了更新玩家位置或货物位置
-                if self.player_pos.x is None:
+                player_pos = self.state_monitor.get_player_full_position()
+                if player_pos.x is None:
                     continue
-                frame2_detections = (self.player_pos.x, self.player_pos.y)
+                frame2_detections = (player_pos.x, player_pos.y)
 
                 frames = [frame1_detections, frame2_detections]
                 logger.info("检测人物frames:{}".format(frames))
@@ -1500,15 +1479,14 @@ class PlayerThread(QThread):
         return dx > 5 or dy > 5  # 动态阈值
 
     def _recover_player_position(self):
-        """ 玩家位置丢失恢复策略 """
-        logger.info("尝试螺旋搜索恢复位置")
-        self.movement_recorder.spiral_search(self.get_player_position, duration=2)
-        self.get_yolo_res()
+        """ 玩家位置丢失恢复策略 - 委托给state_monitor处理 """
+        logger.info("委托state_monitor处理玩家位置丢失恢复")
+        self.state_monitor._recover_player_position()
 
     def get_player_position(self):
-        self.get_yolo_res()
-        logger.info(f"回调函数！获取玩家坐标：{self.player_pos.x, self.player_pos.y}")
-        pos = self.player_pos.x
+        # 使用state_monitor获取玩家位置
+        pos = self.state_monitor.get_player_position()
+        logger.info(f"回调函数！获取玩家坐标：{pos}")
         return pos
 
     def _execute_pickup_action(self):
@@ -1527,11 +1505,11 @@ class PlayerThread(QThread):
         """
         读取当前角色的配置信息，并更新玩家对象的相应属性。
 
-        此方法从当前角色的设置中获取职业、身高、地图名称和地图等级等信息，
+        此方法从ConfigurationManager获取当前角色的设置，
         并将这些信息更新到玩家对象中。同时，还会设置小地图的名称。
         """
-        # 从所有角色设置中根据当前角色索引获取当前角色的设置
-        role_settings = self.all_role_settings[self.current_role_index]
+        # 从ConfigurationManager获取当前角色的设置
+        role_settings = self.configuration_manager.get_current_role_config()
 
         # 构造玩家的职业字符串，格式为“职业类型-具体职业”
         self.player.player_occupation = role_settings['career'] + "-" + role_settings['convert_career']
@@ -1585,11 +1563,11 @@ class PlayerThread(QThread):
         if self.is_boss:  # 判断是否处于Boss房间
             logger.info("BOSS房处理")
             start_time = time.time()  # 记录当前时间作为开始时间
-            while self.brush_running and not self.ghost_state:  # 循环条件：刷子正在运行且非幽灵状态
+            while self.state_monitor.is_brushing() and self.state_monitor.is_player_alive():  # 循环条件：刷子正在运行且非幽灵状态
                 end_time = time.time()  # 记录当前时间作为结束时间
                 execution_time = end_time - start_time  # 计算从开始到当前的执行时间
                 if execution_time > 120:  # 如果执行时间超过60秒
-                    self.ghost_state = True  # 设置幽灵状态为True
+                    self.state_monitor.set_ghost_state(True)  # 设置幽灵状态为True
                     logger.info("BOSS房处理超时")
                     break  # 退出循环
                 if len(self.monsters) > 0 or self.player.map_name == "深渊：终末崇拜者" and self.is_boss and not self.has_continue:  # 如果怪物列表不为空
@@ -1656,15 +1634,17 @@ class PlayerThread(QThread):
                 if self.attack_boss_sy:
                     attack_boss_sy_pos = sort_points_by_x(self.attack_boss_sy)  # 对货物位置按x坐标排序x
                     the_first_item = Point(attack_boss_sy_pos[0][0], attack_boss_sy_pos[0][1])
-                    if self.player_pos.x is None:
+                    # 获取玩家位置
+                    player_pos = self.state_monitor.get_player_full_position()
+                    if player_pos.x is None:
                         self.movement_recorder.spiral_search(self.get_player_position, duration=2)
                         continue
-                    if abs(self.player_pos.x - the_first_item.x) > 200:
-                        move_info = self.compute_move_info(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
+                    if abs(player_pos.x - the_first_item.x) > 200:
+                        move_info = self.compute_move_info(player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                         logger.info("向深渊机制物品奔跑：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                         self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
                     else:
-                        move_info = self.compute_move_info_walk(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
+                        move_info = self.compute_move_info_walk(player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                         logger.info("向深渊机制物品步行：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                         self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
                     return
@@ -1852,7 +1832,8 @@ class PlayerThread(QThread):
                 return door_pos  # 返回找到的门的位置
         if map_direction == "down":
             # 记录人物当前坐标
-            logger.info(f"人物坐标: ({self.player_pos.x}, {self.player_pos.y})")
+            player_pos = self.state_monitor.get_player_full_position()
+            logger.info(f"人物坐标: ({player_pos.x}, {player_pos.y})")
 
             # 处理门位置数据
             sorted_doors = sorted(self.doors, key=lambda door: door.y)
@@ -2020,7 +2001,8 @@ class PlayerThread(QThread):
         """
         logger.info("开始向怪物移动")
         monster_direction = "right"
-        if self.player_pos.x is None or not self.monsters:
+        player_pos = self.state_monitor.get_player_full_position()
+        if player_pos.x is None or not self.monsters:
             # 如果玩家位置未设定（即x坐标为None），则返回False
             return False
         # 清除障碍
@@ -2030,7 +2012,7 @@ class PlayerThread(QThread):
         nearest_monster = None
         for monster in self.monsters:
             # 计算欧氏距离的平方（避免开方运算，不影响距离比较结果）
-            distance = (monster[0] - self.player_pos.x) ** 2 + (monster[1] - self.player_pos.y) ** 2
+            distance = (monster[0] - player_pos.x) ** 2 + (monster[1] - player_pos.y) ** 2
             if distance < min_distance:
                 min_distance = distance
                 nearest_monster = monster
@@ -2052,14 +2034,14 @@ class PlayerThread(QThread):
 
         if self.is_first_attack_monster:
             # 第一次攻击的位置调整逻辑，基于最近的怪物
-            if monster_point.x >= self.player_pos.x and monster_point.x - 160 > 0:
+            if monster_point.x >= player_pos.x and monster_point.x - 160 > 0:
                 monster_point.x = monster_point.x - 160
                 monster_direction = "right"  # 朝向玩家（右侧怪物面向左？这里根据实际需求调整）
-            elif monster_point.x <= self.player_pos.x and monster_point.x + 160 < 1067:
+            elif monster_point.x <= player_pos.x and monster_point.x + 160 < 1067:
                 monster_point.x = monster_point.x + 160
                 monster_direction = "left"  # 朝向玩家（左侧怪物面向右？这里根据实际需求调整）
-            elif monster_point.x < self.player_pos.x < (monster_point.x + 160):
-                if self.player_pos.x - monster_point.x < (monster_point.x + 160) - self.player_pos.x:
+            elif monster_point.x < player_pos.x < (monster_point.x + 160):
+                if player_pos.x - monster_point.x < (monster_point.x + 160) - player_pos.x:
                     monster_point.x = monster_point.x - 160
                     monster_direction = "right"
                 else:
@@ -2070,12 +2052,12 @@ class PlayerThread(QThread):
 
         else:
             # 非第一次攻击，直接根据最近怪物位置判断方向
-            if monster_point.x > self.player_pos.x:
+            if monster_point.x > player_pos.x:
                 # 怪物在玩家右侧，玩家需要向右移动并朝向右侧
                 if monster_point.x - 160 > 0:
                     monster_point.x = monster_point.x - 160
                 monster_direction = "right"  # 玩家朝向右侧（怪物方向）
-            elif monster_point.x < self.player_pos.x:
+            elif monster_point.x < player_pos.x:
                 # 怪物在玩家左侧，玩家需要向左移动并朝向左侧
                 if monster_point.x + 160 < 1067:
                     monster_point.x = monster_point.x + 160
@@ -2085,7 +2067,7 @@ class PlayerThread(QThread):
                 monster_direction = "right"
 
         # 计算到最近怪物的移动信息
-        move_info = self.compute_move_info(self.player_pos, monster_point, 0, 0)
+        move_info = self.compute_move_info(player_pos, monster_point, 0, 0)
 
         # 执行移动
         self.movement_recorder.left_right_up_down_move_by(move_info, False)
@@ -2099,44 +2081,43 @@ class PlayerThread(QThread):
 
     def send_with_retry(self, data, message):
         """封装发送逻辑，带自动重连"""
-        return self.socket_handler.send_with_retry(data, message)
+        return self.communication_service.send_with_retry(data, message)
 
     def _reconnect(self):
         """关闭旧连接并建立新连接"""
-        self.sock = self.socket_handler.reconnect()
+        self.communication_service.reconnect()
 
     def get_yolo_res(self, game_image=None):
-        try:
-            # 定义处理函数，获取结果并应用到context
-            def process_and_apply(cls, img):
-                result = self.yolo_handler.process_detect_message(self, cls, img)
-                self.yolo_handler.apply_to_context(self, result)
-                return result  # 返回结果对象，但保持原有功能
-                
-            return self.socket_handler.get_yolo_res(
-                game_image=game_image,
-                screenshot_util=screenshot_util,
-                process_detect_message=process_and_apply
-            )
-        except Exception as e:
-            logger.info(f"发送过程中发生未处理异常: {e}")
-            traceback.print_exc()
-            self._reconnect()
+        """ 获取YOLO识别结果 - 委托给state_monitor处理 """
+        # 确保state_monitor和所需的服务都已初始化
+        if not hasattr(self, 'state_monitor'):
+            logger.error("state_monitor未初始化")
             return False
+        
+        # 将必要的服务传递给state_monitor
+        if hasattr(self, 'communication_service') and not hasattr(self.state_monitor, 'communication_service'):
+            self.state_monitor.communication_service = self.communication_service
+        if hasattr(self, 'screenshot_util') and not hasattr(self.state_monitor, 'screenshot_util'):
+            self.state_monitor.screenshot_util = self.screenshot_util
+        if hasattr(self, '_reconnect') and not hasattr(self.state_monitor, '_reconnect'):
+            self.state_monitor._reconnect = self._reconnect
+            
+        # 调用state_monitor的get_yolo_res方法
+        return self.state_monitor.get_yolo_res(game_image=game_image)
 
     def _recv_exact(self, n):
         """确保接收指定长度的数据"""
-        return self.socket_handler._recv_exact(n)
+        return self.communication_service._recv_exact(n)
 
     def receive_message_from_server(self):
         """
         从服务器接收完整消息（含协议头+数据）
         """
-        return self.socket_handler.receive_message_from_server()
+        return self.communication_service.receive_message_from_server()
 
     def get_text(self, x1, y1, x2, y2, img_numpy=None, amplify=False):
         try:
-            return self.socket_handler.get_text(x1, y1, x2, y2, img_numpy, amplify)
+            return self.communication_service.get_text(x1, y1, x2, y2, img_numpy, amplify)
         except Exception as e:
             logger.exception(f"发送过程中发生未处理异常:{e}")
             traceback.print_exc()
@@ -2151,7 +2132,7 @@ class PlayerThread(QThread):
                 self.yolo_handler.min_map_apply_to_context(self, result)
                 return result  # 返回结果对象，但保持原有功能
                 
-            return self.socket_handler.get_min_map_yolo_res(
+            return self.communication_service.get_min_map_yolo_res(
                 miniMapUtil=miniMapUtil,
                 player_map_name=self.player.map_name,
                 min_map_process_detect_message=process_and_apply
@@ -2277,15 +2258,15 @@ class PlayerThread(QThread):
 
                 if self.brush_cnt % 16 == 0 and self.player.map_name not in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
                     self.operator_module.sale_goods(self.sell)
-                pl_value = self.operator_module.ocr_pl(self.get_text, self.send_log)
+                pl_value = self.state_monitor.ocr_pl(self.get_text, self.send_log)
                 # 识别到疲劳且小于预留
                 if pl_value is not None and isinstance(pl_value, (int, float)) and pl_value <= self.player.pl_value:
 
                     if self.brush_cnt % 16 != 0 and self.player.map_name not in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):  # 这几个图不出售
                         # 出售装备、材料
                         self.operator_module.sale_goods(self.sell)
-                    # update_role_brush_date(self.current_role_group, self.current_role_index)
-                    role_settings = self.all_role_settings[self.current_role_index]
+                    # update_role_brush_date(self.current_role_group, self.configuration_manager.get_current_role_index())
+                    role_settings = self.configuration_manager.get_current_role_config()
                     # 更新状态到数据库
                     dic_data = {'career': role_settings['career'],
                                 'convert_career': role_settings['convert_career'],
@@ -2294,7 +2275,7 @@ class PlayerThread(QThread):
                                 'difficulty': role_settings['difficulty'],
                                 "brush_map_expire_time": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                 'leave_pl': self.player.pl_value}
-                    test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.current_role_index, dic_data)
+                    test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.configuration_manager.get_current_role_index(), dic_data)
                     self.operator_module.click_menu_item("返回城镇")
                     time.sleep(0.5)
                     ret = self.mm.FindPic(0, 0, 1067, 600, "关闭.bmp", 0.9)
@@ -2324,11 +2305,11 @@ class PlayerThread(QThread):
                 start_time = time.time()  # 记录当前时间作为开始时间
                 direction = 'left'
                 player_pos_none_count = 0
-                while self.brush_running and not self.ghost_state:
+                while self.state_monitor.is_brushing() and self.state_monitor.is_player_alive():
                     end_time = time.time()  # 记录当前时间作为结束时间
                     execution_time = end_time - start_time  # 计算从开始到当前的执行时间
                     if execution_time > 30:  # 如果执行时间超过15秒
-                        self.ghost_state = True  # 设置幽灵状态为True
+                        self.state_monitor.set_ghost_state(True)  # 设置幽灵状态为True
                         self.send_log("物品没拾取完，再次挑战超时")
                         break  # 退出循环
                     # 收起结算评分否则如果还有物品可能识别不到
@@ -2373,14 +2354,15 @@ class PlayerThread(QThread):
                         # if self.player_pos.x is not None and self.is_boss is False:
                         #     # 记录玩家的动态
                         #     self.player_dynamics_tuple.emit((self.player_pos.x, self.player_pos.y))
-                        if self.player_pos.x is not None:
-                            logger.info("人物坐标:{}\t{}\t物品坐标：{}\t{}".format(self.player_pos.x, self.player_pos.y, the_first_item.x, the_first_item.y))
-                            if abs(self.player_pos.x - the_first_item.x) > 200:
-                                move_info = self.compute_move_info(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
+                        player_pos = self.state_monitor.get_player_full_position()
+                        if player_pos.x is not None:
+                            logger.info("人物坐标:{}\t{}\t物品坐标：{}\t{}".format(player_pos.x, player_pos.y, the_first_item.x, the_first_item.y))
+                            if abs(player_pos.x - the_first_item.x) > 200:
+                                move_info = self.compute_move_info(player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                                 logger.info("向物品奔跑：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                                 self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
                             else:
-                                move_info = self.compute_move_info_walk(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
+                                move_info = self.compute_move_info_walk(player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                                 logger.info("向物品步行：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                                 self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
                             time.sleep(0.05)  # 暂停0.02秒
@@ -2392,7 +2374,8 @@ class PlayerThread(QThread):
                             time.sleep(0.05)
                         else:
                             self.send_log("boss房物品没拾取完，未识别到人物位置")
-                            if self.player_pos.x is None or self.player_pos.y is None:
+                            player_pos = self.state_monitor.get_player_full_position()
+                            if player_pos.x is None or player_pos.y is None:
                                 logger.info("player_pos is none")
                                 player_pos_none_count += 1
                                 if player_pos_none_count > 30:
@@ -2442,13 +2425,13 @@ class PlayerThread(QThread):
                 time.sleep(random.uniform(0.8, 1.2))
                 self.agg_pick_up_goods()
                 self.send_log(f"当前刷图次数{self.brush_cnt + 1}")
-                pl_value = self.operator_module.ocr_pl(self.get_text, self.send_log)
+                pl_value = self.state_monitor.ocr_pl(self.get_text, self.send_log)
                 x1, y1, x2, y2 = (899, 77, 964, 96)
                 min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                 ret = self.mm.is_colored(min_img, 30)
                 # 如果体力不为0、小于预留体力、ret是False代表按f10不能再刷
                 if pl_value is not None and isinstance(pl_value, (int, float)) and pl_value <= self.player.pl_value or not ret:
-                    role_settings = self.all_role_settings[self.current_role_index]
+                    role_settings = self.configuration_manager.get_current_role_config()
                     dic_data = {'career': role_settings['career'],
                                 'convert_career': role_settings['convert_career'],
                                 'height': role_settings['height'],
@@ -2456,7 +2439,7 @@ class PlayerThread(QThread):
                                 'difficulty': role_settings['difficulty'],
                                 "brush_map_expire_time": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                 'leave_pl': self.player.pl_value}
-                    test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.current_role_index, dic_data)
+                    test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.configuration_manager.get_current_role_index(), dic_data)
                     self.operator_module.click_menu_item("返回城镇")
                     time.sleep(0.5)
                     # 0点弹广告
@@ -2489,7 +2472,7 @@ class PlayerThread(QThread):
                     end_time = time.time()  # 记录当前时间作为结束时间
                     execution_time = end_time - start_time  # 计算从开始到当前的执行时间
                     if execution_time > 30:  # 如果执行时间超过15秒
-                        self.ghost_state = True  # 设置幽灵状态为True
+                        self.state_monitor.set_ghost_state(True)  # 设置幽灵状态为True
                         self.send_log("物品没拾取完，再次挑战超时")
                         break  # 退出循环
                     # 收起结算评分否则如果还有物品可能识别不到
@@ -2530,14 +2513,15 @@ class PlayerThread(QThread):
                         # if self.player_pos.x is not None and self.is_boss is False:
                         #     # 记录玩家的动态
                         #     self.player_dynamics_tuple.emit((self.player_pos.x, self.player_pos.y))
-                        if self.player_pos.x is not None:
-                            logger.info("人物坐标:{}\t{}\t物品坐标：{}\t{}".format(self.player_pos.x, self.player_pos.y, the_first_item.x, the_first_item.y))
-                            if abs(self.player_pos.x - the_first_item.x) > 200:
-                                move_info = self.compute_move_info(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
+                        player_pos = self.state_monitor.get_player_full_position()
+                        if player_pos.x is not None:
+                            logger.info("人物坐标:{}\t{}\t物品坐标：{}\t{}".format(player_pos.x, player_pos.y, the_first_item.x, the_first_item.y))
+                            if abs(player_pos.x - the_first_item.x) > 200:
+                                move_info = self.compute_move_info(player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                                 logger.info("向物品奔跑：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                                 self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
                             else:
-                                move_info = self.compute_move_info_walk(self.player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
+                                move_info = self.compute_move_info_walk(player_pos, the_first_item, 0, 0)  # 计算到最近货物的移动信息
                                 logger.info("向物品步行：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                                 self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
                             time.sleep(0.05)  # 暂停0.02秒
@@ -2549,7 +2533,8 @@ class PlayerThread(QThread):
                             time.sleep(0.05)
                         else:
                             self.send_log("boss房物品没拾取完，未识别到人物位置")
-                            if self.player_pos.x is None or self.player_pos.y is None:
+                            player_pos = self.state_monitor.get_player_full_position()
+                            if player_pos.x is None or player_pos.y is None:
                                 logger.info("player_pos is none")
                                 player_pos_none_count += 1
                                 if player_pos_none_count > 30:
@@ -2732,7 +2717,7 @@ class PlayerThread(QThread):
             text = self.get_text(159, 89, 242, 118, game_image)
             logger.info(f"识别文字：{text}")
             cleaned_text = re.sub(r'[^\u4e00-\u9fa5]', '', text)
-            if self.similarity(cleaned_text, "每日任务") >= 0.7:
+            if self.yolo_handler.similarity(cleaned_text, "每日任务") >= 0.7:
                 shuffled_xy_list = shuffle_list(xy_list)
                 for xy in shuffled_xy_list:
                     x, y = xy
@@ -3197,8 +3182,8 @@ class PlayerThread(QThread):
                             if time.time() - syst > 20:
                                 self.send_log("深渊票不足，跳过当前角色")
                                 self.ghost_state = False
-                                # update_role_brush_date(self.current_role_group, self.current_role_index)
-                                role_settings = self.all_role_settings[self.current_role_index]
+                                # update_role_brush_date(self.current_role_group, self.configuration_manager.get_current_role_index())
+                                role_settings = self.configuration_manager.get_current_role_config()
                                 dic_data = {'career': role_settings['career'],
                                             'convert_career': role_settings['convert_career'],
                                             'height': role_settings['height'],
@@ -3206,12 +3191,12 @@ class PlayerThread(QThread):
                                             'difficulty': role_settings['difficulty'],
                                             "brush_map_expire_time": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                             'leave_pl': self.player.pl_value}
-                                test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.current_role_index, dic_data)
+                                test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.configuration_manager.get_current_role_index(), dic_data)
                                 self.brush_running = False
                                 pyauto.keyPressChar('esc')
                                 time.sleep(0.1)
                                 return 0
-                            if self.similarity(cleaned_text, "深渊：终末崇拜者") >= 0.7:
+                            if self.yolo_handler.similarity(cleaned_text, "深渊：终末崇拜者") >= 0.7:
                                 break
                             else:
                                 self.send_log("深渊图检测2——未检测到在图中,等待...")
@@ -3559,27 +3544,28 @@ class PlayerThread(QThread):
     def select_role(self):
         while self.brush_running:
             # 选择角色状态
-            select_role_status = self.operator_module.select_role(self.waiting_for_the_text_to_appear, self.current_role_index)
+            select_role_status = self.operator_module.select_role(self.waiting_for_the_text_to_appear, self.configuration_manager.get_current_role_index())
             if select_role_status:
                 break
 
     def receive_ghost_state_message(self, message):
         logger.info("ghost_state_message：" + message)
         if message == "true":
-            self.ghost_state = True
+            self.state_monitor.set_ghost_state(True)
         elif message == "false":
-            self.ghost_state = False
+            self.state_monitor.set_ghost_state(False)
 
     def clearingobstacles(self):
         """
         清除障碍
         :return:
         """
-        if len(self.box) > 0 and self.player_pos.x is not None:
+        player_pos = self.state_monitor.get_player_full_position()
+        if len(self.box) > 0 and player_pos.x is not None:
             for p in self.box:
                 logger.info(f"p position x: {p.x}, y: {p.y}")
-                logger.info(f"Player position x: {self.player_pos.x}, y: {self.player_pos.y}")
-                if abs(p.x - self.player_pos.x) < 120 and abs(p.y - self.player_pos.y) < 30:
+                logger.info(f"Player position x: {player_pos.x}, y: {player_pos.y}")
+                if abs(p.x - player_pos.x) < 120 and abs(p.y - player_pos.y) < 30:
                     logger.info("清除障碍", (p.x, p.y))
 
     def is_valid_map(self):
@@ -3774,22 +3760,23 @@ class PlayerThread(QThread):
             self.mouse_pos = (x, y)
 
     def try_move(self):
-        if self.player_pos.x > 1067 / 2:
-            if abs(self.player_pos.x - 244) < 200:
-                move_info = self.compute_move_info_walk(self.player_pos, Point(244, 468), 0, 0)  # 计算到最近货物的移动信息
+        player_pos = self.state_monitor.get_player_full_position()
+        if player_pos.x > 1067 / 2:
+            if abs(player_pos.x - 244) < 200:
+                move_info = self.compute_move_info_walk(player_pos, Point(244, 468), 0, 0)  # 计算到最近货物的移动信息
                 self.send_log("卡点了，尝试移动：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                 self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
             else:
-                move_info = self.compute_move_info(self.player_pos, Point(244, 468), 0, 0)  # 计算到最近货物的移动信息
+                move_info = self.compute_move_info(player_pos, Point(244, 468), 0, 0)  # 计算到最近货物的移动信息
                 self.send_log("卡点了，尝试跑步：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                 self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
         else:
-            if abs(self.player_pos.x - 244) < 200:
-                move_info = self.compute_move_info_walk(self.player_pos, Point(848, 468), 0, 0)  # 计算到最近货物的移动信息
+            if abs(player_pos.x - 244) < 200:
+                move_info = self.compute_move_info_walk(player_pos, Point(848, 468), 0, 0)  # 计算到最近货物的移动信息
                 self.send_log("卡点了，尝试移动：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                 self.movement_recorder.left_right_up_down_move_walk_by(move_info, False)  # 根据移动信息移动
             else:
-                move_info = self.compute_move_info(self.player_pos, Point(848, 468), 0, 0)  # 计算到最近货物的移动信息
+                move_info = self.compute_move_info(player_pos, Point(848, 468), 0, 0)  # 计算到最近货物的移动信息
                 self.send_log("卡点了，尝试跑步：{}\t{}\t{}\t{}".format(move_info.leftRightDirection, move_info.xTime, move_info.upDownDirection, move_info.yTime))
                 self.movement_recorder.left_right_up_down_move_by(move_info, False)  # 根据移动信息移动
 
