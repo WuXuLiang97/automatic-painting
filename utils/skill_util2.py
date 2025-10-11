@@ -150,16 +150,18 @@ class SkillUtil:
 
             # 分类技能
             if position_idx < 7:  # 第一排
-                self.skill_1.append(key)
+
                 if self.player_occupation != "黑暗武士-黑暗武士" and position_idx < 6:
                     self.boss_skill_release_order.append(key)
+                    self.skill_1.append(key)
                 elif self.player_occupation == "黑暗武士-黑暗武士" and position_idx < 5:
                     self.boss_skill_release_order.append(key)
+                    self.skill_1.append(key)
             else:  # 第二排
                 if self.player_occupation != "黑暗武士-黑暗武士":
-                    self.skill_2.append(key)
                     if position_idx != 13:  # 不是最后一个技能
                         self.boss_skill_release_order.append(key)
+                        self.skill_2.append(key)
 
         logger.info(f"第一排技能: {self.skill_1}")
         logger.info(f"第二排技能: {self.skill_2}")

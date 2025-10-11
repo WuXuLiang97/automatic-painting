@@ -44,8 +44,34 @@ from core.capturecardconnection import CaptureCardConnection
 from utils.cv_recognizer import vnc_mm
 from root_dir import root_path
 
+
+try:
+    # 1. 获取当前程序的真实路径（解决快捷方式、符号链接、相对路径问题）
+    # sys.argv[0]：脚本/可执行文件路径（如 "D:/a/b/c/script.exe" 或 "script.py"）
+    app_path = os.path.realpath(sys.argv[0])
+    print(f"当前程序真实路径：{app_path}")  # 调试用，可删除
+
+    # 2. 提取「程序所在的最底层目录」（核心修复点）
+    app_dir = os.path.dirname(app_path)  # 程序所在目录（如 "D:/a/b/c"）
+    app_dir_name = os.path.basename(app_dir)  # 提取最底层目录名（如 "c"）
+    print(f"程序所在最底层目录：{app_dir_name}")  # 调试用，可删除
+
+    # 3. 异常处理：覆盖所有边缘场景
+    if not app_dir_name:  # 场景1：程序直接放根目录（如 "C:/script.exe"），app_dir是 "C:/"，basename返回空
+        app_dir_name = "default_script"
+    elif app_dir_name in ["/", "\\"]:  # 场景2：Unix系统根目录（"/"）或Windows根目录（"\\"）
+        app_dir_name = "default_script"
+    # 场景3：目录名含特殊字符（如空格、中文），QSettings自动兼容，无需额外处理
+    CONFIG_PATH_a = os.path.join(root_path, app_dir_name, "json_resources")
+
+    # 检查路径是否存在，不存在则创建（包括所有父目录）
+    if not os.path.exists(CONFIG_PATH_a):
+        os.makedirs(CONFIG_PATH_a, exist_ok=True)  # exist_ok=True 避免路径已存在时抛错
+except Exception as e:
+    # 极端异常（如路径无法解析）时，用默认配置名兜底
+    print(f"路径解析异常：{str(e)}，使用默认配置")
 # 拼接文件路径
-CONFIG_PATH = os.path.join(root_path, "json_resources/config.json")
+CONFIG_PATH = os.path.join(root_path, app_dir_name, "json_resources/config.json")
 f_program_version = '250920'
 Network = 0
 
@@ -769,7 +795,8 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 self.VNC = VNC(vm_ip, vm_port, vm_pass)
 
                 # 截图
-                image = self.VNC.capture()
+                for _ in range(5):
+                    image = self.VNC.capture()
                 # 更新共享对象
                 pyauto.VNC = self.VNC
                 pyauto.pyauto_init(1, 0.05)
@@ -831,7 +858,8 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 print(f"self.identifier:{self.identifier}")
 
                 # 截图
-                image = self.identifier.capture()
+                for _ in range(5):
+                    image = self.identifier.capture()
                 # 更新共享对象
                 pyauto.VNC = None
                 pyauto.pyauto_init(2, 0.02)
