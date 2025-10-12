@@ -129,7 +129,7 @@ class VNC:
 
 if __name__ == '__main__':
     try:
-        v = VNC("192.168.1.125", "5901", "")
+        v = VNC("192.168.1.143", "5900", "")
         print(v.client)
         time.sleep(2)
         # new_image = v.capture(path=None)  # 获取新图像
@@ -157,6 +157,25 @@ if __name__ == '__main__':
     x1, y1, x2, y2 = (162, 383, 256, 401)
     min_img = v.capture()[y1:y2, x1:x2]
     ret = is_colored(min_img, 50)
+
+
+    from utils.cv_recognizer import vnc_mm
+    vnc_mm.VNC = v
+    for _ in range(5):
+        game_image = v.capture()
+    # ret = vnc_mm.find_color((80, 286, 1026, 542), game_image, (20, 150, 10, 15), color_range=([150, 254, 254], [150, 255, 255]),debug=2)
+    # if ret:
+    #     x, y = ret[0][1], ret[0][2] + 60
+    # print(ret)
+    ret = vnc_mm.FindPic(241,20,858,500, "赛丽亚.bmp", 0.9, delta_color=([13, 131, 244], [35, 159, 255]),drag=2)
+    if ret:
+        x, y = ret[0][1], ret[0][2]
+    print(ret)
+    # ret = vnc_mm.FindPic(754, 436, 866, 503, "接受.bmp", 0.9, delta_color=([17, 121, 184], [18, 123, 186]))
+    # if ret:
+    #     x, y = ret[0][1], ret[0][2]
+    # print(ret)
+    # exit()
     # from utils.cv_recognizer import vnc_mm
     #
     # vnc_mm.VNC = v

@@ -366,7 +366,7 @@ class PlayerThread(QThread):
                     logger.info(room_list)
                 # 刷图
                 while self.brush_running:
-                    if self.player.map_name != "深渊：终末崇拜者":
+                    if self.player.map_name not in ["深渊：终末崇拜者", "黄龙大会"]:
                         # 得到玩家所在房间
                         self.get_min_map_yolo_res()
 
@@ -381,7 +381,13 @@ class PlayerThread(QThread):
                         text = self.get_text(927, 2, 1031, 22, game_image)
                         logger.info(f"识别右上角文字：{text}")
                         cleaned_text = re.sub(r'[^\u4e00-\u9fa5]', '', text)
+
+                        text2 = self.get_text(482, 33, 588, 93, game_image)
+                        cleaned_text2 = re.sub(r'[^\u4e00-\u9fa5]', '', text2)
+                        logger.info(f"识别右上角文字：{text2}")
                         if self.similarity(cleaned_text, "深渊：终末崇拜者") >= 0.7:
+                            break
+                        elif self.similarity(cleaned_text2, "对战") >= 0.7:
                             break
                         else:
                             logger.info("深渊图检测1——未检测到在图中,等待...")
@@ -939,7 +945,28 @@ class PlayerThread(QThread):
         qx, qy = 327, 0
         if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
             return
-        if self.player.map_name == "风暴逆鳞普通":
+        if self.player.map_name in ["风暴逆鳞普通","黄龙大会"]:
+            if self.player.map_name in ["黄龙大会"]:
+                # 出售装备
+                ret = self.mm.FindPic(241, 20, 858, 500, "赛丽亚.bmp", 0.9, delta_color=([13, 131, 244], [35, 159, 255]))
+                if ret:
+                    x, y = ret[0][1], ret[0][2] + 60
+                    self.operator_module.move_to(x, y)
+                    time.sleep(0.1)
+                    pyauto.click()
+                    time.sleep(1)
+                    ret = self.mm.FindPic(241, 20, 858, 500, "商店.bmp", 0.9, delta_color=([7, 71, 219], [29, 95, 241]))
+                    if ret:
+                        x, y = ret[0][1], ret[0][2]
+                        self.operator_module.move_to(x, y)
+                        time.sleep(0.1)
+                        pyauto.click()
+                        time.sleep(1)
+                        self.operator_module.sale_goods(self.sell)
+                        self.operator_module.open_window("选择菜单")
+                        # 按下esc
+                        pyauto.keyPressChar("esc")
+                        time.sleep(0.1)
             # 点箱子
             self.operator_module.move_to(368, 370)
             time.sleep(1)
@@ -997,15 +1024,23 @@ class PlayerThread(QThread):
                         ret = self.mm.FindPic_sleep(0, 0, 1067, 600, "金库1.bmp", 0.9, 1, time_s=5)
                         if ret:
                             x, y = ret[0][1], ret[0][2]
-                            # 点物品
-                            self.operator_module.move_to(x, y + 30)
+                            if self.player.map_name == "风暴逆鳞普通":
+                                # 点物品
+                                self.operator_module.move_to(x, y + 30)
+                            elif self.player.map_name == "黄龙大会":
+                                # 点物品
+                                self.operator_module.move_to(x + 20, y + 30)
                             time.sleep(0.1)
                             pyauto.click()
                             time.sleep(0.1)
                             ret = self.mm.FindPic_sleep(0, 0, 1067, 600, "数量.bmp", 0.9, 1, time_s=2)
                             if ret:
-                                # 生成980到1020之间的随机整数
-                                random_number = random.randint(2000, 2100)
+                                if self.player.map_name == "风暴逆鳞普通":
+                                    # 生成980到1020之间的随机整数
+                                    random_number = random.randint(2000, 2100)
+                                elif self.player.map_name == "黄龙大会":
+                                    # 生成980到1020之间的随机整数
+                                    random_number = random.randint(999, 1400)
                                 # 将整数转换为字符串
                                 random_number_str = str(random_number)
                                 # # 输出结果
@@ -1086,7 +1121,10 @@ class PlayerThread(QThread):
         door__pos_none_count = 0  # 门位置为None的计数
         attack = False
         down = False
-        if self.player.map_name != "深渊：终末崇拜者":
+        if self.player.map_name in ["黄龙大会"]:
+            logger.info(f"黄龙大会不用找门")
+            return
+        if self.player.map_name not in ["深渊：终末崇拜者", "黄龙大会"]:
             # 获取小地图数据
             self.get_min_map_yolo_res()
             current_room = self.player.player_room_id
@@ -1219,7 +1257,7 @@ class PlayerThread(QThread):
             door_pos = None
             logger.info(f"self.player.map_name:{self.player.map_name}")
             # # 获取玩家所在的房间ID
-            if self.player.map_name != "深渊：终末崇拜者":
+            if self.player.map_name not in ["深渊：终末崇拜者", "黄龙大会"]:
                 # 如果房间ID为None，则跳过本次循环
                 if self.player.player_room_id is None:
                     logger.info("enter_door player_room_id is None")
@@ -2328,7 +2366,7 @@ class PlayerThread(QThread):
                 logger.info(f"{data}")
                 continue
             elif data[0].startswith("goods") and data[5] > 0.5:
-                if not self.is_boss and self.player.map_name == "深渊：终末崇拜者":
+                if not self.is_boss and self.player.map_name in ["深渊：终末崇拜者","黄龙大会"]:
                     logger.info(f"刷深渊中，当前不是boss房不捡物品")
                     continue
                 # 如果物品位置在特定区域外，也跳过
@@ -2485,6 +2523,15 @@ class PlayerThread(QThread):
             # 计算商品中心点坐标
             self.goods = [(int((dx + dx1) / 2), dy1 + 20, text) for dx, dy, dx1, dy1, text in filtered_goods]
             logger.info(f"self.goods:{self.goods}")
+
+        if self.player.map_name in ["黄龙大会"]:
+            ret = self.mm.find_color((80, 286, 1026, 542), game_image, (20, 150, 10, 15), color_range=([150, 254, 254], [150, 255, 255]))
+            if ret:
+                x, y = ret[0][0], ret[0][1] + 110
+                logger.info(f"黄龙大会boss：{x, y}")
+                self.monsters.append((x, y))
+                self.is_boss = True
+
 
     def similarity(self, s1, s2):
         """计算字符串相似度（0-1）"""
@@ -2965,7 +3012,7 @@ class PlayerThread(QThread):
                         time.sleep(0.2)
                         pyauto.click()
                         time.sleep(0.2)
-        if self.player.map_name != "深渊：终末崇拜者":
+        if self.player.map_name not in ["深渊：终末崇拜者", "黄龙大会"]:
             ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
             if ret:
                 if self.player.map_name == "风暴逆鳞普通":
@@ -3173,6 +3220,10 @@ class PlayerThread(QThread):
                     # 每日任务
                     if self.player.is_daily_tasks == "是":
                         self.daily_tasks()
+                    if self.player.map_name in ["黄龙大会"]:
+                        # 存金币
+                        self.deposit_goods()
+
                     self.brush_running = False
                     self.first_press_to_exit = True
                     self.direction_dic.clear()
@@ -3218,9 +3269,19 @@ class PlayerThread(QThread):
                             time.sleep(0.05)
                             pyauto.click()
                             time.sleep(0.1)
+                    if self.player.map_name in ["黄龙大会"]:
+                        ret = self.mm.FindPic(852, 566, 914, 596, "对话空格.bmp", 0.9, delta_color=([8, 50, 203], [39, 99, 255]))
+                        if ret:
+                            self.send_log("对话空格")
+                            for _ in range(random.randint(5,6)):
+                                pyauto.keyPressChar('space')
+                                time.sleep(0.1)
                     game_image = screenshot_util.get_game_screenshot()
-                    pyauto.keyPressChar("f10")
                     self.get_yolo_res(game_image)
+                    pyauto.keyPressChar(challenge_again_value)
+                    if self.player.map_name in ["黄龙大会"]:
+                        time.sleep(2)
+                        pyauto.keyPressChar('space')
                     # 再次检查是否还有物品
                     if len(self.goods) > 0:
                         self.send_log("boss房物品没拾取完，尝试拾取")
@@ -4286,6 +4347,383 @@ class PlayerThread(QThread):
                                 break
                             else:
                                 self.send_log("未检测到在图中,等待...")
+                                pyauto.keyPressChar("space")
+                                time.sleep(0.5)
+                                continue
+                        break
+                    else:
+                        pyauto.keyPressChar("down")
+                        time.sleep(0.2)
+                        continue
+
+            elif self.player.map_name == "黄龙大会":
+                stat_time = time.time()
+                while self.brush_running:
+                    x1, y1, x2, y2 = (59,241,134,246)
+                    min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
+
+                    ret = self.mm.is_colored(min_img, 50)
+                    if ret:
+                        pyauto.keyPressChar("space")
+                        time.sleep(0.2)
+                        break
+                    else:
+                        pyauto.keyPressChar("up")
+                        time.sleep(0.2)
+                    if time.time() - stat_time > 10:
+                        break
+                # self.operator_module.move_to(239, 179)
+                # time.sleep(0.2)
+                # pyauto.click()
+                # time.sleep(0.1)
+                # pyauto.KeyPressChar("space")
+
+                while self.brush_running:
+                    """
+                    如果没到虚祖首都素喃再次打开传送阵，进行传送
+                    """
+                    ret = self.waiting_for_the_text_to_appear([900, 26, 991, 50], "虚祖首都素喃", r'[\u4e00-\u9fa5]+', 15)
+                    if not ret:
+                        click_status = self.operator_module.click_menu_item("传送阵")
+                        if not click_status:
+                            logger.info("点击传送阵失败")
+                            continue
+                        stat_time = time.time()
+                        while self.brush_running:
+                            x1, y1, x2, y2 = (59,241,134,246)
+                            min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
+                            ret = self.mm.is_colored(min_img, 50)
+                            if ret:
+                                pyauto.keyPressChar("space")
+                                time.sleep(0.2)
+                                break
+                            else:
+                                pyauto.keyPressChar("up")
+                                time.sleep(0.2)
+                            if time.time() - stat_time > 10:
+                                break
+                        # self.operator_module.move_to(239, 179)
+                        # time.sleep(0.2)
+                        # pyauto.click()
+                        # time.sleep(0.2)
+                    # self.operator_module.open_window("世界地图")
+                    # time.sleep(0.2)
+                    # self.operator_module.move_to(725, 199)
+                    # time.sleep(0.2)
+                    # pyauto.click()
+                    # time.sleep(1)
+                    # pyauto.KeyPressChar("n")
+                    time.sleep(5)
+                    ret = self.mm.FindPic_sleep(900, 26, 991, 50, "素喃.bmp", 0.9, time_s=1, my_sleep=0.1)
+                    if ret:
+                        break
+                # 领任务
+                self.operator_module.move_to(13, 318)
+                time.sleep(0.1)
+                pyauto.click()
+                time.sleep(0.2)
+                self.operator_module.move_to(71, 369)
+                time.sleep(0.1)
+                pyauto.click()
+                time.sleep(0.2)
+                for _ in range(2):
+                    ret = self.mm.FindPic(174, 115, 436, 192, "外传.bmp", 0.9)
+                    if ret:
+                        x, y = ret[0][1], ret[0][2]
+                        self.operator_module.move_to(x, y)
+                        time.sleep(0.1)
+                        pyauto.click()
+                        time.sleep(0.5)
+                        # 接任务
+                        self.operator_module.move_to(814, 469)
+                        time.sleep(0.1)
+                        pyauto.click()
+                        time.sleep(0.2)
+                        # 点人物
+                        self.operator_module.move_to(13, 318)
+                        time.sleep(0.1)
+                        pyauto.click()
+                        time.sleep(0.2)
+                        # 点完成
+                        self.operator_module.move_to(754, 472)
+                        time.sleep(0.1)
+                        pyauto.click()
+                        time.sleep(0.2)
+                        # 点确定
+                        self.operator_module.move_to(532, 356)
+                        time.sleep(0.1)
+                        pyauto.click()
+                        time.sleep(0.2)
+                self.operator_module.open_window("选择菜单")
+                pyauto.keyPressChar("esc")
+                time.sleep(0.2)
+                self.operator_module.click_menu_item("传送阵")
+                # 点小铁柱旁边
+                self.operator_module.move_to(618,407)
+                time.sleep(0.1)
+                pyauto.click()
+                vnc_mm.FindPic_sleep(583, 370, 631, 427, "地图小人.bmp", 0.9, delta_color=([50, 106, 0], [160, 255, 255]), time_s=20)
+                pyauto.keyPressChar("esc")
+                time.sleep(1)
+                # 接任务
+                ret = self.mm.FindPic(500, 0, 1067, 600, "小铁柱头上.bmp", 0.9, delta_color=([13, 151, 236], [34, 174, 255]))
+                if ret:
+                    x, y = ret[0][1], ret[0][2] + 60
+                    self.operator_module.move_to(x, y)
+                    time.sleep(0.1)
+                    pyauto.click()
+                    time.sleep(1)
+                    ret = self.mm.FindPic(500, 0, 1067, 600, "小铁柱任务.bmp", 0.9, delta_color=([7, 71, 219], [29, 95, 241]))
+                    if ret:
+                        x, y = ret[0][1], ret[0][2]
+                        self.operator_module.move_to(x, y)
+                        time.sleep(0.1)
+                        pyauto.click()
+                        time.sleep(1)
+                        # 接任务
+                        ret = self.mm.FindPic(0, 0, 500, 600, "收集华丽的曲玉.bmp", 0.9, delta_color=([10, 94, 132], [32, 120, 154]))
+                        if ret:
+                            x, y = ret[0][1], ret[0][2]
+                            # 接任务
+                            self.operator_module.move_to(x, y)
+                            time.sleep(0.1)
+                            pyauto.click()
+                            time.sleep(1)
+                            ret = self.mm.FindPic(754, 436, 866, 503, "接受.bmp", 0.9, delta_color=([7, 111, 174], [28, 133, 196]))
+                            if ret:
+                                x, y = ret[0][1], ret[0][2]
+                                # 接任务
+                                self.operator_module.move_to(x, y)
+                                time.sleep(0.1)
+                                pyauto.click()
+                                time.sleep(0.2)
+                        # 接任务
+                        ret = self.mm.FindPic(0, 0, 500, 600, "收集普通的曲玉.bmp", 0.9, delta_color=([10, 94, 132], [32, 120, 154]))
+                        if ret:
+                            x, y = ret[0][1], ret[0][2]
+                            # 接任务
+                            self.operator_module.move_to(x, y)
+                            time.sleep(0.1)
+                            pyauto.click()
+                            time.sleep(1)
+                            ret = self.mm.FindPic(754, 436, 866, 503, "接受.bmp", 0.9, delta_color=([7, 111, 174], [28, 133, 196]))
+                            if ret:
+                                x, y = ret[0][1], ret[0][2]
+                                # 接任务
+                                self.operator_module.move_to(x, y)
+                                time.sleep(0.1)
+                                pyauto.click()
+                                time.sleep(0.2)
+                        self.operator_module.open_window("选择菜单")
+                        pyauto.keyPressChar("esc")
+                        time.sleep(0.2)
+
+                ret = self.mm.FindPic(500, 0, 1067, 600, "小铁柱头上.bmp", 0.9, delta_color=([13, 151, 236], [34, 174, 255]))
+                if ret:
+                    x, y = ret[0][1], ret[0][2] + 60
+                    self.operator_module.move_to(x, y)
+                    time.sleep(0.1)
+                    pyauto.click()
+                    time.sleep(1)
+                    ret = self.mm.FindPic(500, 0, 1067, 600, "小铁柱商店修理.bmp", 0.9, delta_color=([7, 71, 219], [29, 95, 241]))
+                    if ret:
+                        x, y = ret[0][1], ret[0][2]
+                        self.operator_module.move_to(x, y)
+                        time.sleep(0.1)
+                        pyauto.click()
+                        time.sleep(1)
+
+                ret = self.mm.FindPic_sleep(366, 60, 442, 97, "小铁柱.bmp", 0.9, time_s=1, my_sleep=0.1)
+                if ret:
+                    self.operator_module.move_to(485, 167)
+                    time.sleep(0.1)
+                    pyauto.keyDownChar("shift")
+                    time.sleep(0.1)
+                    pyauto.click()
+                    time.sleep(0.2)
+                    pyauto.keyUpChar("shift")
+                    time.sleep(0.1)
+                    pyauto.keyPressChar("2")
+                    time.sleep(0.05)
+                    pyauto.keyPressChar("0")
+                    time.sleep(0.1)
+                    pyauto.keyPressChar("enter")
+                    time.sleep(0.1)
+                    pyauto.keyPressChar("enter")
+                    time.sleep(0.1)
+                    self.operator_module.open_window("选择菜单")
+                    pyauto.keyPressChar("esc")
+                    time.sleep(0.2)
+                    # 去西岚接任务
+                    self.operator_module.click_menu_item("传送阵")
+                    # 点地图
+                    self.operator_module.move_to(511,341)
+                    time.sleep(0.1)
+                    pyauto.click()
+                    vnc_mm.FindPic_sleep(490,305,534,351, "地图小人.bmp", 0.9, delta_color=([50, 106, 0], [160, 255, 255]), time_s=20)
+                    time.sleep(0.2)
+                    pyauto.keyPressChar("esc")
+                    time.sleep(0.2)
+                    self.operator_module.open_window("选择菜单")
+                    pyauto.keyPressChar("esc")
+                    time.sleep(2)
+                    ret = self.mm.FindPic(0, 0, 500, 600, "西岚头上.bmp", 0.9, delta_color=([13, 151, 236], [34, 174, 255]))
+                    if ret:
+                        x, y = ret[0][1], ret[0][2] + 60
+                        self.operator_module.move_to(x, y)
+                        time.sleep(0.1)
+                        pyauto.click()
+                        time.sleep(1)
+                        ret = self.mm.FindPic(0, 0, 500, 600, "小铁柱任务.bmp", 0.9, delta_color=([7, 71, 219], [29, 95, 241]))
+                        if ret:
+                            x, y = ret[0][1], ret[0][2]
+                            self.operator_module.move_to(x, y)
+                            time.sleep(0.1)
+                            pyauto.click()
+                            time.sleep(1)
+                            # 接任务
+                            ret = self.mm.FindPic(0, 0, 500, 600, "金色念气的气息.bmp", 0.9, delta_color=([10, 94, 132], [32, 120, 154]))
+                            if ret:
+                                x, y = ret[0][1], ret[0][2]
+                                # 接任务
+                                self.operator_module.move_to(x, y)
+                                time.sleep(0.1)
+                                pyauto.click()
+                                time.sleep(1)
+                                ret = self.mm.FindPic(754, 436, 866, 503, "接受.bmp", 0.9, delta_color=([7, 111, 174], [28, 133, 196]))
+                                if ret:
+                                    x, y = ret[0][1], ret[0][2]
+                                    # 接任务
+                                    self.operator_module.move_to(x, y)
+                                    time.sleep(0.1)
+                                    pyauto.click()
+                                    time.sleep(0.2)
+                            # 接任务
+                            ret = self.mm.FindPic(0, 0, 500, 600, "紫色念气的气息.bmp", 0.9, delta_color=([10, 94, 132], [32, 120, 154]))
+                            if ret:
+                                x, y = ret[0][1], ret[0][2]
+                                # 接任务
+                                self.operator_module.move_to(x, y)
+                                time.sleep(0.1)
+                                pyauto.click()
+                                time.sleep(1)
+                                ret = self.mm.FindPic(754, 436, 866, 503, "接受.bmp", 0.9, delta_color=([7, 111, 174], [28, 133, 196]))
+                                if ret:
+                                    x, y = ret[0][1], ret[0][2]
+                                    # 接任务
+                                    self.operator_module.move_to(x, y)
+                                    time.sleep(0.1)
+                                    pyauto.click()
+                                    time.sleep(0.2)
+                            self.operator_module.open_window("选择菜单")
+                            pyauto.keyPressChar("esc")
+                            time.sleep(0.2)
+
+                self.operator_module.click_menu_item("传送阵")
+                # 点地图
+                self.operator_module.move_to(600, 277)
+                time.sleep(0.1)
+                pyauto.click()
+                vnc_mm.FindPic_sleep(561,250,625,291, "地图小人.bmp", 0.9, delta_color=([50, 106, 0], [160, 255, 255]), time_s=20)
+                pyauto.keyDownChar("down")
+                time.sleep(random.uniform(0.8, 1.1))
+                pyauto.keyUpChar("down")
+                time.sleep(0.1)
+                pyauto.keyDownChar("right")
+                time.sleep(random.uniform(0.8, 1.1))
+                ret = self.mm.FindPic_sleep(963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20)
+                if ret:
+                    pyauto.keyUpChar("right")
+                    time.sleep(0.1)
+                while self.brush_running:
+                    ret = self.mm.FindPic(627, 342, 827, 441, "黄龙大会.bmp", 0.9)
+                    if ret:
+                        # text = self.get_text(232, 383, 295, 399)
+                        # pattern = r'[0-9]+'
+                        # # 使用 re.findall() 找出所有匹配的内容
+                        # matches = re.findall(pattern, text)
+                        # t = ''.join(matches)
+                        # if t and int(''.join(t)) < 30:
+
+                        # x1, y1, x2, y2 = (232, 383, 295, 399)
+                        # min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
+                        # ret = self.mm.is_colored(min_img, 15)
+                        # if not ret:
+                        #     self.send_log("深渊票不足，跳过当前角色")
+                        #     self.ghost_state = False
+                        #     # update_role_brush_date(self.current_role_group, self.current_role_index)
+                        #     role_settings = self.all_role_settings[self.current_role_index]
+                        #     dic_data = {'career': role_settings['career'],
+                        #                 'convert_career': role_settings['convert_career'],
+                        #                 'height': role_settings['height'],
+                        #                 'map': role_settings['map'],
+                        #                 'difficulty': role_settings['difficulty'],
+                        #                 "brush_map_expire_time": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        #                 'leave_pl': self.player.pl_value}
+                        #     test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.current_role_index, dic_data)
+                        #     self.brush_running = False
+                        #     return 0
+                        # time.sleep(0.05)
+                        # pyauto.KeyDownChar("shift")
+                        #
+                        # time.sleep(0.05)
+                        # pyauto.KeyDownChar("left")
+                        #
+                        # time.sleep(0.05)
+                        # pyauto.KeyUpChar("left")
+                        #
+                        # time.sleep(0.05)
+                        # pyauto.KeyUpChar("shift")
+                        # # yjs.KeyUpChar("shift")
+                        # time.sleep(0.05)
+                        # for i in range(1, self.player.map_level, 1):
+                        #     pyauto.KeyPressChar("right")
+                        #
+                        #     time.sleep(0.2)
+                        # 初始化地图
+                        self.room_info_map = deepcopy(a_mapInfo.get(self.player.map_name))
+                        logger.info('初始化地图')
+                        for room_list in self.room_info_map:
+                            logger.info(room_list)
+                        syst = time.time()
+                        while self.brush_running:
+                            text = self.get_text(860, 0, 997, 23)
+                            pattern = r'[0-9]+'
+                            # 使用 re.findall() 找出所有匹配的内容
+                            matches = re.findall(pattern, text)
+                            t = ''.join(matches)
+                            logger.info("标记1")
+                            logger.info(t)
+                            if t and int(t) > 0:
+                                self.send_log("识别到频道，说明未进入地图入口")
+                                pyauto.keyPressChar('esc')
+                                time.sleep(0.1)
+                                return 0
+                            game_image = screenshot_util.get_game_screenshot()
+                            text = self.get_text(482,33,588,93, game_image)
+                            logger.info(f"识别右上角文字：{text}")
+                            cleaned_text = re.sub(r'[^\u4e00-\u9fa5]', '', text)
+                            if time.time() - syst > 20:
+                                self.send_log("黄龙大会票不足，跳过当前角色")
+                                self.ghost_state = False
+                                # update_role_brush_date(self.current_role_group, self.current_role_index)
+                                role_settings = self.all_role_settings[self.current_role_index]
+                                dic_data = {'career': role_settings['career'],
+                                            'convert_career': role_settings['convert_career'],
+                                            'height': role_settings['height'],
+                                            'map': role_settings['map'],
+                                            'difficulty': role_settings['difficulty'],
+                                            "brush_map_expire_time": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                            'leave_pl': self.player.pl_value}
+                                test_update_subgroup_config(self.dic.get("cookies"), self.current_role_group, self.current_role_index, dic_data)
+                                self.brush_running = False
+                                pyauto.keyPressChar('esc')
+                                time.sleep(0.1)
+                                return 0
+                            if self.similarity(cleaned_text, "对战") >= 0.7:
+                                break
+                            else:
+                                self.send_log("黄龙大会——未检测到在图中,等待...")
                                 pyauto.keyPressChar("space")
                                 time.sleep(0.5)
                                 continue

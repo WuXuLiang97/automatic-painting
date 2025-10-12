@@ -1,72 +1,191 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>帮助</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>依赖安装与使用帮助</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        /* 标题层级样式，区分大模块 */
+        h3 {
+            color: #23395d;
+            border-bottom: 2px solid #e6e9ed;
+            padding-bottom: 8px;
+            margin: 40px 0 20px;
+        }
+        h4 {
+            color: #2c3e50;
+            margin: 28px 0 14px;
+            padding-left: 8px;
+            border-left: 3px solid #3498db;
+        }
+        /* 链接样式 */
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+            color: #2980b9;
+        }
+        /* 代码块样式 */
+        .code-block {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 18px;
+            margin: 16px 0;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        /* 缩进文本样式 */
+        .indent {
+            margin-left: 28px;
+        }
+        /* 段落样式 */
+        p {
+            margin: 14px 0;
+            text-align: justify;
+        }
+        /* 图片样式：响应式缩放，居中展示 */
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 4px;
+            margin: 12px 0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        /* 图片容器：控制图片间距 */
+        .img-container {
+            margin: 16px 0;
+        }
+    </style>
     <script>
-        // 动态获取当前HTML文件所在目录
+        // 1. 原有依赖安装相关的路径处理（若后续有依赖图片可复用）
+        // 2. 新增帮助内容的图片动态路径加载函数
         function getImagePath(imageName) {
-            // 获取当前页面的URL
             const currentUrl = window.location.href;
-            // 截取HTML文件所在的目录路径
             const basePath = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1);
-            // 拼接图片完整路径（假设图片在同级的README_IMAGE文件夹中）
-            return basePath + 'README_IMAGE/' + imageName;
+            return basePath + 'README_IMAGE/' + imageName; // 图片目录路径保持用户原有设置
         }
 
-        // 页面加载时替换所有图片路径
+        // 页面加载时替换所有图片路径（同时处理依赖图和帮助图）
         window.onload = function() {
             const images = document.getElementsByTagName('img');
             for (let img of images) {
-                // 获取图片原文件名（从data-filename属性）
                 const fileName = img.getAttribute('data-filename');
                 if (fileName) {
                     img.src = getImagePath(fileName);
+                    // 图片加载失败时显示备用文本
+                    img.onerror = function() {
+                        this.alt = `图片加载失败：${fileName}`;
+                    };
                 }
             }
         }
     </script>
 </head>
 <body>
-<h4> 1、需要VMware虚拟机win7系统，开启vnc </h4>
-<img alt="vnc设置" data-filename="vnc_settings.png">
+    <!-- 一、依赖安装说明（原有内容，优化标题层级） -->
+    <h3>一、依赖安装说明</h3>
 
-<h4> 2、游戏窗口开启磁吸放置到左上角，并锁定窗口 </h4>
-<img alt="游戏窗口设置" data-filename="game_settings-7.png">
+    <h4>yolo依赖：</h4>
+    <p class="indent"><a href="https://pytorch.org/get-started/previous-versions/" target="_blank">pytorch</a>官网</p>
 
-<h4> 3、游戏设置好 </h4>
-<div>
-    <img alt="游戏设置界面" data-filename="game_settings.png">
-</div>
-<div>
-    <img alt="游戏设置详情" data-filename="game_settings-2.png">
-</div>
-<div>
-    <img alt="游戏设置选项" data-filename="game_settings-3.png">
-</div>
+    <h4>paddle：</h4>
+    <p class="indent"><a href="https://www.paddlepaddle.org.cn/install/quick?docurl=undefined" target="_blank">paddle</a>官网</p>
 
-<h4>alt的位置放个后跳，以识别技能状态，有没有释放完毕。ctrl放能击杀b0ss的技能，打深渊的话快捷物品1还是快捷物品2放红药</h4>
-<div>
-    <img alt="技能按键设置" data-filename="game_settings-4.png">
-</div>
+    <p>建议先安装服务器app_server.py的依赖，调试好服务器后再安装脚本app.py的依赖，否则可能造成依赖冲突</p>
 
-<h4>刷风暴逆鳞需要把金绿放第一格</h4>
-<div>
-    <img alt="物品栏设置" data-filename="game_settings-5.png">
-</div>
+    <p>永久配置清华源，安装依赖包可快速下载：</p>
+    <div class="code-block">
+        # 设置清华源为默认镜像<br>
+        pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+    </div>
 
-<h4>传送阵设置</h4>
-<div>
-    <img alt="传送阵设置界面" data-filename="game_settings-6.png">
-</div>
+    <p>GTX1660及以上显卡（推荐配置）：</p>
+    <p class="indent">使用CUDA 11.8版本的PyTorch和Paddle GPU版，<strong>无需额外安装CUDA Toolkit</strong></p>
 
-<h4>角色称号设置成基础达标者</h4>
-<div>
-    <img alt="角色称号设置" data-filename="game_settings-8.png">
-</div>
-<h4>游戏一键聚物键为tab,回赛利亚房间键为delete</h4>
-<h4>app.py为程序入口</h4>
-<h4>app_server.py为跑yolo、paddleocr的程序入口</h4>
+    <p>1. 安装GPU版PyTorch：</p>
+    <div class="code-block">
+        pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu118
+    </div>
+
+    <p>2. 安装GPU版Paddle：</p>
+    <div class="code-block">
+        python -m pip install paddlepaddle-gpu==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu118/
+    </div>
+
+    <p>旧显卡（如GTX10系列及以下）：</p>
+    <p class="indent">使用CUDA 11.3版本的PyTorch和CUDA 11.2版本的Paddle GPU版，<strong>需额外安装CUDA Toolkit 10.2</strong></p>
+    <p class="indent">旧版本安装请参考对应官网的历史版本列表（PyTorch官网：<a href="https://pytorch.org/get-started/previous-versions/" target="_blank">点击跳转</a>；Paddle官网：<a href="https://www.paddlepaddle.org.cn/install/quick?docurl=undefined" target="_blank">点击跳转</a>）</p>
+
+    <p>请注意app_server.py的导入依赖，比较旧的显卡导入 cv_inference_server_2.py,否则导入另外那个模块</p>
+
+    <!-- 二、使用帮助（用户提供的帮助内容，整合到此处） -->
+    <h3>二、程序使用帮助</h3>
+
+    <h4>1、环境准备：VMware虚拟机Win7系统</h4>
+    <p class="indent">需在Win7虚拟机中开启VNC服务，确保远程连接正常</p>
+    <div class="img-container">
+        <img alt="vnc设置" data-filename="vnc_settings.png">
+    </div>
+
+    <h4>2、游戏窗口基础设置</h4>
+    <p class="indent">游戏窗口开启磁吸功能，放置到屏幕左上角，并锁定窗口（防止误拖动）</p>
+    <div class="img-container">
+        <img alt="游戏窗口设置" data-filename="game_settings-7.png">
+    </div>
+
+    <h4>3、游戏核心参数设置</h4>
+    <div class="img-container">
+        <img alt="游戏设置界面" data-filename="game_settings.png">
+    </div>
+    <div class="img-container">
+        <img alt="游戏设置详情" data-filename="game_settings-2.png">
+    </div>
+    <div class="img-container">
+        <img alt="游戏设置选项" data-filename="game_settings-3.png">
+    </div>
+
+    <h4>4、技能按键配置（关键识别设置）</h4>
+    <p class="indent">• Alt键：设置为「后跳」（用于识别技能释放状态，判断是否释放完毕）<br>
+       • Ctrl键：设置为「能击杀BOSS的技能」（核心输出技能）<br>
+       • 深渊模式：快捷物品1或2放置「红药」（应急回血）</p>
+    <div class="img-container">
+        <img alt="技能按键设置" data-filename="game_settings-4.png">
+    </div>
+
+    <h4>5、物品栏与特殊场景设置</h4>
+    <p class="indent">• 刷「风暴逆鳞」：需将「金绿柱石」放在物品栏第一格，刷「黄龙大会」：需将「无尽的永恒」放在物品栏第二格<br>
+       • 一键聚物键：设置为Tab<br>
+       • 回赛利亚房间键：设置为Delete<br>
+       • 角色称号：设置为「基础达标者」（确保识别稳定性）</p>
+    <div class="img-container">
+        <img alt="物品栏设置" data-filename="game_settings-5.png">
+    </div>
+
+    <h4>6、传送阵设置，必须按照这个顺序摆放</h4>
+    <div class="img-container">
+        <img alt="传送阵设置界面" data-filename="game_settings-6.png">
+    </div>
+
+    <h4>7、角色称号设置</h4>
+    <div class="img-container">
+        <img alt="角色称号设置" data-filename="game_settings-8.png">
+    </div>
+
+    <h4>8、程序入口说明</h4>
+    <p class="indent">• <strong>app.py</strong>：主程序入口（负责核心逻辑执行）<br>
+       • <strong>app_server.py</strong>：服务端入口（负责YOLO目标检测、PaddleOCR文字识别）</p>
 
 </body>
 </html>

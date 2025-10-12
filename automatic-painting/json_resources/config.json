@@ -1,6 +1,6 @@
 {
     "ip": "192.168.1.125",
-    "yjs": 1,
+    "yjs": 0,
     "banzhuan": 0,
     "vmware_ip": "192.168.1.143",
     "vmware_prot": "5900",
@@ -8,5 +8,5 @@
     "tab_index": 0,
     "vid": "",
     "pid": "",
-    "identifier": "USB3.0 UHD"
+    "identifier": "0"
 }

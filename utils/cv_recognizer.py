@@ -12,6 +12,7 @@ import timeit
 import traceback
 
 from time import sleep
+from typing import Tuple, List
 
 import cv2
 import numpy as np
@@ -714,26 +715,18 @@ class MM:
                 end_time = timeit.default_timer()  # 获取当前时间作为结束时间
                 elapsed_time = end_time - start_time  # 计算代码块执行所花费的时间（秒)
                 if drag == 1:
-                    while True:
-                        # 显示帧
-                        cv2.imshow('image', self.screenshot_show_image)
-                        # 等待按键
-                        if cv2.waitKey(1) & 0xFF == ord('q'):
-                            break
+                    cv2.imshow('image', self.screenshot_show_image)
+                    cv2.waitKey(0)
+                    cv2.destroyAllWindows()
                 elif drag == 2:
-                    while True:
-                        # 显示帧
-                        cv2.imshow('image', color_filtered_image)
-                        # 等待按键
-                        if cv2.waitKey(1) & 0xFF == ord('q'):
-                            break
+                    cv2.imshow('image', color_filtered_image)
+                    cv2.waitKey(0)
+                    cv2.destroyAllWindows()
                 elif drag == 3:
-                    while True:
-                        # 显示帧
-                        cv2.imshow('image', gray_filtered_image)
-                        # 等待按键
-                        if cv2.waitKey(1) & 0xFF == ord('q'):
-                            break
+                    # 显示帧
+                    cv2.imshow('image', gray_filtered_image)
+                    cv2.waitKey(0)
+                    cv2.destroyAllWindows()
             # 找到图片就不继续找后边的图了
             if len(loc) > 0:
                 if not mc:
@@ -848,6 +841,144 @@ class MM:
         cv2.imshow('show_image', image)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+
+    def find_color(self, region: Tuple[int, int, int, int], image: np.ndarray, box_size_range: Tuple[int, int, int, int],
+                   debug: bool = False, color_range: Tuple[List[int], List[int]] = ([0, 0, 0], [179, 255, 255]),
+                   dilate_kernel: Tuple[int, int] = (2, 5), erode_kernel: Tuple[int, int] = (2, 4)) -> list:
+        """
+        在指定区域内查找特定颜色的区域
+
+        Args:
+            region:(x1, y1, x2, y2)查找区域的坐标
+            box_size_range: 盒子尺寸范围 (min_w, max_w, min_h, max_h)
+            debug: 是否启用调试模式
+            color_range: HSV色彩范围
+            dilate_kernel: 膨胀核大小
+            erode_kernel: 腐蚀核大小
+
+        Returns:
+            找到的颜色区域信息列表
+        """
+        try:
+            x1, y1, x2, y2 = region
+            if self.VNC is not None:
+                # screenshot_np = background_capture_printwindow(self.handle)
+                if isinstance(image, np.ndarray):
+                    screenshot_np = image
+                else:
+                    screenshot_np = self.VNC.capture()
+                    if isinstance(screenshot_np, np.ndarray):
+                        logger.info("vnc_mm截图成功")
+                    else:
+                        logger.info("vnc_mm截图失败")
+                        return []
+                cropped_image = screenshot_np[y1:y2, x1:x2]
+                # 这里用做画出找到位置显示的图片
+                self.screenshot_show_image = cropped_image
+            else:
+                raise Exception("VNC未连接")
+        except Exception as e:
+            logger.info(f"截图或保存失败: {e}")
+            return []
+
+        hsv_lower = np.array(color_range[0])
+        hsv_upper = np.array(color_range[1])
+
+        # 转换到HSV色彩空间
+        hsv_image = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2HSV)
+
+        # 创建掩码
+        mask = cv2.inRange(hsv_image, hsv_lower, hsv_upper)
+
+        a, b = dilate_kernel
+        c, d = erode_kernel
+
+        # 定义一个膨胀核
+        kernel = np.ones((a, b), np.uint8)
+
+        # 对掩码进行膨胀
+        dilated_mask = cv2.dilate(mask, kernel, iterations=1)
+
+        # 定义一个结构元素（核）
+        kernel = np.ones((c, d), np.uint8)
+
+        # 对膨胀后的掩码进行腐蚀以恢复一些细节
+        eroded_after_dilation = cv2.erode(dilated_mask, kernel, iterations=1)
+
+        # 获取连通组件的数量、标签、统计信息和质心
+        num_components, labels, stats, centroids = cv2.connectedComponentsWithStats(eroded_after_dilation)
+
+        # 存储过滤后的组件信息，包括调整后的边界框和其他相关信息
+        filtered_components = []
+
+        # 存储要在原图上绘制的组件信息
+        draw_components = []
+
+        min_width, max_width = box_size_range[0], box_size_range[1]
+        min_height, max_height = box_size_range[2], box_size_range[3]
+
+        # 遍历所有组件（从1开始，因为0是背景）
+        for i in range(1, num_components):
+            # 获取当前连通组件的原始边界框信息
+            left, top, width, height = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP], stats[
+                i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]
+
+            if max_width >= width >= min_width and max_height >= height >= min_height:
+                # 调整边界框坐标到屏幕坐标系
+                adjusted_left = left + x1
+                adjusted_top = top + y1
+
+                # 计算调整后的边界框坐标
+                right = adjusted_left + width
+                bottom = adjusted_top + height
+
+                # 计算中心点
+                center_x = adjusted_left + width // 2
+                center_y = adjusted_top + height // 2  # 特定的调整
+                data = (center_x, center_y, adjusted_left, adjusted_top, right, bottom, width, height)
+
+                # 转换元组中的每个元素为int类型
+                converted_data = tuple(int(x) for x in data)
+                filtered_components.append(converted_data)
+
+                center_y2 = adjusted_top + height // 2  # 使用矩形中心而不是adjusted_top-15
+                # 保存用于绘制的局部坐标信息
+                draw_info = {'rect': (left, top, width, height),  # 局部坐标
+                             'center': (center_x - x1, center_y2 - y1)  # 转换为局部坐标
+                             }
+                draw_components.append(draw_info)
+
+        # 在原图上绘制结果
+        if debug:
+            # 创建原始图像的副本，避免修改原图
+            draw_image = self.screenshot_show_image.copy()
+
+            for comp in draw_components:
+                x, y, w, h = comp['rect']
+                center_x, center_y = comp['center']
+
+                # # 绘制矩形框 (绿色)
+                # cv2.rectangle(draw_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+                # 绘制中心点 (红色)
+                cv2.circle(draw_image, (int(center_x), int(center_y)), 5, (0, 0, 255), -1)
+
+                # # 可选：绘制中心坐标文本  # cv2.putText(draw_image, f"({center_x + x1}, {center_y + y1})",  #             (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)
+
+            # 保存绘制结果到类属性
+            self.result_image = draw_image
+
+            # 显示结果
+            cv2.imshow('Detection Result', draw_image)
+            cv2.imshow('Binary Image (Inverted Mask)', mask)
+            cv2.imshow('Dilated Mask', dilated_mask)
+            cv2.imshow('Eroded After Dilation', eroded_after_dilation)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
+        # 返回过滤后的组件信息
+        return filtered_components
+
 
 
 vnc_mm = MM()

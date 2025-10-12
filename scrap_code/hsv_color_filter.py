@@ -29,7 +29,9 @@ cv2.setTrackbarPos('VMax', 'HSV Color Filter', 255)
 # 打开摄像头或加载图像
 # cap = cv2.VideoCapture(0)  # 打开摄像头
 # 或者加载本地图像
-image = cv2.imread(r'/map_depot/9.png')  # 替换为你的图像路径
+from core.capture import Capture
+image = Capture(41550086,0,0,1067,600)
+# image = cv2.imread(r'/map_depot/9.png')  # 替换为你的图像路径
 if image is None:
     print("无法加载图像，请检查路径")
     exit()

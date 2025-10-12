@@ -45,6 +45,9 @@ class MiniMapUtil:
             "妖气追踪": {
                 "width": 126, "height": 54, "row": 7, "col": 3
             },
+            "黄龙大会": {
+                "width": 126, "height": 54, "row": 7, "col": 3
+            },
             "通用": {
                 "width": 162, "height": 90, "row": 9, "col": 5
             },
