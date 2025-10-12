@@ -75,6 +75,7 @@ class PYAUTO(YJS):
             self.VNC.key_down(input_char)
             time.sleep(random.randint(50, 80) * 0.001)
             self.VNC.key_up(input_char)
+            time.sleep(random.randint(50, 80) * 0.001)
         else:
             self.KeyPressChar(input_char)
 

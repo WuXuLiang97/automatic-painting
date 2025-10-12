@@ -167,10 +167,10 @@ if __name__ == '__main__':
     # if ret:
     #     x, y = ret[0][1], ret[0][2] + 60
     # print(ret)
-    ret = vnc_mm.FindPic(241,20,858,500, "赛丽亚.bmp", 0.9, delta_color=([13, 131, 244], [35, 159, 255]),drag=2)
-    if ret:
-        x, y = ret[0][1], ret[0][2]
-    print(ret)
+    # ret = vnc_mm.FindPic(241,20,858,500, "赛丽亚.bmp", 0.9, delta_color=([13, 131, 244], [35, 159, 255]),drag=2)
+    # if ret:
+    #     x, y = ret[0][1], ret[0][2]
+    # print(ret)
     # ret = vnc_mm.FindPic(754, 436, 866, 503, "接受.bmp", 0.9, delta_color=([17, 121, 184], [18, 123, 186]))
     # if ret:
     #     x, y = ret[0][1], ret[0][2]

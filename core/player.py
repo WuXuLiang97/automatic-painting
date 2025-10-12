@@ -962,7 +962,7 @@ class PlayerThread(QThread):
                         time.sleep(0.1)
                         pyauto.click()
                         time.sleep(1)
-                        self.operator_module.sale_goods(self.sell)
+                        self.赛丽亚sell()
                         self.operator_module.open_window("选择菜单")
                         # 按下esc
                         pyauto.keyPressChar("esc")
@@ -3444,7 +3444,16 @@ class PlayerThread(QThread):
                 time.sleep(0.05)
                 pyauto.click()
                 time.sleep(0.5)
-                keyboard.write('立即执行', delay=random.uniform(0.05, 0.08))
+                pyauto.keyPressChar("shift")
+                time.sleep(0.05)
+                for _char in 'lijizhixing':
+                    pyauto.keyPressChar(_char)
+                    random.uniform(0.09, 0.12)
+                time.sleep(0.1)
+                pyauto.keyPressChar("space")
+                time.sleep(0.1)
+                pyauto.keyPressChar("shift")
+                time.sleep(0.05)
                 # self.operator_module.move_to(498, 463)
                 # time.sleep(0.05)
                 # pyauto.click()
@@ -3456,7 +3465,124 @@ class PlayerThread(QThread):
                 time.sleep(0.05)
                 pyauto.click()
                 time.sleep(0.5)
-                keyboard.write('确认进行', delay=random.uniform(0.05, 0.08))
+                pyauto.keyPressChar("shift")
+                time.sleep(0.05)
+                for _char in 'querenjinxing':
+                    pyauto.keyPressChar(_char)
+                    random.uniform(0.09, 0.12)
+                pyauto.keyPressChar("space")
+                time.sleep(0.1)
+                pyauto.keyPressChar("shift")
+                time.sleep(0.1)
+                # self.operator_module.move_to(498, 463)
+                # time.sleep(0.05)
+                # pyauto.click()
+                time.sleep(0.1)
+            pyauto.keyPressChar("enter")
+            time.sleep(0.1)
+            pyauto.keyPressChar("space")
+            time.sleep(0.1)
+            pyauto.keyPressChar("esc")
+            time.sleep(0.1)
+            return
+    def 赛丽亚sell(self):
+        """出售装备"""
+
+        def calculate_brightness(img):
+            # # 读取图像
+            # img = cv2.imread(image_path)
+
+            # 检查图像是否成功加载
+            if img is None:
+                logger.info("Error: 图像未成功加载。")
+                return None
+
+                # 如果图像是彩色的，转换为灰度图像
+            if len(img.shape) == 3:
+                gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            else:
+                gray_img = img
+
+                # 计算平均亮度
+            # 注意：OpenCV中灰度图像的像素值范围是0-255
+            brightness = np.mean(gray_img)
+
+            return brightness
+
+        pyauto.keyPressChar('a')
+
+        time.sleep(0.5)
+        y = 0
+        ret = self.mm.FindPic_sleep(0, 0, 1067, 600, "装备1.bmp", 0.9, time_s=1, delta_color=([0, 0, 0], [0, 232, 255]))
+        if ret:
+            x, y = ret[0][1], ret[0][2]
+        if y == 0:
+            y = 292
+        while self.brush_running:
+            game_image = screenshot_util.get_game_screenshot()
+            for row in range(3):
+                for col in range(8):
+                    x1 = 617 + col * 30
+                    x2 = x1 + 30
+                    y1 = y + 10 + row * 30
+                    y2 = y1 + 30
+                    min_img = game_image[y1:y2, x1:x2]
+                    brightness = calculate_brightness(min_img)
+                    logger.info(f"图像的平均亮度为: {brightness}")
+                    # if 40 > brightness > 30:
+                    #     self.operator_module.move_to(x1 + 15, y1 + 15)
+                    #     time.sleep(0.1)
+                    #     pyauto.click()
+                    #     time.sleep(0.1)
+                    if brightness > 30:
+                        self.operator_module.move_to(x1 + 15, y1 + 15)
+                        time.sleep(0.1)
+                        pyauto.click()
+                        time.sleep(0.1)
+            pyauto.keyPressChar("space")
+            time.sleep(0.1)
+            # self.operator_module.move_to(329, 464)
+            # time.sleep(0.05)
+            # pyauto.click()
+
+            time.sleep(0.5)
+            ret = self.mm.FindPic_sleep(0, 0, 1067, 600, "立即执行.bmp", 0.9, time_s=1, delta_color=([0, 0, 0], [0, 232, 255]))
+            if ret:
+                x, y = ret[0][1], ret[0][2]
+                self.operator_module.move_to(x, y)
+                time.sleep(0.05)
+                pyauto.click()
+                time.sleep(0.5)
+                pyauto.keyPressChar("shift")
+                time.sleep(0.1)
+                for _char in 'lijizhixing':
+                    pyauto.keyPressChar(_char)
+                    random.uniform(0.05, 0.08)
+                time.sleep(0.1)
+                pyauto.keyPressChar("space")
+                time.sleep(0.1)
+                pyauto.keyPressChar("shift")
+                time.sleep(0.1)
+                # self.operator_module.move_to(498, 463)
+                # time.sleep(0.05)
+                # pyauto.click()
+                time.sleep(0.1)
+            ret = self.mm.FindPic_sleep(0, 0, 1067, 600, "确认进行.bmp", 0.9, time_s=1, delta_color=([0, 0, 0], [0, 232, 255]))
+            if ret:
+                x, y = ret[0][1], ret[0][2]
+                self.operator_module.move_to(x, y)
+                time.sleep(0.05)
+                pyauto.click()
+                time.sleep(0.5)
+                pyauto.keyPressChar("shift")
+                time.sleep(0.1)
+                for _char in 'querenjinxing':
+                    pyauto.keyPressChar(_char)
+                    random.uniform(0.05, 0.08)
+                pyauto.keyPressChar("space")
+                time.sleep(0.1)
+                pyauto.keyPressChar("shift")
+                time.sleep(0.1)
                 # self.operator_module.move_to(498, 463)
                 # time.sleep(0.05)
                 # pyauto.click()
@@ -4538,15 +4664,17 @@ class PlayerThread(QThread):
                     self.operator_module.move_to(485, 167)
                     time.sleep(0.1)
                     pyauto.keyDownChar("shift")
-                    time.sleep(0.1)
+                    time.sleep(0.05)
                     pyauto.click()
-                    time.sleep(0.2)
+                    time.sleep(0.05)
                     pyauto.keyUpChar("shift")
-                    time.sleep(0.1)
+                    time.sleep(0.05)
                     pyauto.keyPressChar("2")
                     time.sleep(0.05)
                     pyauto.keyPressChar("0")
                     time.sleep(0.1)
+                    pyauto.keyPressChar("shift")
+                    time.sleep(0.05)
                     pyauto.keyPressChar("enter")
                     time.sleep(0.1)
                     pyauto.keyPressChar("enter")
