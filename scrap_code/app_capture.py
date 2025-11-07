@@ -1,3 +1,4 @@
+
 import datetime
 import os
 import sys
@@ -20,7 +21,7 @@ else:
     print("地下城与勇士：创新世纪窗口")
 
 folder_path = r'imgs'
-capture_ui_config__path = r"cjson_resources/apture_ui_config.json"
+capture_ui_config__path = r"json_resources/apture_ui_config.json"
 jieutui_config__path = r"json_resources/jieutui_config.json"
 # 检查文件夹是否存在
 if not os.path.exists(folder_path):
@@ -52,6 +53,10 @@ def create_config_file(filename, default_settings):
     filename (str): 配置文件的名称。
     default_settings (dict): 默认的配置设置。
     """
+    # 获取文件的父目录路径
+    parent_dir = os.path.dirname(filename)
+    # 创建父目录（如果不存在，exist_ok=True表示目录存在时不报错）
+    os.makedirs(parent_dir, exist_ok=True)
     if not os.path.exists(filename):
         with open(filename, 'w') as file:
             json.dump(default_settings, file, indent=4)

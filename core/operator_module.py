@@ -429,12 +429,12 @@ class OperatorModule:
                 pyauto.keyPressChar("f2")
                 time.sleep(0.5)
                 # 不关这个会卡图
-                # ret = self.mm.FindPic(55, 57, 210, 113, "进行栏位操作.bmp", 0.9, drag=None)
-                # if ret:
-                #     self.move_to(1002, 41)
-                #     time.sleep(0.1)
-                #     pyauto.click()
-                #     time.sleep(0.2)
+                ret = self.mm.FindPic(55, 57, 210, 113, "进行栏位操作.bmp", 0.9, drag=None)
+                if ret:
+                    self.move_to(500, 300)
+                    time.sleep(0.1)
+                    pyauto.click('right')
+                    time.sleep(0.2)
                 return True
             else:
                 pyauto.keyPressChar("n")

@@ -137,6 +137,7 @@ class PlayerThread(QThread):
         self.room_item_pickup_counts = {}  # 记录每个房间拾取次数
         self.doorOpenState = {}  # 记录每个房间开门状态
         self.Number_of_moves_to_the_next_room = {}  # 记录前往下个房间的移动次数
+        self.new_map_direction = None
 
     def set_big_break_time(self):
         # 计算3-4小时后的随机时间点（以秒为单位）
@@ -341,13 +342,45 @@ class PlayerThread(QThread):
                 if self.player.map_name == "风暴逆鳞普通":
                     # 打开金绿盒子
                     self.access_0()
-                if self.player.map_name == "跌宕群岛":
+                if self.player.map_name == "115白图-自动3选1":
+                    # 1. 定义图片列表和对应的名称映射（同上）
+                    pic_list = [
+                        "每日_跌宕群岛.bmp",
+                        "每日_萧索的回廊.bmp",
+                        "每日_清海之心.bmp"
+                    ]
+                    pic_to_name = {
+                        "每日_跌宕群岛.bmp": "跌宕群岛",
+                        "每日_萧索的回廊.bmp": "萧索的回廊",
+                        "每日_清海之心.bmp": "清海之心"
+                    }
                     pyauto.keyPressChar('f2')
                     time.sleep(0.1)
-                    ret = self.mm.FindPic_sleep(185, 401, 350, 482, "每日_跌宕群岛.bmp", 0.9, time_s=1, my_sleep=0.2)
-                    if ret:
-                        self.player.map_name = "风暴逆鳞普通"
-                        self.player.map_level = 3
+                    # 2. 逐个查找每个图片，记录找到的图片（同上）
+                    found_pics = []
+                    for pic in pic_list:
+                        ret = self.mm.FindPic_sleep(185, 401, 350, 482, pic, 0.9, time_s=1, my_sleep=0.2)
+                        if ret:
+                            found_pics.append(pic)
+
+                    # 3. 若找到2个，用循环找出未找到的那个（核心改写部分）
+                    if found_pics:
+                        missing_pic = None  # 先定义一个变量存“未找到的图片”
+                        # 遍历所有图片，检查哪个不在found_pics里
+                        for pic in pic_list:
+                            if pic not in found_pics:  # 如果当前图片没被找到
+                                missing_pic = pic  # 记录下来
+                                break  # 因为只可能有一个未找到，找到后直接退出循环
+
+                        # 赋值未找到的图片对应的名称
+                        self.player.map_name = pic_to_name[missing_pic]
+                        miniMapUtil.set_minimap_name(self.player.map_name)
+                        self.send_log(f"当前115白图3选1地图为：{self.player.map_name}")
+
+                    # ret = self.mm.FindPic_sleep(185, 401, 350, 482, "每日_跌宕群岛.bmp|每日_萧索的回廊.bmp|每日_清海之心.bmp", 0.9, time_s=1, my_sleep=0.2)
+                    # if ret:
+                    #     self.player.map_name = "风暴逆鳞普通"
+                    #     self.player.map_level = 3
                     pyauto.keyPressChar('esc')
                     time.sleep(0.1)
                 # 存、取
@@ -689,13 +722,43 @@ class PlayerThread(QThread):
                 if self.player.map_name == "风暴逆鳞普通":
                     # 打开金绿盒子
                     self.access_0()
-                if self.player.map_name == "跌宕群岛":
+                if self.player.map_name == "115白图-自动3选1":
+                    # 1. 定义图片列表和对应的名称映射（同上）
+                    pic_list = [
+                        "每日_跌宕群岛.bmp",
+                        "每日_萧索的回廊.bmp",
+                        "每日_清海之心.bmp"
+                    ]
+                    pic_to_name = {
+                        "每日_跌宕群岛.bmp": "跌宕群岛",
+                        "每日_萧索的回廊.bmp": "萧索的回廊",
+                        "每日_清海之心.bmp": "清海之心"
+                    }
                     pyauto.keyPressChar('f2')
                     time.sleep(0.1)
-                    ret = self.mm.FindPic_sleep(185, 401, 350, 482, "每日_跌宕群岛.bmp", 0.9, time_s=1, my_sleep=0.2)
-                    if ret:
-                        self.player.map_name = "风暴逆鳞普通"
-                        self.player.map_level = 3
+                    # 2. 逐个查找每个图片，记录找到的图片（同上）
+                    found_pics = []
+                    for pic in pic_list:
+                        ret = self.mm.FindPic_sleep(185, 401, 350, 482, pic, 0.9, time_s=1, my_sleep=0.2)
+                        if ret:
+                            found_pics.append(pic)
+
+                    # 3. 若找到2个，用循环找出未找到的那个（核心改写部分）
+                    if found_pics:
+                        missing_pic = None  # 先定义一个变量存“未找到的图片”
+                        # 遍历所有图片，检查哪个不在found_pics里
+                        for pic in pic_list:
+                            if pic not in found_pics:  # 如果当前图片没被找到
+                                missing_pic = pic  # 记录下来
+                                break  # 因为只可能有一个未找到，找到后直接退出循环
+                        # 赋值未找到的图片对应的名称
+                        self.player.map_name = pic_to_name[missing_pic]
+                        miniMapUtil.set_minimap_name(self.player.map_name)
+                        self.send_log(f"当前115白图3选1地图为：{self.player.map_name}")
+                    # ret = self.mm.FindPic_sleep(185, 401, 350, 482, "每日_跌宕群岛.bmp|每日_萧索的回廊.bmp|每日_清海之心.bmp", 0.9, time_s=1, my_sleep=0.2)
+                    # if ret:
+                    #     self.player.map_name = "风暴逆鳞普通"
+                    #     self.player.map_level = 3
                     pyauto.keyPressChar('esc')
                     time.sleep(0.1)
                 # 存、取
@@ -943,9 +1006,9 @@ class PlayerThread(QThread):
         """存金币或取金绿柱石"""
         pyauto.releaseallkey()
         qx, qy = 327, 0
-        if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
+        if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪", "清海之心", "萧索的回廊"):
             return
-        if self.player.map_name in ["风暴逆鳞普通","黄龙大会"]:
+        if self.player.map_name in ["风暴逆鳞普通", "黄龙大会"]:
             if self.player.map_name in ["黄龙大会"]:
                 # 出售装备
                 ret = self.mm.FindPic(241, 20, 858, 500, "赛丽亚.bmp", 0.9, delta_color=([13, 131, 244], [35, 159, 255]))
@@ -1312,6 +1375,9 @@ class PlayerThread(QThread):
                 # self.movement_recorder.left_right_up_down_move_by(move_info, already_move)
                 self.to_door_count += 1
                 logger.info(f"朝门移动耗时：{time.time() - st}秒")
+                if self.new_map_direction in ["down", "up"]:
+                    logger.info(f"方向在{self.new_map_direction}，向该方向移动1秒")
+                    self.movement_recorder.up_down_move(self.new_map_direction, 1)
                 already_move = False
                 time.sleep(0.1)
                 ret = self.mm.FindPic(0, 0, 1067, 600, "未拾取.bmp", 0.8, delta_color=([23, 0, 0], [30, 93, 222]))
@@ -2044,6 +2110,7 @@ class PlayerThread(QThread):
         room_info = a_DictInfo.get(self.player.map_name).get(map_direction)
         logger.info(room_info)
         logger.info(f"开始遍历所有门")
+        self.new_map_direction = None
         # 遍历所有门的位置，寻找在当前房间内的门
         for door_pos in self.doors:
             logger.info(f"当前遍历的door_pos:{(door_pos.x, door_pos.y)}")
@@ -2054,6 +2121,8 @@ class PlayerThread(QThread):
                 if map_direction == "up":
                     logger.info("向上的门")
                     door_pos.y = door_pos.y - 50
+                self.new_map_direction = map_direction
+                logger.info(f"new_map_direction:{map_direction}")
                 return door_pos  # 返回找到的门的位置
         if map_direction == "down":
             # 记录人物当前坐标
@@ -2366,7 +2435,7 @@ class PlayerThread(QThread):
                 logger.info(f"{data}")
                 continue
             elif data[0].startswith("goods") and data[5] > 0.5:
-                if not self.is_boss and self.player.map_name in ["深渊：终末崇拜者","黄龙大会"]:
+                if not self.is_boss and self.player.map_name in ["深渊：终末崇拜者", "黄龙大会"]:
                     logger.info(f"刷深渊中，当前不是boss房不捡物品")
                     continue
                 # 如果物品位置在特定区域外，也跳过
@@ -2523,7 +2592,14 @@ class PlayerThread(QThread):
             # 计算商品中心点坐标
             self.goods = [(int((dx + dx1) / 2), dy1 + 20, text) for dx, dy, dx1, dy1, text in filtered_goods]
             logger.info(f"self.goods:{self.goods}")
-
+        if not self.monsters and not self.doors and not goods:
+            st_green = time.time()
+            ret = self.mm.find_color((20, 50, 1026, 542), game_image, (20, 150, 10, 15), color_range=([41, 200, 200], [47, 255, 255]))
+            if ret:
+                x, y = ret[0][0], ret[0][1] + 140
+                logger.info(f"绿色名称精英怪：{x, y}")
+                self.monsters.append((x, y))
+            logger.info(f"识别绿色名称精英怪耗时：{time.time() - st_green}")
         if self.player.map_name in ["黄龙大会"]:
             ret = self.mm.find_color((80, 286, 1026, 542), game_image, (20, 150, 10, 15), color_range=([150, 254, 254], [150, 255, 255]))
             if ret:
@@ -2531,7 +2607,6 @@ class PlayerThread(QThread):
                 logger.info(f"黄龙大会boss：{x, y}")
                 self.monsters.append((x, y))
                 self.is_boss = True
-
 
     def similarity(self, s1, s2):
         """计算字符串相似度（0-1）"""
@@ -2603,6 +2678,8 @@ class PlayerThread(QThread):
                 elite_room_id_list.append(self.special_room_id)
 
         screen_out = []
+        if self.player.map_name == "落星森林" and query_room_id_list:
+            query_room_id_list = query_room_id_list + elite_room_id_list
         if self.player.map_name == "德洛斯矿山外围" and self.player.player_room_id == (1, 4):
             logger.info("矿山这里向上")
             query_room_id_list.append((0, 4))
@@ -2616,15 +2693,35 @@ class PlayerThread(QThread):
             else:
                 # 初始化最小距离为无穷大，以及最近的坐标
                 min_distance = float('inf')
+                min_coords = []
                 # 遍历坐标列表
                 for coord in query_room_id_list:
                     # 计算当前坐标与target的距离的平方（避免使用sqrt以提高效率）
                     distance_squared = (coord[0] - self.player.player_room_id[0]) ** 2 + (coord[1] - self.player.player_room_id[1]) ** 2
                     # 如果当前距离的平方小于已知的最小距离的平方，则更新最小距离和最近的坐标
                     if distance_squared < min_distance:
+                        # 找到更小的距离，更新最小距离并重置列表（只保留当前坐标）
                         min_distance = distance_squared
+                        min_coords = [coord]  # 清空原有列表，添加新的最小距离坐标
                         self.query_room_id = coord
                         screen_out.append(coord)
+                    elif distance_squared == min_distance:
+                        # 距离与当前最小距离相同，加入列表
+                        min_coords.append(coord)
+                logger.info(f"query_room_id：{self.query_room_id}")
+                if len(min_coords) >= 2:
+                    logger.info("多个和当前房间距离为1的问号房间，获取与当前距离为1但和boss房最近的房间")
+                    min_distance = float('inf')
+                    for coord in min_coords:
+                        # 计算当前坐标与target的距离的平方（避免使用sqrt以提高效率）
+                        distance_squared = (coord[0] - self.boss_room_id[0]) ** 2 + (coord[1] - self.boss_room_id[1]) ** 2
+                        # 如果当前距离的平方小于已知的最小距离的平方，则更新最小距离和最近的坐标
+                        if distance_squared < min_distance:
+                            # 找到更小的距离，更新最小距离并重置列表（只保留当前坐标）
+                            min_distance = distance_squared
+                            self.query_room_id = coord
+                    logger.info(f"query_room_id：{self.query_room_id}")
+
         # 如果精英房间和人物房间不为空，找到最接近人物房间的精英房间
         if elite_room_id_list and self.player.player_room_id:
             logger.info(f"精英房间和人物房间不为空,elite_room_id_list:{elite_room_id_list}")
@@ -2909,7 +3006,7 @@ class PlayerThread(QThread):
         return True
 
     def deposit_goods(self):
-        if self.player.map_name in ("跌宕群岛", "妖气追踪"):
+        if self.player.map_name in ("跌宕群岛", "妖气追踪", "清海之心", "萧索的回廊"):
             return
         logger.info("回赛丽亚旅馆存金币")
         self.send_log("回赛丽亚旅馆存金币")
@@ -3000,7 +3097,7 @@ class PlayerThread(QThread):
             return False
         # if self.has_continue:
         # 买门票、玛瑙
-        if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
+        if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪", "清海之心", "萧索的回廊"):
             ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
             if ret:
                 ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp", 0.85, 1)
@@ -3021,13 +3118,13 @@ class PlayerThread(QThread):
                 self.agg_pick_up_goods()
                 self.send_log(f"当前刷图次数{self.brush_cnt + 1}")
 
-                if self.brush_cnt % 16 == 0 and self.player.map_name not in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
+                if self.brush_cnt % 16 == 0 and self.player.map_name not in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪", "清海之心", "萧索的回廊"):
                     self.operator_module.sale_goods(self.sell)
                 pl_value = self.operator_module.ocr_pl(self.get_text, self.send_log)
                 # 识别到疲劳且小于预留
                 if pl_value is not None and isinstance(pl_value, (int, float)) and pl_value <= self.player.pl_value:
 
-                    if self.brush_cnt % 16 != 0 and self.player.map_name not in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):  # 这几个图不出售
+                    if self.brush_cnt % 16 != 0 and self.player.map_name not in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪", "清海之心", "萧索的回廊"):  # 这几个图不出售
                         # 出售装备、材料
                         self.operator_module.sale_goods(self.sell)
                     # update_role_brush_date(self.current_role_group, self.current_role_index)
@@ -3086,7 +3183,7 @@ class PlayerThread(QThread):
                         time.sleep(0.1)
                     ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
                     if ret:
-                        if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪"):
+                        if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪", "清海之心", "萧索的回廊"):
                             ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp", 0.85, 1)
                             if ret:
                                 for r in ret:
@@ -3273,7 +3370,7 @@ class PlayerThread(QThread):
                         ret = self.mm.FindPic(852, 566, 914, 596, "对话空格.bmp", 0.9, delta_color=([8, 50, 203], [39, 99, 255]))
                         if ret:
                             self.send_log("对话空格")
-                            for _ in range(random.randint(5,6)):
+                            for _ in range(random.randint(5, 6)):
                                 pyauto.keyPressChar('space')
                                 time.sleep(0.1)
                     game_image = screenshot_util.get_game_screenshot()
@@ -3485,6 +3582,7 @@ class PlayerThread(QThread):
             pyauto.keyPressChar("esc")
             time.sleep(0.1)
             return
+
     def 赛丽亚sell(self):
         """出售装备"""
 
@@ -4138,10 +4236,30 @@ class PlayerThread(QThread):
                 pyauto.keyUpChar("right")
                 time.sleep(0.1)
                 pyauto.keyDownChar("left")
-                ret = self.mm.FindPic_sleep(963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20)
-                if ret:
-                    pyauto.keyUpChar("left")
-                    time.sleep(0.1)
+                st = time.time()
+                has_gone_down = False  # 标志：是否已执行向下操作
+                while self.brush_running:
+                    # 检查是否需要执行向下操作（未向下过，且距离上次操作已过5秒）
+                    if not has_gone_down and time.time() - st >= 5:
+                        pyauto.keyDownChar("down")
+                        time.sleep(random.uniform(1, 2))  # 保持向下按键状态
+                        pyauto.keyUpChar("down")
+                        has_gone_down = True  # 标记为已向下
+
+                    # 如果已经向下过，执行向上操作
+                    elif has_gone_down:
+                        pyauto.keyDownChar("up")
+                        time.sleep(random.uniform(1, 2))  # 保持向上按键状态
+                        pyauto.keyUpChar("up")
+                        has_gone_down = False  # 重置标志，准备下次循环
+                        st = time.time()  # 重置计时，下次5秒后再触发向下
+
+                    # 原逻辑：检测到“返回城镇”则退出循环
+                    ret = self.mm.FindPic(963, 536, 1066, 570, "返回城镇.bmp", 0.9)
+                    if ret:
+                        pyauto.keyUpChar("left")
+                        time.sleep(0.1)
+                        break
                 while self.brush_running:
                     ret = self.mm.FindPic(78, 277, 233, 329, "深渊.bmp", 0.9)
                     if ret:
@@ -4262,7 +4380,7 @@ class PlayerThread(QThread):
 
                 while self.brush_running:
                     """
-                    如果没到拉比谢尔则再次打开传送阵，进行传送
+                    如果没到红矿村再次打开传送阵，进行传送
                     """
                     ret = self.waiting_for_the_text_to_appear([883, 25, 970, 50], "红矿村", r'[\u4e00-\u9fa5]+', 15)
                     if not ret:
@@ -4310,6 +4428,451 @@ class PlayerThread(QThread):
                     time.sleep(0.1)
                 while self.brush_running:
                     ret = self.mm.FindPic(78, 277, 233, 329, "跌宕群岛.bmp", 0.9)
+                    if ret:
+
+                        time.sleep(0.05)
+                        pyauto.keyDownChar("shift")
+
+                        time.sleep(0.05)
+                        pyauto.keyDownChar("left")
+
+                        time.sleep(0.05)
+                        pyauto.keyUpChar("left")
+
+                        time.sleep(0.05)
+                        pyauto.keyUpChar("shift")
+                        # yjs.KeyUpChar("shift")
+                        time.sleep(0.05)
+                        for i in range(1, self.player.map_level, 1):
+                            pyauto.keyPressChar("right")
+
+                            time.sleep(0.2)
+                        # 初始化地图
+                        self.room_info_map = deepcopy(a_mapInfo.get(self.player.map_name))
+                        logger.info('初始化地图')
+                        for room_list in self.room_info_map:
+                            logger.info(room_list)
+                        while self.brush_running:
+                            text = self.get_text(860, 0, 997, 23)
+                            pattern = r'[0-9]+'
+                            # 使用 re.findall() 找出所有匹配的内容
+                            matches = re.findall(pattern, text)
+                            t = ''.join(matches)
+                            logger.info("标记1")
+                            logger.info(t)
+                            if t and int(t) > 0:
+                                self.send_log("识别到频道，说明未进入地图入口")
+                                return 0
+                            # 得到玩家所在房间
+                            self.get_min_map_yolo_res()
+                            if self.player.player_room_id:
+                                self.send_log("地图确认已进入地图")
+                                break
+                            else:
+                                self.send_log("未检测到在图中,等待...")
+                                pyauto.keyPressChar("space")
+                                time.sleep(0.5)
+                                continue
+                        break
+                    else:
+                        pyauto.keyPressChar("down")
+                        time.sleep(0.2)
+                        continue
+            elif self.player.map_name == "清海之心":
+                stat_time = time.time()
+                while self.brush_running:
+                    x1, y1, x2, y2 = (60, 287, 196, 293)
+                    min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
+                    ret = self.mm.is_colored(min_img, 50)
+                    if ret:
+                        pyauto.keyPressChar("space")
+                        time.sleep(0.2)
+                        break
+                    else:
+                        pyauto.keyPressChar("up")
+                        time.sleep(0.2)
+                    if time.time() - stat_time > 10:
+                        break
+                # self.operator_module.move_to(239, 179)
+                # time.sleep(0.2)
+                # pyauto.click()
+                # time.sleep(0.1)
+                # pyauto.KeyPressChar("space")
+
+                while self.brush_running:
+                    """
+                    如果没到誓约之都雾岚再次打开传送阵，进行传送
+                    """
+                    ret = self.waiting_for_the_text_to_appear([885, 25, 996, 50], "誓约之都雾岚", r'[\u4e00-\u9fa5]+', 15)
+                    if not ret:
+                        click_status = self.operator_module.click_menu_item("传送阵")
+                        if not click_status:
+                            logger.info("点击传送阵失败")
+                            continue
+                        stat_time = time.time()
+                        while self.brush_running:
+                            x1, y1, x2, y2 = (60, 287, 196, 293)
+                            min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
+                            ret = self.mm.is_colored(min_img, 50)
+                            if ret:
+                                pyauto.keyPressChar("space")
+                                time.sleep(0.2)
+                                break
+                            else:
+                                pyauto.keyPressChar("up")
+                                time.sleep(0.2)
+                            if time.time() - stat_time > 10:
+                                break
+                        # self.operator_module.move_to(239, 179)
+                        # time.sleep(0.2)
+                        # pyauto.click()
+                        # time.sleep(0.2)
+                    # self.operator_module.open_window("世界地图")
+                    # time.sleep(0.2)
+                    # self.operator_module.move_to(725, 199)
+                    # time.sleep(0.2)
+                    # pyauto.click()
+                    # time.sleep(1)
+                    # pyauto.KeyPressChar("n")
+                    time.sleep(5)
+                    ret = self.mm.FindPic_sleep(885, 25, 996, 50, "誓约之都雾岚.bmp", 0.9, time_s=1, my_sleep=0.1)
+                    if ret:
+                        break
+                self.operator_module.open_window("选择菜单")
+                pyauto.keyPressChar("esc")
+                time.sleep(0.2)
+                self.operator_module.click_menu_item("传送阵")
+                # 点小铁柱旁边
+                self.operator_module.move_to(386, 154)
+                time.sleep(0.1)
+                pyauto.click()
+                vnc_mm.FindPic_sleep(352, 125, 424, 188, "地图小人.bmp", 0.9, delta_color=([50, 106, 0], [160, 255, 255]), time_s=20)
+                pyauto.keyPressChar("esc")
+                time.sleep(1)
+                # pyauto.keyDownChar("right")
+                # time.sleep(random.uniform(0.5, 0.6))
+                # pyauto.keyUpChar("right")
+                # time.sleep(0.1)
+                pyauto.keyDownChar("left")
+                st = time.time()
+                has_gone_down = False  # 标志：是否已执行向下操作
+                while self.brush_running:
+                    # 检查是否需要执行向下操作（未向下过，且距离上次操作已过5秒）
+                    if not has_gone_down and time.time() - st >= 5:
+                        pyauto.keyDownChar("down")
+                        time.sleep(random.uniform(1, 2))  # 保持向下按键状态
+                        pyauto.keyUpChar("down")
+                        has_gone_down = True  # 标记为已向下
+
+                    # 如果已经向下过，执行向上操作
+                    elif has_gone_down:
+                        pyauto.keyDownChar("up")
+                        time.sleep(random.uniform(1, 2))  # 保持向上按键状态
+                        pyauto.keyUpChar("up")
+                        has_gone_down = False  # 重置标志，准备下次循环
+                        st = time.time()  # 重置计时，下次5秒后再触发向下
+
+                    # 原逻辑：检测到“返回城镇”则退出循环
+                    ret = self.mm.FindPic(963, 536, 1066, 570, "返回城镇.bmp", 0.9)
+                    if ret:
+                        pyauto.keyUpChar("left")
+                        time.sleep(0.1)
+                        break
+                while self.brush_running:
+                    ret = self.mm.FindPic(78, 277, 233, 329, "清海之心.bmp", 0.9)
+                    if ret:
+
+                        time.sleep(0.05)
+                        pyauto.keyDownChar("shift")
+
+                        time.sleep(0.05)
+                        pyauto.keyDownChar("left")
+
+                        time.sleep(0.05)
+                        pyauto.keyUpChar("left")
+
+                        time.sleep(0.05)
+                        pyauto.keyUpChar("shift")
+                        # yjs.KeyUpChar("shift")
+                        time.sleep(0.05)
+                        for i in range(1, self.player.map_level, 1):
+                            pyauto.keyPressChar("right")
+
+                            time.sleep(0.2)
+                        # 初始化地图
+                        self.room_info_map = deepcopy(a_mapInfo.get(self.player.map_name))
+                        logger.info('初始化地图')
+                        for room_list in self.room_info_map:
+                            logger.info(room_list)
+                        while self.brush_running:
+                            text = self.get_text(860, 0, 997, 23)
+                            pattern = r'[0-9]+'
+                            # 使用 re.findall() 找出所有匹配的内容
+                            matches = re.findall(pattern, text)
+                            t = ''.join(matches)
+                            logger.info("标记1")
+                            logger.info(t)
+                            if t and int(t) > 0:
+                                self.send_log("识别到频道，说明未进入地图入口")
+                                return 0
+                            # 得到玩家所在房间
+                            self.get_min_map_yolo_res()
+                            if self.player.player_room_id:
+                                self.send_log("地图确认已进入地图")
+                                break
+                            else:
+                                self.send_log("未检测到在图中,等待...")
+                                pyauto.keyPressChar("space")
+                                time.sleep(0.5)
+                                continue
+                        break
+                    else:
+                        pyauto.keyPressChar("down")
+                        time.sleep(0.2)
+                        continue
+            elif self.player.map_name == "落星森林":
+                stat_time = time.time()
+                while self.brush_running:
+                    x1, y1, x2, y2 = (59,335,193,340)
+                    min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
+                    ret = self.mm.is_colored(min_img, 50)
+                    if ret:
+                        pyauto.keyPressChar("space")
+                        time.sleep(0.2)
+                        break
+                    else:
+                        pyauto.keyPressChar("up")
+                        time.sleep(0.2)
+                    if time.time() - stat_time > 10:
+                        break
+                # self.operator_module.move_to(239, 179)
+                # time.sleep(0.2)
+                # pyauto.click()
+                # time.sleep(0.1)
+                # pyauto.KeyPressChar("space")
+
+                while self.brush_running:
+                    """
+                    如果没到誓约之都雾岚再次打开传送阵，进行传送
+                    """
+                    ret = self.waiting_for_the_text_to_appear([885, 25, 996, 50], "散星庇护所", r'[\u4e00-\u9fa5]+', 15)
+                    if not ret:
+                        click_status = self.operator_module.click_menu_item("传送阵")
+                        if not click_status:
+                            logger.info("点击传送阵失败")
+                            continue
+                        stat_time = time.time()
+                        while self.brush_running:
+                            x1, y1, x2, y2 = (59,335,193,340)
+                            min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
+                            ret = self.mm.is_colored(min_img, 50)
+                            if ret:
+                                pyauto.keyPressChar("space")
+                                time.sleep(0.2)
+                                break
+                            else:
+                                pyauto.keyPressChar("up")
+                                time.sleep(0.2)
+                            if time.time() - stat_time > 10:
+                                break
+                        # self.operator_module.move_to(239, 179)
+                        # time.sleep(0.2)
+                        # pyauto.click()
+                        # time.sleep(0.2)
+                    # self.operator_module.open_window("世界地图")
+                    # time.sleep(0.2)
+                    # self.operator_module.move_to(725, 199)
+                    # time.sleep(0.2)
+                    # pyauto.click()
+                    # time.sleep(1)
+                    # pyauto.KeyPressChar("n")
+                    time.sleep(5)
+                    ret = self.mm.FindPic_sleep(885, 25, 996, 50, "散星庇护所.bmp", 0.9, time_s=1, my_sleep=0.1)
+                    if ret:
+                        break
+                self.operator_module.open_window("选择菜单")
+                pyauto.keyPressChar("esc")
+                time.sleep(0.2)
+                self.operator_module.click_menu_item("传送阵")
+                # 点小铁柱旁边
+                self.operator_module.move_to(496,332)
+                time.sleep(0.1)
+                pyauto.click()
+                vnc_mm.FindPic_sleep(474,315,528,378, "地图小人.bmp", 0.9, delta_color=([50, 106, 0], [160, 255, 255]), time_s=20)
+                pyauto.keyPressChar("esc")
+                time.sleep(1)
+                # pyauto.keyDownChar("right")
+                # time.sleep(random.uniform(0.5, 0.6))
+                # pyauto.keyUpChar("right")
+                # time.sleep(0.1)
+                pyauto.keyDownChar("up")
+                st = time.time()
+                has_gone_down = False  # 标志：是否已执行向下操作
+                while self.brush_running:
+                    # 检查是否需要执行向下操作（未向下过，且距离上次操作已过5秒）
+                    if not has_gone_down and time.time() - st >= 5:
+                        pyauto.keyDownChar("right")
+                        time.sleep(random.uniform(1, 2))  # 保持向下按键状态
+                        pyauto.keyUpChar("right")
+                        has_gone_down = True  # 标记为已向下
+
+                    # 如果已经向下过，执行向上操作
+                    elif has_gone_down:
+                        pyauto.keyDownChar("left")
+                        time.sleep(random.uniform(1, 2))  # 保持向上按键状态
+                        pyauto.keyUpChar("left")
+                        has_gone_down = False  # 重置标志，准备下次循环
+                        st = time.time()  # 重置计时，下次5秒后再触发向下
+
+                    # 原逻辑：检测到“返回城镇”则退出循环
+                    ret = self.mm.FindPic(963, 536, 1066, 570, "返回城镇.bmp", 0.9)
+                    if ret:
+                        pyauto.keyUpChar("up")
+                        time.sleep(0.1)
+                        break
+                while self.brush_running:
+                    ret = self.mm.FindPic(78, 277, 233, 329, "落星森林.bmp", 0.9)
+                    if ret:
+
+                        time.sleep(0.05)
+                        pyauto.keyDownChar("shift")
+
+                        time.sleep(0.05)
+                        pyauto.keyDownChar("left")
+
+                        time.sleep(0.05)
+                        pyauto.keyUpChar("left")
+
+                        time.sleep(0.05)
+                        pyauto.keyUpChar("shift")
+                        # yjs.KeyUpChar("shift")
+                        time.sleep(0.05)
+                        for i in range(1, self.player.map_level, 1):
+                            pyauto.keyPressChar("right")
+
+                            time.sleep(0.2)
+                        # 初始化地图
+                        self.room_info_map = deepcopy(a_mapInfo.get(self.player.map_name))
+                        logger.info('初始化地图')
+                        for room_list in self.room_info_map:
+                            logger.info(room_list)
+                        while self.brush_running:
+                            text = self.get_text(860, 0, 997, 23)
+                            pattern = r'[0-9]+'
+                            # 使用 re.findall() 找出所有匹配的内容
+                            matches = re.findall(pattern, text)
+                            t = ''.join(matches)
+                            logger.info("标记1")
+                            logger.info(t)
+                            if t and int(t) > 0:
+                                self.send_log("识别到频道，说明未进入地图入口")
+                                return 0
+                            # 得到玩家所在房间
+                            self.get_min_map_yolo_res()
+                            if self.player.player_room_id:
+                                self.send_log("地图确认已进入地图")
+                                break
+                            else:
+                                self.send_log("未检测到在图中,等待...")
+                                pyauto.keyPressChar("space")
+                                time.sleep(0.5)
+                                continue
+                        break
+                    else:
+                        pyauto.keyPressChar("down")
+                        time.sleep(0.2)
+                        continue
+            elif self.player.map_name == "萧索的回廊":
+                stat_time = time.time()
+                while self.brush_running:
+                    x1, y1, x2, y2 = (59, 194, 133, 198)
+                    min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
+                    ret = self.mm.is_colored(min_img, 50)
+                    if ret:
+                        pyauto.keyPressChar("space")
+                        time.sleep(0.2)
+                        break
+                    else:
+                        pyauto.keyPressChar("up")
+                        time.sleep(0.2)
+                    if time.time() - stat_time > 10:
+                        break
+                # self.operator_module.move_to(239, 179)
+                # time.sleep(0.2)
+                # pyauto.click()
+                # time.sleep(0.1)
+                # pyauto.KeyPressChar("space")
+
+                while self.brush_running:
+                    """
+                    如果没到红矿村再次打开传送阵，进行传送
+                    """
+                    ret = self.waiting_for_the_text_to_appear([883, 25, 970, 50], "红矿村", r'[\u4e00-\u9fa5]+', 15)
+                    if not ret:
+                        click_status = self.operator_module.click_menu_item("传送阵")
+                        if not click_status:
+                            logger.info("点击传送阵失败")
+                            continue
+                        stat_time = time.time()
+                        while self.brush_running:
+                            x1, y1, x2, y2 = (59, 194, 133, 198)
+                            min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
+                            ret = self.mm.is_colored(min_img, 50)
+                            if ret:
+                                pyauto.keyPressChar("space")
+                                time.sleep(0.2)
+                                break
+                            else:
+                                pyauto.keyPressChar("up")
+                                time.sleep(0.2)
+                            if time.time() - stat_time > 10:
+                                break
+                        # self.operator_module.move_to(239, 179)
+                        # time.sleep(0.2)
+                        # pyauto.click()
+                        # time.sleep(0.2)
+                    # self.operator_module.open_window("世界地图")
+                    # time.sleep(0.2)
+                    # self.operator_module.move_to(725, 199)
+                    # time.sleep(0.2)
+                    # pyauto.click()
+                    # time.sleep(1)
+                    # pyauto.KeyPressChar("n")
+                    time.sleep(5)
+                    ret = self.mm.FindPic_sleep(883, 25, 970, 50, "红矿村.bmp", 0.9, time_s=1, my_sleep=0.1)
+                    if ret:
+                        break
+                pyauto.keyDownChar("right")
+                time.sleep(random.uniform(0.8, 1.1))
+                pyauto.keyUpChar("right")
+                time.sleep(0.1)
+                pyauto.keyDownChar("left")
+                st = time.time()
+                has_gone_down = False  # 标志：是否已执行向下操作
+                while self.brush_running:
+                    # 检查是否需要执行向下操作（未向下过，且距离上次操作已过5秒）
+                    if not has_gone_down and time.time() - st >= 5:
+                        pyauto.keyDownChar("down")
+                        time.sleep(random.uniform(1, 2))  # 保持向下按键状态
+                        pyauto.keyUpChar("down")
+                        has_gone_down = True  # 标记为已向下
+
+                    # 如果已经向下过，执行向上操作
+                    elif has_gone_down:
+                        pyauto.keyDownChar("up")
+                        time.sleep(random.uniform(1, 2))  # 保持向上按键状态
+                        pyauto.keyUpChar("up")
+                        has_gone_down = False  # 重置标志，准备下次循环
+                        st = time.time()  # 重置计时，下次5秒后再触发向下
+
+                    # 原逻辑：检测到“返回城镇”则退出循环
+                    ret = self.mm.FindPic(963, 536, 1066, 570, "返回城镇.bmp", 0.9)
+                    if ret:
+                        pyauto.keyUpChar("left")
+                        time.sleep(0.1)
+                        break
+                while self.brush_running:
+                    ret = self.mm.FindPic(78, 277, 233, 329, "萧索的回廊.bmp", 0.9)
                     if ret:
 
                         time.sleep(0.05)
@@ -4425,10 +4988,30 @@ class PlayerThread(QThread):
                 pyauto.keyUpChar("right")
                 time.sleep(0.1)
                 pyauto.keyDownChar("left")
-                ret = self.mm.FindPic_sleep(963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20)
-                if ret:
-                    pyauto.keyUpChar("left")
-                    time.sleep(0.1)
+                st = time.time()
+                has_gone_down = False  # 标志：是否已执行向下操作
+                while self.brush_running:
+                    # 检查是否需要执行向下操作（未向下过，且距离上次操作已过5秒）
+                    if not has_gone_down and time.time() - st >= 5:
+                        pyauto.keyDownChar("down")
+                        time.sleep(random.uniform(1, 2))  # 保持向下按键状态
+                        pyauto.keyUpChar("down")
+                        has_gone_down = True  # 标记为已向下
+
+                    # 如果已经向下过，执行向上操作
+                    elif has_gone_down:
+                        pyauto.keyDownChar("up")
+                        time.sleep(random.uniform(1, 2))  # 保持向上按键状态
+                        pyauto.keyUpChar("up")
+                        has_gone_down = False  # 重置标志，准备下次循环
+                        st = time.time()  # 重置计时，下次5秒后再触发向下
+
+                    # 原逻辑：检测到“返回城镇”则退出循环
+                    ret = self.mm.FindPic(963, 536, 1066, 570, "返回城镇.bmp", 0.9)
+                    if ret:
+                        pyauto.keyUpChar("left")
+                        time.sleep(0.1)
+                        break
                 while self.brush_running:
                     ret = self.mm.FindPic(78, 277, 233, 329, "妖气追踪.bmp", 0.9)
                     if ret:
@@ -4485,7 +5068,7 @@ class PlayerThread(QThread):
             elif self.player.map_name == "黄龙大会":
                 stat_time = time.time()
                 while self.brush_running:
-                    x1, y1, x2, y2 = (59,241,134,246)
+                    x1, y1, x2, y2 = (59, 241, 134, 246)
                     min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
 
                     ret = self.mm.is_colored(min_img, 50)
@@ -4516,7 +5099,7 @@ class PlayerThread(QThread):
                             continue
                         stat_time = time.time()
                         while self.brush_running:
-                            x1, y1, x2, y2 = (59,241,134,246)
+                            x1, y1, x2, y2 = (59, 241, 134, 246)
                             min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                             ret = self.mm.is_colored(min_img, 50)
                             if ret:
@@ -4585,7 +5168,7 @@ class PlayerThread(QThread):
                 time.sleep(0.2)
                 self.operator_module.click_menu_item("传送阵")
                 # 点小铁柱旁边
-                self.operator_module.move_to(618,407)
+                self.operator_module.move_to(618, 407)
                 time.sleep(0.1)
                 pyauto.click()
                 vnc_mm.FindPic_sleep(583, 370, 631, 427, "地图小人.bmp", 0.9, delta_color=([50, 106, 0], [160, 255, 255]), time_s=20)
@@ -4685,10 +5268,10 @@ class PlayerThread(QThread):
                     # 去西岚接任务
                     self.operator_module.click_menu_item("传送阵")
                     # 点地图
-                    self.operator_module.move_to(511,341)
+                    self.operator_module.move_to(511, 341)
                     time.sleep(0.1)
                     pyauto.click()
-                    vnc_mm.FindPic_sleep(490,305,534,351, "地图小人.bmp", 0.9, delta_color=([50, 106, 0], [160, 255, 255]), time_s=20)
+                    vnc_mm.FindPic_sleep(490, 305, 534, 351, "地图小人.bmp", 0.9, delta_color=([50, 106, 0], [160, 255, 255]), time_s=20)
                     time.sleep(0.2)
                     pyauto.keyPressChar("esc")
                     time.sleep(0.2)
@@ -4752,7 +5335,7 @@ class PlayerThread(QThread):
                 self.operator_module.move_to(600, 277)
                 time.sleep(0.1)
                 pyauto.click()
-                vnc_mm.FindPic_sleep(561,250,625,291, "地图小人.bmp", 0.9, delta_color=([50, 106, 0], [160, 255, 255]), time_s=20)
+                vnc_mm.FindPic_sleep(561, 250, 625, 291, "地图小人.bmp", 0.9, delta_color=([50, 106, 0], [160, 255, 255]), time_s=20)
                 pyauto.keyDownChar("down")
                 time.sleep(random.uniform(0.8, 1.1))
                 pyauto.keyUpChar("down")
@@ -4828,7 +5411,7 @@ class PlayerThread(QThread):
                                 time.sleep(0.1)
                                 return 0
                             game_image = screenshot_util.get_game_screenshot()
-                            text = self.get_text(482,33,588,93, game_image)
+                            text = self.get_text(482, 33, 588, 93, game_image)
                             logger.info(f"识别右上角文字：{text}")
                             cleaned_text = re.sub(r'[^\u4e00-\u9fa5]', '', text)
                             if time.time() - syst > 20:
@@ -5027,7 +5610,7 @@ class PlayerThread(QThread):
         while self.brush_running and not self.ghost_state and iterations < max_iterations:  # 循环条件：刷子正在运行且非幽灵状态
             self.get_min_map_yolo_res()
             if time.time() - st > 0.2:  # 如果执行时间超过0.5秒
-                logger.info("在0.1秒内没有找到问号房间")
+                logger.info("在0.2秒内没有找到问号房间")
                 break
             if self.query_room_id:
                 break
@@ -5073,7 +5656,7 @@ class PlayerThread(QThread):
             the_room_closest_to_the_boss = self.find_nearest_zero_to_target(self.room_info_map, self.boss_room_id)
             # 查找终点房间的路径
             to_the_boss = a_star(self.room_info_map, self.player.player_room_id, the_room_closest_to_the_boss, priority_direction)
-            logger.info(f"to_the_boss路径:{to_the_boss}")
+            logger.info(f"查找从玩家当前房间到离BOSS房间最近的已探索房间的路径:{to_the_boss}")
             if to_the_boss is not None and len(to_the_boss) >= 2:
                 map_direction = judge_direction(to_the_boss[0], to_the_boss[1])
                 self.direction_dic[self.player.player_room_id] = map_direction
@@ -5088,6 +5671,7 @@ class PlayerThread(QThread):
             str: 门的方向描述
             None: 未找到符合条件的门
         """
+        min_rooms = MAP_MIN_ROOMS.get(self.player.map_name, 2)
         # 1. 检查缓存
         if self.player.player_room_id in self.direction_dic:
             cached_direction = self.direction_dic[self.player.player_room_id]
@@ -5100,10 +5684,7 @@ class PlayerThread(QThread):
         # 2. 搜索问号房和精英房
         query_elite_timeout = 0.5  # 搜索问号/精英房的最大时间
         start_time = time.time()
-
-        while (self.brush_running and
-               not self.ghost_state and
-               time.time() - start_time < query_elite_timeout):
+        while self.brush_running and not self.ghost_state and time.time() - start_time < query_elite_timeout:
 
             time.sleep(0.05)  # 减少CPU使用
 
@@ -5131,7 +5712,7 @@ class PlayerThread(QThread):
         # 3. 搜索Boss房（如果满足条件）
 
         if not self.query_room_id and not self.elite_room_id:
-            min_rooms = MAP_MIN_ROOMS.get(self.player.map_name, 2)
+
             logger.info(f"最少房间要求为：{min_rooms}")
             if self.boss_room_id and self.player.player_room_id:
                 # 初始化最小距离为无穷大，以及最近的坐标
@@ -5150,11 +5731,12 @@ class PlayerThread(QThread):
                         self.door_direction = boss_direction
                         return boss_direction
 
-        # # 4. 最后尝试找最近房间
-        # nearest_direction = self.find_path_to_nearest_room_to_boss()
-        # if nearest_direction:
-        #     logger.info(f"找到最近房间方向: {nearest_direction}")
-        #     return nearest_direction
+        # 4. 最后尝试找最近房间
+        if self.getOpenedRoomsCount() >= min_rooms:
+            nearest_direction = self.find_path_to_nearest_room_to_boss()
+            if nearest_direction:
+                logger.info(f"找到最近房间方向: {nearest_direction}")
+                return nearest_direction
 
         logger.info("未找到任何门方向")
         self.door_direction = ''
@@ -5209,7 +5791,6 @@ class PlayerThread(QThread):
         # 进入等待状态
         time.sleep(wait_seconds)
 
-
         # 等待结束后重置任务状态
         self.today_task_completed = False
         self.send_log("等待结束，准备开始新的任务周期")
@@ -5219,7 +5800,7 @@ class PlayerThread(QThread):
         now = datetime.datetime.now()
 
         # 计算今天早上六点的时间
-        today_6am = now.replace(hour=self.start_hour, minute=random.randint(5,10), second=random.randint(1,58), microsecond=0)
+        today_6am = now.replace(hour=self.start_hour, minute=random.randint(5, 10), second=random.randint(1, 58), microsecond=0)
 
         # 如果当前时间已经过了今天六点，则目标时间是明天六点
         if now >= today_6am:

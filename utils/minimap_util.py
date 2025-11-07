@@ -42,6 +42,15 @@ class MiniMapUtil:
             "跌宕群岛": {
                 "width": 126, "height": 54, "row": 7, "col": 3
             },
+            "清海之心": {
+                "width": 126, "height": 54, "row": 7, "col": 3
+            },
+            "落星森林": {
+                "width": 126, "height": 54, "row": 7, "col": 3
+            },
+            "萧索的回廊": {
+                "width": 126, "height": 54, "row": 7, "col": 3
+            },
             "妖气追踪": {
                 "width": 126, "height": 54, "row": 7, "col": 3
             },
@@ -91,6 +100,12 @@ class MiniMapUtil:
         elif self.minimap_name == '德洛斯矿山外围':
             map_opencv = im_opencv[52:52 + 54, 1067 - 12 - 126:1067 - 12]
         elif self.minimap_name == '跌宕群岛':
+            map_opencv = im_opencv[52:52 + 54, 1067 - 12 - 126:1067 - 12]
+        elif self.minimap_name == '清海之心':
+            map_opencv = im_opencv[52:52 + 54, 1067 - 12 - 126:1067 - 12]
+        elif self.minimap_name == '落星森林':
+            map_opencv = im_opencv[52:52 + 54, 1067 - 12 - 126:1067 - 12]
+        elif self.minimap_name == '萧索的回廊':
             map_opencv = im_opencv[52:52 + 54, 1067 - 12 - 126:1067 - 12]
         elif self.minimap_name == '妖气追踪':
             map_opencv = im_opencv[52:52 + 54, 1067 - 12 - 126:1067 - 12]
@@ -387,6 +402,42 @@ class MiniMapUtil:
             room_id = column, row
             # 返回计算得到的房间ID或None
         elif self.minimap_name == "跌宕群岛":
+            # 从minimap字典中获取流雨瀑布小地图的宽度、高度、行数和列数
+            width = self.minimap[self.minimap_name]['width'] / self.minimap[self.minimap_name]['row']
+            height = self.minimap[self.minimap_name]['height'] / self.minimap[self.minimap_name]['col']
+            # 将x和y坐标转换为房间网格的行和列索引
+            # 注意：这里假设x和y坐标是像素值，需要根据网格大小进行转换
+            row = int(x // width)  # 使用int进行向下取整，因为索引应该是整数
+            column = int(y // height)  # 同上
+            # # 构造并返回房间ID（列号-行号）
+            # room_id = str(column) + "-" + str(row)
+            # 构造并返回房间ID（列号,行号）
+            room_id = column, row
+        elif self.minimap_name == "清海之心":
+            # 从minimap字典中获取流雨瀑布小地图的宽度、高度、行数和列数
+            width = self.minimap[self.minimap_name]['width'] / self.minimap[self.minimap_name]['row']
+            height = self.minimap[self.minimap_name]['height'] / self.minimap[self.minimap_name]['col']
+            # 将x和y坐标转换为房间网格的行和列索引
+            # 注意：这里假设x和y坐标是像素值，需要根据网格大小进行转换
+            row = int(x // width)  # 使用int进行向下取整，因为索引应该是整数
+            column = int(y // height)  # 同上
+            # # 构造并返回房间ID（列号-行号）
+            # room_id = str(column) + "-" + str(row)
+            # 构造并返回房间ID（列号,行号）
+            room_id = column, row
+        elif self.minimap_name == "落星森林":
+            # 从minimap字典中获取流雨瀑布小地图的宽度、高度、行数和列数
+            width = self.minimap[self.minimap_name]['width'] / self.minimap[self.minimap_name]['row']
+            height = self.minimap[self.minimap_name]['height'] / self.minimap[self.minimap_name]['col']
+            # 将x和y坐标转换为房间网格的行和列索引
+            # 注意：这里假设x和y坐标是像素值，需要根据网格大小进行转换
+            row = int(x // width)  # 使用int进行向下取整，因为索引应该是整数
+            column = int(y // height)  # 同上
+            # # 构造并返回房间ID（列号-行号）
+            # room_id = str(column) + "-" + str(row)
+            # 构造并返回房间ID（列号,行号）
+            room_id = column, row
+        elif self.minimap_name == "萧索的回廊":
             # 从minimap字典中获取流雨瀑布小地图的宽度、高度、行数和列数
             width = self.minimap[self.minimap_name]['width'] / self.minimap[self.minimap_name]['row']
             height = self.minimap[self.minimap_name]['height'] / self.minimap[self.minimap_name]['col']

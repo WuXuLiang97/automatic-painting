@@ -129,7 +129,7 @@ class VNC:
 
 if __name__ == '__main__':
     try:
-        v = VNC("192.168.1.143", "5900", "")
+        v = VNC("192.168.1.51", "5900", "")
         print(v.client)
         time.sleep(2)
         # new_image = v.capture(path=None)  # 获取新图像
@@ -163,6 +163,14 @@ if __name__ == '__main__':
     vnc_mm.VNC = v
     for _ in range(5):
         game_image = v.capture()
+    # while True:
+    #     game_image = v.capture()
+    #     ret = vnc_mm.find_color((20, 50, 1026, 542), game_image, (20, 150, 11, 15), color_range=([41, 200, 200], [47, 255, 255]),debug=1)
+    #     if ret:
+    #         x, y = ret[0][0], ret[0][1] + 140
+    #         print(f"绿色名称精英怪：{x, y}")
+    #     else:
+    #         print("没识别到怪物")
     # ret = vnc_mm.find_color((80, 286, 1026, 542), game_image, (20, 150, 10, 15), color_range=([150, 254, 254], [150, 255, 255]),debug=2)
     # if ret:
     #     x, y = ret[0][1], ret[0][2] + 60
