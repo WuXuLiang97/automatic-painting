@@ -1,7 +1,4 @@
 from yolo.yolo_main import YoloV8
-from .logger import get_logger
-
-logger = get_logger('yolo_handler')
 
 class YoloHandler:
     """封装 YOLO 模型加载与推理"""
@@ -15,9 +12,9 @@ class YoloHandler:
                     self.model.detect(warmup_image)
                     self.model.min_map_detect(warmup_image)
                 except Exception as e:
-                    logger.warning(f"YOLO 预热失败: {e}", exc_info=True)
+                    print(f"YOLO 预热失败: {e}")
         except Exception as e:
-            logger.error(f"YOLO 模型加载失败: {e}", exc_info=True)
+            print(f"YOLO 模型加载失败: {e}")
 
     def process(self, image):
         return self.model.detect(image)

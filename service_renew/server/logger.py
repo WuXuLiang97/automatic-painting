@@ -10,45 +10,27 @@ os.makedirs(LOG_DIR, exist_ok=True)
 LOG_FILE = os.path.join(LOG_DIR, 'server.log')
 
 
-def get_logger(name: str = 'app_server', level: int = logging.INFO) -> Logger:
-    """
-    获取日志记录器
-    
-    Args:
-        name: 日志记录器名称，默认为 'app_server'
-        level: 日志级别，默认为 INFO
-    
-    Returns:
-        Logger 实例
-    """
+def get_logger() -> Logger:
     global _LOGGER
-    # 如果请求的是默认 logger 且已存在，直接返回
-    if name == 'app_server' and _LOGGER is not None:
+    if _LOGGER is not None:
         return _LOGGER
 
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
+    logger = logging.getLogger('app_server')
+    logger.setLevel(logging.INFO)
     logger.propagate = False  # 避免重复输出
-
-    # 如果 logger 已经有 handlers，说明已经配置过，直接返回
-    if logger.handlers:
-        return logger
 
     # 控制台/GUI handler -> stdout (PrintRedirector 会接管 stdout)
     sh = logging.StreamHandler(sys.stdout)
-    sh.setLevel(level)
+    sh.setLevel(logging.INFO)
     sh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
     # 文件 handler
     fh = logging.FileHandler(LOG_FILE, encoding='utf-8')
-    fh.setLevel(level)
+    fh.setLevel(logging.INFO)
     fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
 
     logger.addHandler(sh)
     logger.addHandler(fh)
 
-    # 保存默认 logger
-    if name == 'app_server':
-        _LOGGER = logger
-    
+    _LOGGER = logger
     return logger

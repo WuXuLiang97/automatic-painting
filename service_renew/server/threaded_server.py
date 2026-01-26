@@ -1,6 +1,7 @@
 import json
 import struct
 import socket
+import logging
 import threading
 from queue import Queue, Empty
 from concurrent.futures import ThreadPoolExecutor
@@ -9,12 +10,12 @@ import numpy as np
 from .yolo_handler import YoloHandler
 from .ocr_handler import OCRHandler
 from .config_manager import settings  # 新增：集中配置
-from .logger import get_logger
 import time
 from collections import defaultdict, deque
 
-# 获取日志记录器
-logger = get_logger('threaded_server')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class ThreadedServer:
@@ -41,12 +42,12 @@ class ThreadedServer:
             try:
                 self._shared_yolo = YoloHandler(warmup_image=dummy)
             except Exception as e:
-                logger.error(f"共享 YOLO 初始化失败: {e}", exc_info=True)
+                print(f"共享 YOLO 初始化失败: {e}")
             try:
                 self._shared_ocr = OCRHandler(debug=False)
             except Exception as e:
-                logger.error(f"共享 OCR 初始化失败: {e}", exc_info=True)
-            logger.info("共享模型初始化完成")
+                print(f"共享 OCR 初始化失败: {e}")
+            print("共享模型初始化完成")
         self._metrics_thread = None
         self._stats_lock = threading.Lock()
         self._req_count = 0
@@ -61,7 +62,7 @@ class ThreadedServer:
     def start(self):
         """启动服务器"""
         self.running = True
-        logger.info(
+        print(
             f"以 {'独立' if settings.per_thread_models else '共享'} 模型模式启动，线程数: {settings.max_workers}"
         )
         try:
@@ -77,14 +78,14 @@ class ThreadedServer:
                     target=self._metrics_loop, name="Metrics", daemon=True
                 )
                 self._metrics_thread.start()
-                logger.info(
+                print(
                     f"服务器已启动在 {self.server_address[0]}:{self.server_address[1]}"
                 )
                 # 主循环等待停止信号而不是直接 join (允许 stop 更快退出)
                 while self.running and not self._stop_event.is_set():
                     time.sleep(0.2)
         except KeyboardInterrupt:
-            logger.warning("收到中断信号，正在关闭...")
+            print("收到中断信号，正在关闭...")
             self.stop()
         finally:
             self.running = False
@@ -113,7 +114,7 @@ class ThreadedServer:
                 self._executor.shutdown(wait=False, cancel_futures=True)
             except Exception:
                 pass
-        logger.info("停止信号已发送")
+        print("停止信号已发送")
 
     def _listen(self):
         """监听客户端连接"""
@@ -133,8 +134,8 @@ class ThreadedServer:
                     # 监听 socket 关闭
                     break
                 except Exception as e:
-                    logger.error(f"监听线程异常: {e}", exc_info=True)
-            logger.debug("监听线程结束")
+                    print(f"监听线程异常: {e}")
+            print("监听线程结束")
 
     def _worker(self):
         """处理客户端请求"""
@@ -150,12 +151,12 @@ class ThreadedServer:
             try:
                 yolo_handler = YoloHandler(warmup_image=dummy_image)
             except Exception as e:
-                logger.error(f"线程 {threading.current_thread().name} 初始化 YOLO 失败: {e}", exc_info=True)
+                print(f"线程 {threading.current_thread().name} 初始化 YOLO 失败: {e}")
             try:
                 ocr_handler = OCRHandler(debug=False)
             except Exception as e:
-                logger.error(f"线程 {threading.current_thread().name} 初始化 OCR 失败: {e}", exc_info=True)
-            logger.debug(f"线程 {threading.current_thread().name} 的模型预热完成")
+                print(f"线程 {threading.current_thread().name} 初始化 OCR 失败: {e}")
+            print(f"线程 {threading.current_thread().name} 的模型预热完成")
         else:
             # 共享模型直接引用
             yolo_handler = self._shared_yolo
@@ -172,14 +173,14 @@ class ThreadedServer:
             try:
                 self._handle_client(conn, addr, yolo_handler, ocr_handler)
             except Exception as e:
-                logger.error(f"工作线程异常: {e}", exc_info=True)
-        logger.debug(f"线程 {threading.current_thread().name} 退出")
+                print(f"工作线程异常: {e}")
+        print(f"线程 {threading.current_thread().name} 退出")
 
     def _handle_client(self, conn, addr, yolo_handler, ocr_handler):
         """处理单个客户端请求"""
         try:
             with conn:
-                logger.info(f"新连接: {addr}")
+                print(f"新连接: {addr}")
                 while self.running:
                     header, image = self._receive_message(conn)
                     if not header:
@@ -188,7 +189,7 @@ class ThreadedServer:
                     req_type = header.get("type")
                     start_ts = time.perf_counter()
                     try:
-                        logger.debug(f"收到请求类型: {req_type}，图像尺寸: {image.shape if image is not None else '无'}")
+                        print(f"收到请求类型: {req_type}，图像尺寸: {image.shape if image is not None else '无'}")
 
                         if req_type == "game_windows":
                             if yolo_handler is None:
@@ -197,12 +198,7 @@ class ThreadedServer:
                                     req_type or "unknown", 0.0, False, True
                                 )
                             else:
-                                # 共享模型模式下需要加锁保护
-                                if not settings.per_thread_models:
-                                    with self._model_lock:
-                                        result = yolo_handler.process(image)
-                                else:
-                                    result = yolo_handler.process(image)
+                                result = yolo_handler.process(image)
                                 self._record_metric(
                                     req_type,
                                     time.perf_counter() - start_ts,
@@ -216,12 +212,7 @@ class ThreadedServer:
                                     req_type or "unknown", 0.0, False, True
                                 )
                             else:
-                                # 共享模型模式下需要加锁保护
-                                if not settings.per_thread_models:
-                                    with self._model_lock:
-                                        result = yolo_handler.process_minimap(image)
-                                else:
-                                    result = yolo_handler.process_minimap(image)
+                                result = yolo_handler.process_minimap(image)
                                 self._record_metric(
                                     req_type,
                                     time.perf_counter() - start_ts,
@@ -235,12 +226,7 @@ class ThreadedServer:
                                     req_type or "unknown", 0.0, False, True
                                 )
                             else:
-                                # 共享模型模式下需要加锁保护
-                                if not settings.per_thread_models:
-                                    with self._model_lock:
-                                        result = ocr_handler.process(image)
-                                else:
-                                    result = ocr_handler.process(image)
+                                result = ocr_handler.process(image)
                                 self._record_metric(
                                     req_type,
                                     time.perf_counter() - start_ts,
@@ -249,10 +235,9 @@ class ThreadedServer:
                                 )
 
                                 if result:
-                                    logger.debug(f"识别结果：{result}")
+                                    print(f"识别结果：{result}")
                                 else:
                                     cv2.imwrite(f"revice.png",image)
-                                    logger.warning(f"OCR 识别结果为空，已保存图像到 revice.png")
                         else:
                             result = {"error": "无效的请求类型"}
                             self._record_metric(req_type or "unknown", 0.0, False, True)
@@ -262,7 +247,7 @@ class ThreadedServer:
 
                     self._send_response(conn, result, req_type)
         except Exception as e:
-            logger.error(f"客户端 {addr} 处理异常: {e}", exc_info=True)
+            print(f"客户端 {addr} 处理异常: {e}")
 
     def _receive_message(self, conn):
         """接收客户端消息"""
@@ -292,7 +277,7 @@ class ThreadedServer:
                 )
             return header, image
         except Exception as e:
-            logger.error(f"接收消息失败: {e}", exc_info=True)
+            print(f"接收消息失败: {e}")
             return None, None
 
     def _send_response(self, conn, data, msg_type):
@@ -308,7 +293,7 @@ class ThreadedServer:
             conn.sendall(header)
             conn.sendall(json_data)
         except BrokenPipeError:
-            logger.warning("客户端连接已中断")
+            print("客户端连接已中断")
 
     def _metrics_loop(self):
         while self.running and not self._stop_event.is_set():
@@ -333,7 +318,7 @@ class ThreadedServer:
                         lines.append(
                             f"  - {t}: {self._req_count_by_type[t]} 次 | 平均 {avg*1000:.1f}ms | P95 {p95*1000:.1f}ms | 最近样本 {len(lat_list)}"
                         )
-                logger.info("\n".join(lines))
+                print("\n".join(lines))
 
     def _record_metric(
         self, req_type: str, duration: float, success: bool, error: bool

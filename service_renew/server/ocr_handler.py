@@ -4,9 +4,6 @@ import numpy as np
 import onnxruntime as ort
 from typing import List, Tuple
 from root_dir import root_path
-from .logger import get_logger
-
-logger = get_logger('ocr_handler')
 
 # 模型与字典路径
 DET_MODEL_DIR = os.path.join(root_path, "PP-OCRv5_mobile_det")
@@ -50,7 +47,7 @@ class OCRHandler:
         if len(shape) == 4 and isinstance(shape[2], int) and shape[2] > 0:
             self.rec_img_h = shape[2]
         if self.debug:
-            logger.debug(f"[OCR] rec input height={self.rec_img_h} shape={shape}")
+            print(f"[OCR] rec input height={self.rec_img_h} shape={shape}")
 
     # ------------ 工具 ------------
     def _load_keys(self, path: str) -> List[str]:
@@ -119,7 +116,7 @@ class OCRHandler:
             ordered = self._order_points_clockwise(expanded)
             boxes.append(ordered.astype(np.int32))
         if self.debug:
-            logger.debug(f"[DET] contours={len(contours)} keep={len(boxes)}")
+            print(f"[DET] contours={len(contours)} keep={len(boxes)}")
         return boxes
 
     def _expand_polygon(self, pts: np.ndarray, ratio: float) -> np.ndarray:
@@ -238,18 +235,18 @@ class OCRHandler:
         if len(shape) == 4 and isinstance(shape[3], int) and shape[3] > 0:
             fixed_w = shape[3]
         if self.debug:
-            logger.debug(f"[REC] input={rec_in.name} shape={shape} fixed_w={fixed_w}")
+            print(f"[REC] input={rec_in.name} shape={shape} fixed_w={fixed_w}")
 
         results = []
         for i, box in enumerate(boxes):
             try:
                 rec_input = self._crop_and_normalize_rec(image, box, target_w=fixed_w)
                 if self.debug:
-                    logger.debug(f"[REC] box#{i} shape={rec_input.shape}")
+                    print(f"[REC] box#{i} shape={rec_input.shape}")
                 logits = self.rec_session.run(None, {rec_in.name: rec_input})[0]
                 text, paddle_score, char_confs = self._ctc_decode(logits)
                 if self.debug:
-                    logger.debug(f"[REC] box#{i} text='{text}' paddle_score={paddle_score:.4f}")
+                    print(f"[REC] box#{i} text='{text}' paddle_score={paddle_score:.4f}")
                 if text:
                     results.append({
                         'text': text,
@@ -260,7 +257,7 @@ class OCRHandler:
                     })
             except Exception as e:
                 if self.debug:
-                    logger.warning(f"[REC][ERR] box#{i}: {e}", exc_info=True)
+                    print(f"[REC][ERR] box#{i}: {e}")
                 continue
         # if self.print_result and results:
         #     print("[OCR][RESULT] 共识别{}条:".format(len(results)))

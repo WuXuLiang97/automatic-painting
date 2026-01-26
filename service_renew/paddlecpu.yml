@@ -1,0 +1,22 @@
+name: paddleocr_cpu
+channels:
+  - defaults
+dependencies:
+  - python=3.9
+  - pip
+  - pip:
+      - numpy  # 数值计算库
+      - opencv-python  # 图像处理库
+      - matplotlib  # 可视化工具
+      - tqdm  # 进度条显示
+      - flask  # 如果需要构建 Web 服务
+      - scikit-image  # 图像处理辅助工具
+      - pyinstaller  # 如果需要将 Python 脚本打包为可执行文件
+      - pywin32  # Windows 特定的系统调用支持
+      - pillow  # 图像处理库
+      - tk  # Tkinter GUI 支持
+      - pyyaml  # YAML 文件解析
+      - requests  # HTTP 请求库
+      - protobuf  # PaddlePaddle 的依赖
+      - cython  # 提高性能的 C 扩展
+      - onnxruntime  # 如果需要 ONNX 模型推理支持

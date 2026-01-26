@@ -2,9 +2,6 @@ import os
 from configparser import ConfigParser
 from dataclasses import dataclass
 from typing import Optional
-from .logger import get_logger
-
-logger = get_logger('config_manager')
 
 # 默认配置
 _DEFAULTS = {
@@ -54,9 +51,9 @@ def _load_config():
         try:
             parser.read(ini_path, encoding='utf-8')
         except Exception as e:
-            logger.warning(f"读取配置文件失败: {e}, 将使用默认配置", exc_info=True)
+            print(f"读取配置文件失败: {e}, 将使用默认配置")
     else:
-        logger.info("未找到工具人.ini，使用默认配置")
+        print("未找到工具人.ini，使用默认配置")
     return parser
 
 
