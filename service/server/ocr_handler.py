@@ -215,8 +215,13 @@ class OCRHandler:
 
     # ------------ 主流程 ------------
     def process(self, image: np.ndarray):
-        if image is None or image.size == 0:
-            return []
+        """处理 OCR 识别"""
+        if image is None:
+            logger.warning("OCR 输入图像为空")
+            return ""
+        if image.size == 0:
+            logger.warning("OCR 输入图像尺寸为0")
+            return ""
         det_input, meta = self._preprocess_det(image)
         det_out = self.det_session.run(None, {self.det_session.get_inputs()[0].name: det_input})
         prob = det_out[0]
@@ -258,9 +263,17 @@ class OCRHandler:
                         'score': round(paddle_score, 4),          # 兼容旧字段
                         'char_probs': [round(c, 4) for c in char_confs]
                     })
+            except ValueError as e:
+                if self.debug:
+                    logger.warning(f"[REC][ERR] box#{i} 参数错误: {e}", exc_info=True)
+                continue
+            except RuntimeError as e:
+                if self.debug:
+                    logger.warning(f"[REC][ERR] box#{i} 运行时错误: {e}", exc_info=True)
+                continue
             except Exception as e:
                 if self.debug:
-                    logger.warning(f"[REC][ERR] box#{i}: {e}", exc_info=True)
+                    logger.warning(f"[REC][ERR] box#{i} 未知错误: {e}", exc_info=True)
                 continue
         # if self.print_result and results:
         #     print("[OCR][RESULT] 共识别{}条:".format(len(results)))

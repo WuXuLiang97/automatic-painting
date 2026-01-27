@@ -16,6 +16,12 @@ from collections import defaultdict, deque
 # 获取日志记录器
 logger = get_logger('threaded_server')
 
+# 安全限制常量
+MAX_IMAGE_SIZE = 50 * 1024 * 1024  # 50MB，防止内存溢出攻击
+MAX_HEADER_SIZE = 1024 * 1024  # 1MB，JSON头部最大大小
+MAX_CONNECTIONS = 100  # 最大并发连接数
+VALID_REQUEST_TYPES = {"game_windows", "min_map", "ocr"}  # 有效的请求类型
+
 
 class ThreadedServer:
     """多线程图像处理服务器"""
@@ -57,6 +63,9 @@ class ThreadedServer:
         )
         self._start_time = time.time()
         self._report_interval = 10  # 秒
+        # 连接数限制
+        self._active_connections = 0
+        self._connections_lock = threading.Lock()
 
     def start(self):
         """启动服务器"""
@@ -128,10 +137,22 @@ class ThreadedServer:
                     if not self.running:
                         conn.close()
                         break
+                    
+                    # 检查连接数限制
+                    with self._connections_lock:
+                        if self._active_connections >= MAX_CONNECTIONS:
+                            logger.warning(f"连接数已达上限 ({MAX_CONNECTIONS})，拒绝新连接: {addr}")
+                            conn.close()
+                            continue
+                        self._active_connections += 1
+                    
                     self.task_queue.put((conn, addr))
                 except OSError:
-                    # 监听 socket 关闭
+                    # 监听 socket 关闭（正常情况，服务器正在关闭）
+                    logger.debug("监听 socket 已关闭")
                     break
+                except socket.error as e:
+                    logger.error(f"监听线程网络错误: {e}", exc_info=True)
                 except Exception as e:
                     logger.error(f"监听线程异常: {e}", exc_info=True)
             logger.debug("监听线程结束")
@@ -180,12 +201,34 @@ class ThreadedServer:
         try:
             with conn:
                 logger.info(f"新连接: {addr}")
-                while self.running:
+                try:
+                    while self.running:
                     header, image = self._receive_message(conn)
                     if not header:
                         break
 
                     req_type = header.get("type")
+                    if not req_type:
+                        result = {"error": "请求类型缺失"}
+                        self._record_metric("unknown", 0.0, False, True)
+                        self._send_response(conn, result, "unknown")
+                        continue
+                    
+                    # 验证请求类型有效性
+                    if req_type not in VALID_REQUEST_TYPES:
+                        logger.warning(f"无效的请求类型: {req_type}")
+                        result = {"error": f"无效的请求类型: {req_type}，有效类型: {', '.join(VALID_REQUEST_TYPES)}"}
+                        self._record_metric(req_type, 0.0, False, True)
+                        self._send_response(conn, result, req_type)
+                        continue
+                    
+                    # 检查是否有错误信息（如图像大小超限）
+                    if isinstance(header, dict) and "_size_exceeded" in header:
+                        result = {"error": header.get("_error", "图像大小超过限制")}
+                        self._record_metric(req_type, 0.0, False, True)
+                        self._send_response(conn, result, req_type)
+                        continue
+
                     start_ts = time.perf_counter()
                     try:
                         logger.debug(f"收到请求类型: {req_type}，图像尺寸: {image.shape if image is not None else '无'}")
@@ -254,45 +297,143 @@ class ThreadedServer:
                                     cv2.imwrite(f"revice.png",image)
                                     logger.warning(f"OCR 识别结果为空，已保存图像到 revice.png")
                         else:
-                            result = {"error": "无效的请求类型"}
-                            self._record_metric(req_type or "unknown", 0.0, False, True)
+                            result = {"error": f"无效的请求类型: {req_type}"}
+                            self._record_metric(req_type, 0.0, False, True)
+                    except ValueError as e:
+                        logger.error(f"参数错误: {e}", exc_info=True)
+                        result = {"error": f"参数错误: {e}"}
+                        self._record_metric(req_type, 0.0, False, True)
+                    except RuntimeError as e:
+                        logger.error(f"模型推理错误: {e}", exc_info=True)
+                        result = {"error": f"模型推理错误: {e}"}
+                        self._record_metric(req_type, 0.0, False, True)
+                    except AttributeError as e:
+                        logger.error(f"对象属性错误: {e}", exc_info=True)
+                        result = {"error": f"内部错误: {e}"}
+                        self._record_metric(req_type, 0.0, False, True)
                     except Exception as e:
+                        logger.error(f"处理请求时发生未预期错误: {e}", exc_info=True)
                         result = {"error": f"处理异常: {e}"}
-                        self._record_metric(req_type or "unknown", 0.0, False, True)
+                        self._record_metric(req_type, 0.0, False, True)
 
                     self._send_response(conn, result, req_type)
+                finally:
+                    # 减少活跃连接数
+                    with self._connections_lock:
+                        self._active_connections = max(0, self._active_connections - 1)
+        except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError) as e:
+            logger.debug(f"客户端 {addr} 连接已断开: {e}")
+            # 减少活跃连接数
+            with self._connections_lock:
+                self._active_connections = max(0, self._active_connections - 1)
+        except socket.error as e:
+            logger.error(f"客户端 {addr} 网络错误: {e}", exc_info=True)
+            # 减少活跃连接数
+            with self._connections_lock:
+                self._active_connections = max(0, self._active_connections - 1)
         except Exception as e:
             logger.error(f"客户端 {addr} 处理异常: {e}", exc_info=True)
+            # 减少活跃连接数
+            with self._connections_lock:
+                self._active_connections = max(0, self._active_connections - 1)
 
     def _receive_message(self, conn):
         """接收客户端消息"""
         try:
+            # 接收头部长度
             header_len = conn.recv(4)
             if len(header_len) < 4:
                 return None, None
 
-            header_size = struct.unpack("!I", header_len)[0]
-            header_data = conn.recv(header_size)
-            header = json.loads(header_data.decode("utf-8"))
+            # 解析头部大小
+            try:
+                header_size = struct.unpack("!I", header_len)[0]
+            except struct.error as e:
+                logger.warning(f"解析头部长度失败: {e}")
+                return None, None
 
+            # 验证头部大小
+            if header_size > MAX_HEADER_SIZE:
+                logger.warning(f"头部大小超过限制: {header_size} > {MAX_HEADER_SIZE}")
+                return None, None
+            if header_size == 0:
+                logger.warning("头部大小为0")
+                return None, None
+
+            # 接收头部数据
+            header_data = b""
+            while len(header_data) < header_size:
+                chunk = conn.recv(header_size - len(header_data))
+                if not chunk:
+                    logger.warning("接收头部数据不完整，连接可能已断开")
+                    return None, None
+                header_data += chunk
+
+            # 解析 JSON 头部
+            try:
+                header = json.loads(header_data.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as e:
+                logger.error(f"解析 JSON 头部失败: {e}", exc_info=True)
+                return None, None
+
+            # 接收图像数据
             image_size = header.get("image_size", 0)
+            if image_size <= 0:
+                logger.warning(f"无效的图像大小: {image_size}")
+                return header, None
+            
+            # 验证图像大小限制（防止内存溢出攻击）
+            if image_size > MAX_IMAGE_SIZE:
+                logger.warning(f"图像大小超过限制: {image_size / 1024 / 1024:.2f}MB > {MAX_IMAGE_SIZE / 1024 / 1024:.2f}MB")
+                # 返回特殊标记，让调用者知道这是大小超限错误
+                header["_size_exceeded"] = True
+                header["_error"] = f"图像大小超过限制（最大 {MAX_IMAGE_SIZE / 1024 / 1024:.0f}MB）"
+                return header, None
+
             received = 0
             chunks = []
             while received < image_size:
-                chunk = conn.recv(min(4096, image_size - received))
-                if not chunk:
+                try:
+                    chunk = conn.recv(min(4096, image_size - received))
+                    if not chunk:
+                        logger.warning(f"接收图像数据不完整: {received}/{image_size}")
+                        break
+                    chunks.append(chunk)
+                    received += len(chunk)
+                except socket.timeout:
+                    logger.warning("接收图像数据超时")
                     break
-                chunks.append(chunk)
-                received += len(chunk)
 
+            # 解码图像
             image = None
-            if chunks:
-                image = cv2.imdecode(
-                    np.frombuffer(b"".join(chunks), dtype=np.uint8), cv2.IMREAD_COLOR
-                )
+            if chunks and received == image_size:
+                try:
+                    image = cv2.imdecode(
+                        np.frombuffer(b"".join(chunks), dtype=np.uint8), cv2.IMREAD_COLOR
+                    )
+                    if image is None:
+                        logger.warning("图像解码失败，数据可能已损坏")
+                except Exception as e:
+                    logger.error(f"图像解码异常: {e}", exc_info=True)
+            elif chunks:
+                logger.warning(f"图像数据不完整: 接收 {received}/{image_size} 字节")
+
             return header, image
+
+        except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError) as e:
+            logger.debug(f"客户端连接已断开: {e}")
+            return None, None
+        except socket.timeout:
+            logger.warning("接收消息超时")
+            return None, None
+        except socket.error as e:
+            logger.error(f"网络错误: {e}", exc_info=True)
+            return None, None
+        except ValueError as e:
+            logger.error(f"数据格式错误: {e}", exc_info=True)
+            return None, None
         except Exception as e:
-            logger.error(f"接收消息失败: {e}", exc_info=True)
+            logger.error(f"接收消息时发生未预期错误: {e}", exc_info=True)
             return None, None
 
     def _send_response(self, conn, data, msg_type):
@@ -307,8 +448,14 @@ class ThreadedServer:
             conn.sendall(struct.pack("!I", len(header)))
             conn.sendall(header)
             conn.sendall(json_data)
-        except BrokenPipeError:
-            logger.warning("客户端连接已中断")
+        except (ConnectionResetError, BrokenPipeError, ConnectionAbortedError) as e:
+            logger.debug(f"客户端连接已中断: {e}")
+        except socket.timeout:
+            logger.warning("发送响应超时")
+        except socket.error as e:
+            logger.error(f"发送响应时网络错误: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"发送响应时发生未预期错误: {e}", exc_info=True)
 
     def _metrics_loop(self):
         while self.running and not self._stop_event.is_set():
