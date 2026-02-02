@@ -2,12 +2,15 @@ import sys
 import threading
 import tkinter as tk
 from tkinter import scrolledtext
-from server.config_manager import settings  # 新的集中配置
+from server.config_manager import settings
 from server.threaded_server import ThreadedServer
 from server.PrintRedirector import PrintRedirector
+from server.logger import get_logger
 import socket
-import time  # 新增
-import os    # 新增
+import time
+import os
+
+logger = get_logger('app_server')
 
 
 def get_ip_address():
@@ -22,7 +25,7 @@ def get_ip_address():
         s.close()
         return _ip
     except Exception as e:
-        print(f"获取 IP 地址时出现错误: {e}")
+        logger.warning(f"获取 IP 地址时出现错误: {e}", exc_info=True)
         return None
 
 
@@ -40,7 +43,7 @@ if __name__ == '__main__':
     # 重定向标准输出到文本框，方便查看日志
     sys.stdout = PrintRedirector(text_area)
 
-    print("程序启动中...")
+    logger.info("程序启动中...")
 
     # 使用集中配置 settings.host / settings.port
     server = ThreadedServer(host=settings.host, port=settings.port)
@@ -50,13 +53,15 @@ if __name__ == '__main__':
 
     def on_closing():
         """窗口关闭事件：优雅关闭服务器并在必要时强制退出"""
-        print("正在停止服务器...")
+        logger.info("正在停止服务器...")
         try:
             server.stop()
         except Exception as e:
-            print(f"stop 调用异常: {e}")
-        # 等待后台线程自行结束（最多2秒）
-        for _ in range(20):
+            logger.error(f"stop 调用异常: {e}", exc_info=True)
+        # 等待服务器完全关闭（最多15秒，包括线程池关闭超时10秒）
+        shutdown_timeout = 15
+        start_time = time.time()
+        while time.time() - start_time < shutdown_timeout:
             if not server.running:
                 break
             try:
@@ -69,12 +74,12 @@ if __name__ == '__main__':
             root.destroy()
         except Exception:
             pass
-        print("已请求退出。")
-        # 兜底：再给 0.5 秒，如果进程还未退出则强制退出
+        logger.info("已请求退出。")
+        # 兜底：再给 1 秒，如果进程还未退出则强制退出
         def _force_kill():
-            print("触发兜底强制退出")
+            logger.warning("触发兜底强制退出")
             os._exit(0)
-        threading.Timer(0.5, _force_kill).start()
+        threading.Timer(1.0, _force_kill).start()
 
     # 绑定窗口关闭事件
     root.protocol("WM_DELETE_WINDOW", on_closing)

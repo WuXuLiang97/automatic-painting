@@ -2,8 +2,24 @@ import os
 import cv2
 import numpy as np
 import onnxruntime as ort
-from typing import List, Tuple
+from typing import List, Tuple, Optional, Dict, Any
 from root_dir import root_path
+from .logger import get_logger
+from .constants import (
+    OCR_DET_BIN_THRESH,
+    OCR_DET_BOX_THRESH,
+    OCR_DET_UNCLIP_RATIO,
+    OCR_PADDLE_SCORE_THRESH,
+    OCR_MAX_REC_WIDTH,
+    OCR_MIN_DET_SIDE,
+    OCR_DET_LIMIT_SIDE_LEN,
+    OCR_REC_IMG_HEIGHT,
+    OCR_ALIGN_MULTIPLE,
+    IMAGE_NORMALIZE_MEAN,
+    IMAGE_NORMALIZE_STD,
+)
+
+logger = get_logger('ocr_handler')
 
 # 模型与字典路径
 DET_MODEL_DIR = os.path.join(root_path, "PP-OCRv5_mobile_det")
@@ -12,21 +28,18 @@ DET_ONNX_PATH = os.path.join(DET_MODEL_DIR, "det.onnx")
 REC_ONNX_PATH = os.path.join(REC_MODEL_DIR, "rec.onnx")
 REC_KEYS_PATH = os.path.join(REC_MODEL_DIR, "keys.txt")
 
-# 超参（可按需调整）
-DET_BIN_THRESH = 0.2
-DET_BOX_THRESH = 0.50
-DET_UNCLIP_RATIO = 1.60   # 简化外扩（几何放缩）
-PADDLE_SCORE_THRESH = 0.85  # Paddle 风格评分阈值，低于此值的文本可忽略
-MAX_REC_WIDTH = 320        # 保护性限制，防极宽文本占用内存
-# 新增：检测阶段希望的最小放大后最大边（小于此值的图片先放大，避免过小导致丢字）
-MIN_DET_SIDE = 256  # 可根据实际再调，如 192/224/256
-
 class OCRHandler:
     """ONNXRuntime OCR: DB 检测 + CTC 识别 (仅依赖 det.onnx / rec.onnx / keys.txt)
     process(image: np.ndarray) -> List[{text, box(4点), score}]
     """
 
-    def __init__(self, det_dir: str = DET_MODEL_DIR, rec_dir: str = REC_MODEL_DIR, debug: bool = False, print_result: bool = False):
+    def __init__(
+        self,
+        det_dir: str = DET_MODEL_DIR,
+        rec_dir: str = REC_MODEL_DIR,
+        debug: bool = False,
+        print_result: bool = False,
+    ) -> None:
         self.debug = debug
         self.print_result = print_result  # 新增：控制是否打印最终结果
         providers = ["CPUExecutionProvider"]
@@ -43,11 +56,11 @@ class OCRHandler:
         # 识别模型期望高度（NCHW 中 H）
         rec_in_meta = self.rec_session.get_inputs()[0]
         shape = rec_in_meta.shape  # 形如 ['DynamicDimension.0', 3, 48, 'DynamicDimension.1']
-        self.rec_img_h = 48
+        self.rec_img_h = OCR_REC_IMG_HEIGHT
         if len(shape) == 4 and isinstance(shape[2], int) and shape[2] > 0:
             self.rec_img_h = shape[2]
         if self.debug:
-            print(f"[OCR] rec input height={self.rec_img_h} shape={shape}")
+            logger.debug(f"[OCR] rec input height={self.rec_img_h} shape={shape}")
 
     # ------------ 工具 ------------
     def _load_keys(self, path: str) -> List[str]:
@@ -55,7 +68,7 @@ class OCRHandler:
             return [l.rstrip('\r\n') for l in f]
 
     # ------------ 检测预处理 ------------
-    def _resize_det(self, img: np.ndarray, limit_side_len=960, min_side_len: int = MIN_DET_SIDE) -> Tuple[np.ndarray, float, float]:
+    def _resize_det(self, img: np.ndarray, limit_side_len: int = OCR_DET_LIMIT_SIDE_LEN, min_side_len: int = OCR_MIN_DET_SIDE) -> Tuple[np.ndarray, float, float]:
         """检测前尺寸调整：
         - 若最大边 < min_side_len:  等比例放大到 min_side_len（再对齐 32）
         - 若最大边 > limit_side_len: 等比例缩小到 limit_side_len（再对齐 32）
@@ -73,9 +86,10 @@ class OCRHandler:
             ratio = 1.0
         new_w = int(w * ratio + 0.5)
         new_h = int(h * ratio + 0.5)
-        # 对齐到 32 倍数（DB 模型通常下采样 32）
-        new_w = max(32, (new_w + 31) // 32 * 32)
-        new_h = max(32, (new_h + 31) // 32 * 32)
+        # 对齐到 OCR_ALIGN_MULTIPLE 倍数（DB 模型通常下采样 OCR_ALIGN_MULTIPLE）
+        align = OCR_ALIGN_MULTIPLE
+        new_w = max(align, (new_w + align - 1) // align * align)
+        new_h = max(align, (new_h + align - 1) // align * align)
         if new_w == w and new_h == h:
             resized = img
         else:
@@ -83,19 +97,19 @@ class OCRHandler:
             
         return resized, new_h / h, new_w / w
 
-    def _preprocess_det(self, img: np.ndarray):
+    def _preprocess_det(self, img: np.ndarray) -> Tuple[np.ndarray, Dict[str, Any]]:
         resized, rh, rw = self._resize_det(img)
         x = resized.astype('float32') / 255.0
-        mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
-        std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+        mean = np.array(IMAGE_NORMALIZE_MEAN, dtype=np.float32)
+        std = np.array(IMAGE_NORMALIZE_STD, dtype=np.float32)
         x = (x - mean) / std
         x = x.transpose(2, 0, 1)[None, ...]
         # 原先误写入 4D 张量，这里不再保存 det_input.png；若仍需可反归一化再写
         return x, {'ratio_h': rh, 'ratio_w': rw}
 
     # ------------ 检测后处理 ------------
-    def _postprocess_det(self, prob_map: np.ndarray, meta: dict) -> List[np.ndarray]:
-        bin_map = (prob_map > DET_BIN_THRESH).astype(np.uint8) * 255
+    def _postprocess_det(self, prob_map: np.ndarray, meta: Dict[str, Any]) -> List[np.ndarray]:
+        bin_map = (prob_map > OCR_DET_BIN_THRESH).astype(np.uint8) * 255
         
         contours, _ = cv2.findContours(bin_map, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         h, w = prob_map.shape
@@ -108,15 +122,15 @@ class OCRHandler:
             mask = np.zeros((h, w), dtype=np.uint8)
             cv2.fillPoly(mask, [pts.astype(int)], 1)
             score = cv2.mean(prob_map, mask)[0]
-            if score < DET_BOX_THRESH:
+            if score < OCR_DET_BOX_THRESH:
                 continue
-            expanded = self._expand_polygon(pts, DET_UNCLIP_RATIO)
+            expanded = self._expand_polygon(pts, OCR_DET_UNCLIP_RATIO)
             expanded[:, 0] /= meta['ratio_w']
             expanded[:, 1] /= meta['ratio_h']
             ordered = self._order_points_clockwise(expanded)
             boxes.append(ordered.astype(np.int32))
         if self.debug:
-            print(f"[DET] contours={len(contours)} keep={len(boxes)}")
+            logger.debug(f"[DET] contours={len(contours)} keep={len(boxes)}")
         return boxes
 
     def _expand_polygon(self, pts: np.ndarray, ratio: float) -> np.ndarray:
@@ -130,7 +144,7 @@ class OCRHandler:
         return np.vstack([top, bottom])
 
     # ------------ 识别预处理 ------------
-    def _crop_and_normalize_rec(self, img: np.ndarray, box: np.ndarray, target_w: int = None) -> np.ndarray:
+    def _crop_and_normalize_rec(self, img: np.ndarray, box: np.ndarray, target_w: Optional[int] = None) -> np.ndarray:
         p = box.astype(np.float32)
         w1 = np.linalg.norm(p[0]-p[1]); w2 = np.linalg.norm(p[2]-p[3])
         h1 = np.linalg.norm(p[0]-p[3]); h2 = np.linalg.norm(p[1]-p[2])
@@ -142,8 +156,8 @@ class OCRHandler:
         new_w = max(1, int(crop.shape[1] * scale))
         if target_w is not None:
             new_w = min(new_w, target_w)
-        if new_w > MAX_REC_WIDTH:
-            new_w = MAX_REC_WIDTH
+        if new_w > OCR_MAX_REC_WIDTH:
+            new_w = OCR_MAX_REC_WIDTH
         resized = cv2.resize(crop, (new_w, self.rec_img_h))
         x = resized.astype('float32') / 255.0
         x = (x - 0.5) / 0.5
@@ -211,9 +225,10 @@ class OCRHandler:
         return e / e.sum(axis=1, keepdims=True)
 
     # ------------ 主流程 ------------
-    def process(self, image: np.ndarray):
+    def process(self, image: np.ndarray) -> str:
         if image is None or image.size == 0:
-            return []
+            logger.warning("OCR 接收到空或无效图像")
+            return ""
         det_input, meta = self._preprocess_det(image)
         det_out = self.det_session.run(None, {self.det_session.get_inputs()[0].name: det_input})
         prob = det_out[0]
@@ -235,18 +250,18 @@ class OCRHandler:
         if len(shape) == 4 and isinstance(shape[3], int) and shape[3] > 0:
             fixed_w = shape[3]
         if self.debug:
-            print(f"[REC] input={rec_in.name} shape={shape} fixed_w={fixed_w}")
+            logger.debug(f"[REC] input={rec_in.name} shape={shape} fixed_w={fixed_w}")
 
         results = []
         for i, box in enumerate(boxes):
             try:
                 rec_input = self._crop_and_normalize_rec(image, box, target_w=fixed_w)
                 if self.debug:
-                    print(f"[REC] box#{i} shape={rec_input.shape}")
+                    logger.debug(f"[REC] box#{i} shape={rec_input.shape}")
                 logits = self.rec_session.run(None, {rec_in.name: rec_input})[0]
                 text, paddle_score, char_confs = self._ctc_decode(logits)
                 if self.debug:
-                    print(f"[REC] box#{i} text='{text}' paddle_score={paddle_score:.4f}")
+                    logger.debug(f"[REC] box#{i} text='{text}' paddle_score={paddle_score:.4f}")
                 if text:
                     results.append({
                         'text': text,
@@ -257,12 +272,8 @@ class OCRHandler:
                     })
             except Exception as e:
                 if self.debug:
-                    print(f"[REC][ERR] box#{i}: {e}")
+                    logger.warning(f"[REC][ERR] box#{i}: {e}", exc_info=True)
                 continue
-        # if self.print_result and results:
-        #     print("[OCR][RESULT] 共识别{}条:".format(len(results)))
-        #     for idx, r in enumerate(results):
-        #         print(f"  {idx+1}. text='{r['text']}' paddle_score={r['paddle_score']}" )
-        # return results
-        rec_texts = ''.join([r['text'] for r in results if r['paddle_score'] >= PADDLE_SCORE_THRESH])
+        # 使用生成器表达式优化内存使用，避免创建中间列表
+        rec_texts = ''.join(r['text'] for r in results if r['paddle_score'] >= OCR_PADDLE_SCORE_THRESH)
         return rec_texts

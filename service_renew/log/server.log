@@ -1,0 +1,9 @@
+2026-02-02 11:12:12,696 - INFO - test_logger - 这是一条 INFO 日志
+2026-02-02 11:12:12,696 - WARNING - test_logger - 这是一条 WARNING 日志
+2026-02-02 11:12:12,696 - ERROR - test_logger - 这是一条 ERROR 日志
+2026-02-02 11:14:49,080 - INFO - test_logger - 这是一条 INFO 日志
+2026-02-02 11:14:49,080 - WARNING - test_logger - 这是一条 WARNING 日志
+2026-02-02 11:14:49,080 - ERROR - test_logger - 这是一条 ERROR 日志
+2026-02-02 11:15:20,938 - INFO - test_logger - 这是一条 INFO 日志
+2026-02-02 11:15:20,940 - WARNING - test_logger - 这是一条 WARNING 日志
+2026-02-02 11:15:20,940 - ERROR - test_logger - 这是一条 ERROR 日志
