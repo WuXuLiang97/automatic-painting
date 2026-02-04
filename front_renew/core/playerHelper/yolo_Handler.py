@@ -25,6 +25,9 @@ class YoloProcessResult:
     has_continue: bool = False
     forward: bool = False
     is_boss: bool = False
+    # 以下字段用于在 apply_to_context 中更新上下文状态（而不是在解析阶段直接修改）
+    should_process_loot: bool = False
+    door_open_room_id: Optional[Tuple[int, int]] = None
 
 @dataclass
 class MinMapProcessResult:
@@ -206,12 +209,13 @@ class YoloHandler:
             should_process = (len(result.doors) > 0 or result.has_continue or result.has_rewards)
             if should_process:
                 result.monsters.clear()
-                # 注意：开门状态仍然需要更新context
-                if room_id not in context.doorOpenState:
-                    context.doorOpenState[room_id] = True  # 记录已开门
+                # 记录需要在 apply_to_context 中将该房间标记为“已开门”
+                result.door_open_room_id = room_id
         else:
             should_process = (not result.monsters or result.has_continue or result.has_rewards)
-        
+
+        result.should_process_loot = should_process
+
         current_room_id = context.player.player_room_id
         pickup_count = context.room_item_pickup_counts.get(current_room_id, 0)
         # 调试输出：打印两个条件的值
@@ -274,6 +278,17 @@ class YoloHandler:
         context.has_continue = result.has_continue
         context.is_boss = result.is_boss
         context.player_pos = result.player_pos
+
+        # 在解析阶段记录的“开门房间”和拾取条件，这里统一更新上下文状态
+        room_id = context.player.player_room_id
+        if gv.banzhuan == 0 and result.door_open_room_id is not None:
+            if result.door_open_room_id not in context.doorOpenState:
+                context.doorOpenState[result.door_open_room_id] = True  # 记录已开门
+
+        # 更新当前房间的拾取次数（避免无限捡东西）
+        current_room_id = context.player.player_room_id
+        if result.goods:
+            context.room_item_pickup_counts[current_room_id] = context.room_item_pickup_counts.get(current_room_id, 0) + 1
     
     def similarity(self, s1, s2):
         """计算字符串相似度（0-1）"""

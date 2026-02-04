@@ -101,10 +101,16 @@ class PlayerThread(QThread):
         self.save_count = 0
         self.counter_file = None
         self.Image_count_initialization()
+
+        # 缓存当前运行环境中的关键配置，避免在核心逻辑中频繁直接读取全局变量
+        self.mode = gv.banzhuan
+        self.server_ip = gv.server_ip
+        self.server_port = gv.server_port
+
         # 初始化SocketHandler实例
-        self.socket_handler = SocketHandler(gv.server_ip, gv.server_port)
+        self.socket_handler = SocketHandler(self.server_ip, self.server_port)
         # 初始化CommunicationService实例，封装所有网络通信逻辑
-        self.communication_service = CommunicationService(gv.server_ip, gv.server_port, self.message)
+        self.communication_service = CommunicationService(self.server_ip, self.server_port, self.message)
         self.communication_service.set_socket_handler(self.socket_handler)
         # 初始化YoloHandler实例
         self.yolo_handler = YoloHandler()
@@ -1067,7 +1073,8 @@ class PlayerThread(QThread):
                         time.sleep(0.05)
                     game_img = screenshot_util.get_game_screenshot()  # 获取当前游戏屏幕的截图
                     logger.info("找门超时，随便放个技能把怪清理掉")
-                    skill = skill_util.get_release_skill(game_img,mode='normal')  # 获取释放普通怪物的技能
+                    # 通过策略接口选择技能，便于后续按职业/地图扩展
+                    skill = skill_util.strategy.choose_skill(game_img, mode='normal')
                     if skill == "x":  # 如果技能是"x"（平a）
                         pyauto.keyDownChar("x")
                         time.sleep(random.uniform(0.9, 1.2))
@@ -1651,11 +1658,12 @@ class PlayerThread(QThread):
             self.move_to_monster()  # 移动到最近的怪物
             if self.is_boss and attack_boss_count <= 2:  # 如果当前怪物是Boss
                 logger.info("当前怪物是Boss,释放打Boss的技能")
-                skill = skill_util.get_release_skill(game_img,mode='boss')  # 获取释放Boss的技能
+                # Boss 模式下的技能选择
+                skill = skill_util.strategy.choose_skill(game_img, mode='boss')
                 attack_boss_count += 1
             else:
                 logger.info("当前怪物是普通怪物,释放打普通怪物的技能")
-                skill = skill_util.get_release_skill(game_img,mode='normal')  # 获取释放普通怪物的技能
+                skill = skill_util.strategy.choose_skill(game_img, mode='normal')
             if skill == "x":  # 如果技能是"x"（平a）
                 pyauto.keyDownChar("x")
                 time.sleep(random.uniform(0.9, 1.2))

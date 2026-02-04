@@ -36,57 +36,10 @@ from core.vnc import VNC, api
 from core.capturecardconnection import CaptureCardConnection
 from utils.cv_recognizer import vnc_mm
 from root_dir import root_path
+from core.Config import get_gui_config, CONFIG_PATH
 
-# 拼接文件路径
-CONFIG_PATH = os.path.join(root_path, "json_resources/config.json")
 f_program_version = '250920'
 Network = 0
-
-
-def get_gui_config():
-    """
-    从配置文件中读取GUI配置。
-    
-    尝试从指定的配置文件路径读取JSON格式的配置数据。
-    如果文件存在，合并默认配置和文件配置；如果文件不存在，创建默认配置文件。
-    如果读取失败，返回默认配置。
-    
-    Returns:
-        dict: 包含GUI配置的字典
-    """
-    # 默认配置
-    default_config = {
-        "ip": "192.168.1.1",
-        "yjs": 0,
-        "banzhuan": 0,
-        "vmware_ip": "127.0.0.1",
-        "vmware_prot": "5900",
-        "vmware_password": "",
-        "tab_index": 0,
-        'vid': '',
-        'pid': '',
-        'identifier': "0",
-    }
-
-    try:
-        # 如果配置文件存在，读取它
-        if os.path.exists(CONFIG_PATH):
-            with open(CONFIG_PATH, 'r', encoding='utf-8') as file:
-                file_config = json.load(file)
-                # 合并默认配置和文件配置
-                return {**default_config, **file_config}
-
-        # 如果配置文件不存在，创建默认配置
-        with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
-            json.dump(default_config, file, indent=4, ensure_ascii=False)
-        return default_config
-
-    except json.JSONDecodeError:
-        print("Warning: Config file is corrupted or not in JSON format.")
-        return default_config
-    except Exception as e:
-        print(f"Error loading config: {e}")
-        return default_config
 
 
 class DisplayThread(QThread):

@@ -7,11 +7,29 @@ import logging
 import string
 
 from PyQt5 import QtGui, QtWidgets
-from PyQt5.QtWidgets import (QApplication, QWidget, QStackedWidget, QLabel, QLineEdit, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QCheckBox)
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import (
+    QApplication,
+    QWidget,
+    QStackedWidget,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QHBoxLayout,
+    QMessageBox,
+    QCheckBox,
+)
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
 
 from core.Config import REMEMBER_FILE, USER_DATA_FILE
-from utils.api import test_login, test_register, test_change_password  # 添加修改密码API
+from utils.api import (
+    auth_login,
+    auth_register,
+    auth_change_password,
+    test_login,
+    test_register,
+    test_change_password,
+)  # 兼容旧API和新封装
 # 这里可以添加跳转到主界面的代码
 from core.callMain import AppMain
 from root_dir import root_path
@@ -20,6 +38,48 @@ from root_dir import root_path
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 import os
 
+
+class LoginWorker(QThread):
+    """后台登录线程：避免阻塞UI"""
+    finished = pyqtSignal(bool, object, str)
+
+    def __init__(self, username, password, parent=None):
+        super().__init__(parent)
+        self.username = username
+        self.password = password
+
+    def run(self):
+        success, data, error = auth_login(self.username, self.password)
+        self.finished.emit(success, data, error or "")
+
+
+class RegisterWorker(QThread):
+    """后台注册线程：避免阻塞UI"""
+    finished = pyqtSignal(bool, object, str)
+
+    def __init__(self, username, password, parent=None):
+        super().__init__(parent)
+        self.username = username
+        self.password = password
+
+    def run(self):
+        success, data, error = auth_register(self.username, self.password)
+        self.finished.emit(success, data, error or "")
+
+
+class ChangePasswordWorker(QThread):
+    """后台修改密码线程：避免阻塞UI"""
+    finished = pyqtSignal(bool, str)
+
+    def __init__(self, username, old_password, new_password, parent=None):
+        super().__init__(parent)
+        self.username = username
+        self.old_password = old_password
+        self.new_password = new_password
+
+    def run(self):
+        success, data, error = auth_change_password(self.username, self.old_password, self.new_password)
+        self.finished.emit(success, error or "")
 
 
 def encrypt_password(password):
@@ -134,6 +194,8 @@ class LoginPage(QWidget):
         self.stacked_widget = stacked_widget
         self.parent_app = parent_app
         self.auto_login_attempted = False  # 标记是否已尝试自动登录
+        self.login_worker = None
+        self.login_btn = None
         self.initUI()
         self.load_remembered_user()
         self.username = ''
@@ -171,8 +233,8 @@ class LoginPage(QWidget):
         self.remember_checkbox.stateChanged.connect(self.handle_remember_change)
 
         # 登录按钮
-        login_btn = QPushButton("登录")
-        login_btn.clicked.connect(self.login)
+        self.login_btn = QPushButton("登录")
+        self.login_btn.clicked.connect(self.login)
 
         # 创建底部按钮布局
         button_layout = QHBoxLayout()
@@ -205,7 +267,7 @@ class LoginPage(QWidget):
         layout.addWidget(password_label)
         layout.addWidget(self.password_input)
         layout.addLayout(checkbox_layout)
-        layout.addWidget(login_btn)
+        layout.addWidget(self.login_btn)
         layout.addLayout(button_layout)
 
         self.setLayout(layout)
@@ -310,20 +372,28 @@ class LoginPage(QWidget):
             QMessageBox.warning(self, "输入错误", "用户名和密码不能为空")
             return
 
-        # 调用API测试登录
-        logging.debug(f"尝试登录: {username}")
-        ret = test_login(username, password)
-        logging.debug(f"登录返回: {ret}")
+        # 禁用按钮，防止重复点击
+        self.login_btn.setEnabled(False)
 
-        # 根据API返回结果处理
-        if ret is not None:
+        logging.debug(f"尝试登录(异步): {username}")
+        self.login_worker = LoginWorker(username, password, self)
+        self.login_worker.finished.connect(self.on_login_finished)
+        self.login_worker.start()
+
+    def on_login_finished(self, success, data, error_msg):
+        """登录结果回调（在主线程中执行）"""
+        self.login_btn.setEnabled(True)
+        username = self.username_input.text().strip()
+        password = self.password_input.text().strip()
+
+        if success and data is not None:
+            cookies = data
             # 保存记住密码和自动登录设置
             save_remembered_user(username, password, self.remember_checkbox.isChecked(), self.auto_login_checkbox.isChecked())
             self.username = username
             # 登录成功
             logging.info(f"登录成功: {username}")
-            # QMessageBox.information(self, "登录成功", f"欢迎回来, {username}!")
-            dic = {"username": username, "cookies": ret}
+            dic = {"username": username, "cookies": cookies}
 
             self.main_app = AppMain(dic=dic)
             self.main_app.show()
@@ -331,9 +401,9 @@ class LoginPage(QWidget):
             # 关闭登录窗口
             self.window().hide()  # 关闭整个登录窗口
         else:
-            # 登录失败（包含用户名/密码错误或网络异常等情况）
-            logging.warning("登录失败: 用户名或密码错误，或网络异常")
-            QMessageBox.critical(self, "登录失败", "用户名或密码错误，或网络异常")
+            msg = error_msg or "用户名或密码错误，或网络异常"
+            logging.warning(f"登录失败: {msg}")
+            QMessageBox.critical(self, "登录失败", msg)
 
     def go_to_register(self):
         self.stacked_widget.setCurrentIndex(1)  # 切换到注册页面
@@ -348,6 +418,10 @@ class RegisterPage(QWidget):
     def __init__(self, stacked_widget):
         super().__init__()
         self.stacked_widget = stacked_widget
+        self.register_btn = None
+        self.register_worker = None
+        self._pending_username = ""
+        self._pending_password = ""
         self.initUI()
 
     def initUI(self):
@@ -376,8 +450,8 @@ class RegisterPage(QWidget):
         self.confirm_input.setEchoMode(QLineEdit.Password)
 
         # 注册按钮
-        register_btn = QPushButton("注册")
-        register_btn.clicked.connect(self.register)
+        self.register_btn = QPushButton("注册")
+        self.register_btn.clicked.connect(self.register)
 
         # 创建底部按钮布局
         button_layout = QHBoxLayout()
@@ -405,7 +479,7 @@ class RegisterPage(QWidget):
         layout.addWidget(self.password_input)
         layout.addWidget(confirm_label)
         layout.addWidget(self.confirm_input)
-        layout.addWidget(register_btn)
+        layout.addWidget(self.register_btn)
         layout.addLayout(button_layout)
 
         self.setLayout(layout)
@@ -459,20 +533,29 @@ class RegisterPage(QWidget):
             QMessageBox.warning(self, "输入错误", "两次输入的密码不一致")
             return
 
-        logging.debug(f"尝试注册: {username}")
-        ret = test_register(username, password)
+        logging.debug(f"尝试注册(异步): {username}")
+        self.register_btn.setEnabled(False)
+        self._pending_username = username
+        self._pending_password = password
 
-        # 检查用户名是否已存在
-        if ret.get("error"):
-            logging.warning(f"注册失败: {ret.get('error')}")
-            QMessageBox.warning(self, "注册失败", ret.get("error"))
-            return
+        self.register_worker = RegisterWorker(username, password, self)
+        self.register_worker.finished.connect(self.on_register_finished)
+        self.register_worker.start()
 
-        # 保存用户信息
-        self.save_user(username, password)
-        logging.info(f"注册成功: {username}")
-        QMessageBox.information(self, "注册成功", "账号创建成功！")
-        self.go_to_login()
+    def on_register_finished(self, success, data, error_msg):
+        """注册结果回调"""
+        self.register_btn.setEnabled(True)
+
+        if success:
+            # 保存用户信息到本地文件（保持原有行为）
+            self.save_user(self._pending_username, self._pending_password)
+            logging.info(f"注册成功: {self._pending_username}")
+            QMessageBox.information(self, "注册成功", "账号创建成功！")
+            self.go_to_login()
+        else:
+            msg = error_msg or "注册失败，请稍后重试"
+            logging.warning(f"注册失败: {msg}")
+            QMessageBox.warning(self, "注册失败", msg)
 
     def user_exists(self, username):
         """检查用户是否存在"""
@@ -522,6 +605,10 @@ class ChangePasswordPage(QWidget):
     def __init__(self, stacked_widget):
         super().__init__()
         self.stacked_widget = stacked_widget
+        self.change_pwd_btn = None
+        self.change_worker = None
+        self._pending_username = ""
+        self._pending_new_password = ""
         self.initUI()
 
     def initUI(self):
@@ -556,8 +643,8 @@ class ChangePasswordPage(QWidget):
         self.confirm_input.setEchoMode(QLineEdit.Password)
 
         # 修改密码按钮
-        change_pwd_btn = QPushButton("修改密码")
-        change_pwd_btn.clicked.connect(self.change_password)
+        self.change_pwd_btn = QPushButton("修改密码")
+        self.change_pwd_btn.clicked.connect(self.change_password)
 
         # 创建底部按钮布局
         button_layout = QHBoxLayout()
@@ -587,7 +674,7 @@ class ChangePasswordPage(QWidget):
         layout.addWidget(self.new_password_input)
         layout.addWidget(confirm_label)
         layout.addWidget(self.confirm_input)
-        layout.addWidget(change_pwd_btn)
+        layout.addWidget(self.change_pwd_btn)
         layout.addLayout(button_layout)
 
         self.setLayout(layout)
@@ -646,44 +733,42 @@ class ChangePasswordPage(QWidget):
         if old_password == new_password:
             QMessageBox.warning(self, "输入错误", "新密码不能与旧密码相同")
             return
-        # 先登录获取cookies
-        cookies = test_login(username, old_password)
-        if not cookies:
-            logging.warning("修改密码失败: 旧密码错误，或网络异常")
-            QMessageBox.critical(self, "修改密码失败", "旧密码错误，或网络异常")
-            return
-        # 调用API修改密码
-        logging.debug(f"尝试修改密码: {username}")
-        ret = test_change_password(cookies, old_password, new_password)
 
-        # 检查修改是否成功
-        if not isinstance(ret, dict):
-            logging.warning("修改密码失败: 服务器返回异常")
-            QMessageBox.critical(self, "修改密码失败", "服务器返回异常，请稍后重试")
-            return
+        # 记录待修改的用户名和新密码，用于回调中使用
+        self._pending_username = username
+        self._pending_new_password = new_password
 
-        if ret.get("error"):
-            logging.warning(f"修改密码失败: {ret.get('error')}")
-            QMessageBox.critical(self, "修改密码失败", ret.get("error"))
-            return
+        logging.debug(f"尝试修改密码(异步): {username}")
+        self.change_pwd_btn.setEnabled(False)
+        self.change_worker = ChangePasswordWorker(username, old_password, new_password, self)
+        self.change_worker.finished.connect(self.on_change_password_finished)
+        self.change_worker.start()
 
-        # 修改成功
-        logging.info(f"密码修改成功: {username}")
-        QMessageBox.information(self, "修改成功", "密码已成功修改！")
+    def on_change_password_finished(self, success, error_msg):
+        """修改密码结果回调"""
+        self.change_pwd_btn.setEnabled(True)
 
-        # 清除记住的密码（如果存在）
-        if os.path.exists(REMEMBER_FILE):
-            try:
-                with open(REMEMBER_FILE, "r") as f:
-                    data = json.load(f)
-                    if data.get("username") == username:
-                        os.remove(REMEMBER_FILE)
-                        logging.debug("已清除记住的密码")
-            except:
-                pass
+        if success:
+            logging.info(f"密码修改成功: {self._pending_username}")
+            QMessageBox.information(self, "修改成功", "密码已成功修改！")
 
-        # 返回登录页面
-        self.go_to_login()
+            # 清除记住的密码（如果存在）
+            if os.path.exists(REMEMBER_FILE):
+                try:
+                    with open(REMEMBER_FILE, "r") as f:
+                        data = json.load(f)
+                        if data.get("username") == self._pending_username:
+                            os.remove(REMEMBER_FILE)
+                            logging.debug("已清除记住的密码")
+                except Exception as e:
+                    logging.warning(f"清除记住密码文件失败: {e}")
+
+            # 返回登录页面
+            self.go_to_login()
+        else:
+            msg = error_msg or "修改密码失败，请稍后重试"
+            logging.warning(f"修改密码失败: {msg}")
+            QMessageBox.critical(self, "修改密码失败", msg)
 
     def go_to_login(self):
         # 清空输入框

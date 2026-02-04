@@ -30,7 +30,7 @@ def print_response(response, description):
 
 
 def test_register(USERNAME, PASSWORD):
-    """测试用户注册"""
+    """测试用户注册（底层调用，返回后端原始JSON）"""
     start = time.time()
     url = f"{BASE_URL}/register"
     data = {"username": USERNAME, "password": PASSWORD}
@@ -42,7 +42,7 @@ def test_register(USERNAME, PASSWORD):
 
 
 def test_login(USERNAME, PASSWORD):
-    """测试用户登录"""
+    """测试用户登录（底层调用，成功返回 cookies，失败返回 None）"""
     start = time.time()
     url = f"{BASE_URL}/login"
     data = {"username": USERNAME, "password": PASSWORD}
@@ -151,7 +151,7 @@ def test_delete_subgroup_config(cookies, subgroup_name, brush_order):
 
 
 def test_change_password(cookies, old_password, new_password):
-    """测试修改密码"""
+    """测试修改密码（底层调用，返回后端原始JSON）"""
     url = f"{BASE_URL}/change_password"
     data = {"old_password": old_password, "new_password": new_password}
     response = requests.post(url, json=data, cookies=cookies)
@@ -184,7 +184,7 @@ def test_delete_subgroup(cookies, subgroup_name):
 
 
 def run_tests():
-    """运行所有测试"""
+    """运行所有测试（仅供手动调试使用）"""
     print(f"开始API测试，测试用户: {TEST_USERNAME}")
 
     # 测试用户注册
@@ -254,3 +254,74 @@ if __name__ == "__main__":
     # run_tests()
     cookies = test_login('1457854270', '111222')
     test_copy_subgroup(cookies, '16号', '18号')
+
+
+# =========================
+#  认证服务封装（给前端 UI 使用）
+# =========================
+
+def auth_login(username, password):
+    """
+    登录封装
+    返回: (success: bool, data: cookies 或 None, error: 错误描述或 None)
+    """
+    try:
+        cookies = test_login(username, password)
+    except Exception as e:
+        logging.exception(f"登录请求异常: {e}")
+        return False, None, "登录请求失败，请检查网络或稍后重试"
+
+    if cookies:
+        return True, cookies, None
+    else:
+        # 这里区分不开是密码错还是网络/服务端异常，统一给出友好提示
+        return False, None, "用户名或密码错误，或网络异常"
+
+
+def auth_register(username, password):
+    """
+    注册封装
+    返回: (success: bool, data: 后端返回JSON或None, error: 错误描述或 None)
+    """
+    try:
+        ret = test_register(username, password)
+    except Exception as e:
+        logging.exception(f"注册请求异常: {e}")
+        return False, None, "注册请求失败，请检查网络或稍后重试"
+
+    if not isinstance(ret, dict):
+        return False, None, "服务器返回异常，请稍后重试"
+
+    if ret.get("error"):
+        return False, ret, ret.get("error")
+
+    return True, ret, None
+
+
+def auth_change_password(username, old_password, new_password):
+    """
+    修改密码封装：
+    1. 先尝试登录旧密码获取 cookies
+    2. 再调用修改密码接口
+
+    返回: (success: bool, data: 后端返回JSON或None, error: 错误描述或 None)
+    """
+    # 第一步：使用旧密码登录
+    success_login, cookies, error_login = auth_login(username, old_password)
+    if not success_login or not cookies:
+        return False, None, error_login or "旧密码错误，或网络异常"
+
+    # 第二步：调用修改密码接口
+    try:
+        ret = test_change_password(cookies, old_password, new_password)
+    except Exception as e:
+        logging.exception(f"修改密码请求异常: {e}")
+        return False, None, "修改密码请求失败，请检查网络或稍后重试"
+
+    if not isinstance(ret, dict):
+        return False, None, "服务器返回异常，请稍后重试"
+
+    if ret.get("error"):
+        return False, ret, ret.get("error")
+
+    return True, ret, None

@@ -12,6 +12,23 @@ from utils.logging_setup import logger
 from core.Config import DEFAULT_KEY_CONFIG
 from core.Config import key_config_file
 
+
+class SkillStrategy:
+    """
+    技能策略接口层：封装从当前画面选择要释放哪个技能的决策。
+    目前内部直接委托给 SkillUtil.get_release_skill，后续可以按职业/地图扩展不同策略。
+    """
+
+    def __init__(self, skill_util: "SkillUtil"):
+        self._skill_util = skill_util
+
+    def choose_skill(self, game_img, mode: str = "normal"):
+        """
+        根据当前画面和模式（normal/boss）选择一个技能键。
+        返回技能键字符串（如 'q'、'w'、'x'），或 None 表示不释放技能。
+        """
+        return self._skill_util.get_release_skill(game_img, mode=mode)
+
 class SkillUtil:
     # 默认配置
 
@@ -41,6 +58,8 @@ class SkillUtil:
 
         # 加载键盘配置
         self.load_key_config()
+        # 默认提供一个基于自身实现的策略对象，供上层使用
+        self.strategy = SkillStrategy(self)
 
     def _init_default_positions(self):
         """初始化默认技能位置坐标"""
