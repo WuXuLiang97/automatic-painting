@@ -1,0 +1,33 @@
+# ===================== Python 项目通用忽略 =====================
+# Python 编译缓存
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# ===================== 你的项目专属忽略 =====================
+# 日志文件
+log/
+*.log
+*.log.zip
+
+# 打包/编译输出
+output/
+build/
+dist/
+out/
+
+# 临时文件
+*.tmp
+temp/
+tmp/
+
+# 系统/编辑器缓存
+.DS_Store
+.idea/
+.vscode/
+*.swp
