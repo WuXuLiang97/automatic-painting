@@ -35,7 +35,8 @@ def get_identity_mark():
 
 def send_request(f_program_version=None, state=1):
     # 定义请求的URL
-    url = 'http://39.98.46.105:5000/Information_dnf'
+    # url = 'http://39.98.46.105:5000/Information_dnf'
+    url = 'https://autowxl.xyz/Information_dnf'
 
     # url = 'http://127.0.0.1:5000/Information'
     # 定义请求头

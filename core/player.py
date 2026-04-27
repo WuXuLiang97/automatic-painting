@@ -345,14 +345,15 @@ class PlayerThread(QThread):
                 if self.player.map_name == "115白图-自动3选1":
                     # 1. 定义图片列表和对应的名称映射（同上）
                     pic_list = [
+                        "每日_清海之心.bmp",
                         "每日_跌宕群岛.bmp",
                         "每日_萧索的回廊.bmp",
-                        "每日_清海之心.bmp"
+
                     ]
                     pic_to_name = {
+                        "每日_清海之心.bmp": "清海之心",
                         "每日_跌宕群岛.bmp": "跌宕群岛",
                         "每日_萧索的回廊.bmp": "萧索的回廊",
-                        "每日_清海之心.bmp": "清海之心"
                     }
                     pyauto.keyPressChar('f2')
                     time.sleep(0.1)
@@ -725,14 +726,15 @@ class PlayerThread(QThread):
                 if self.player.map_name == "115白图-自动3选1":
                     # 1. 定义图片列表和对应的名称映射（同上）
                     pic_list = [
+                        "每日_清海之心.bmp",
                         "每日_跌宕群岛.bmp",
                         "每日_萧索的回廊.bmp",
-                        "每日_清海之心.bmp"
+
                     ]
                     pic_to_name = {
+                        "每日_清海之心.bmp": "清海之心",
                         "每日_跌宕群岛.bmp": "跌宕群岛",
                         "每日_萧索的回廊.bmp": "萧索的回廊",
-                        "每日_清海之心.bmp": "清海之心"
                     }
                     pyauto.keyPressChar('f2')
                     time.sleep(0.1)
@@ -4633,7 +4635,7 @@ class PlayerThread(QThread):
             elif self.player.map_name == "落星森林":
                 stat_time = time.time()
                 while self.brush_running:
-                    x1, y1, x2, y2 = (59,335,193,340)
+                    x1, y1, x2, y2 = (59, 335, 193, 340)
                     min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                     ret = self.mm.is_colored(min_img, 50)
                     if ret:
@@ -4663,7 +4665,7 @@ class PlayerThread(QThread):
                             continue
                         stat_time = time.time()
                         while self.brush_running:
-                            x1, y1, x2, y2 = (59,335,193,340)
+                            x1, y1, x2, y2 = (59, 335, 193, 340)
                             min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
                             ret = self.mm.is_colored(min_img, 50)
                             if ret:
@@ -4695,10 +4697,10 @@ class PlayerThread(QThread):
                 time.sleep(0.2)
                 self.operator_module.click_menu_item("传送阵")
                 # 点小铁柱旁边
-                self.operator_module.move_to(496,332)
+                self.operator_module.move_to(496, 332)
                 time.sleep(0.1)
                 pyauto.click()
-                vnc_mm.FindPic_sleep(474,315,528,378, "地图小人.bmp", 0.9, delta_color=([50, 106, 0], [160, 255, 255]), time_s=20)
+                vnc_mm.FindPic_sleep(474, 315, 528, 378, "地图小人.bmp", 0.9, delta_color=([50, 106, 0], [160, 255, 255]), time_s=20)
                 pyauto.keyPressChar("esc")
                 time.sleep(1)
                 # pyauto.keyDownChar("right")
