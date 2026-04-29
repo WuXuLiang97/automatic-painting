@@ -91,10 +91,10 @@ class OperatorModule:
             # 模拟按键操作
             for _ in range(down_count):
                 pyauto.keyPressChar('down')
-                time.sleep(0.1)  # 假设yjs是一个可以模拟按键的库，time用于添加延迟
+                time.sleep(0.3)  # 假设yjs是一个可以模拟按键的库，time用于添加延迟
             for _ in range(right_count):
                 pyauto.keyPressChar('right')
-                time.sleep(0.1)
+                time.sleep(0.3)
         pyauto.keyPressChar('space')
         time.sleep(2)
         for i in range(5):
