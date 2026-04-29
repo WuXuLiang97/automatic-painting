@@ -14,7 +14,7 @@ def get_ip_address():
         s.close()
         return _ip
     except Exception as e:
-        print(f"获取 IP 地址时出现错误: {e}")
+        print(f"获取 IP 地址时出现错误测试: {e}")
         return None
 
 
