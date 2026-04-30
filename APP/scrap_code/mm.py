@@ -1457,6 +1457,7 @@ class MM:
             elif self.VNC is not None:
                 logger.info("VNC截图")
                 screenshot_np = self.VNC.capture()[0:600, 0:1067]
+                screenshot_np = cv2.cvtColor(screenshot_np, cv2.COLOR_RGB2BGR)
                 # 这里用做画出找到位置显示的图片
                 self.screenshot_show_image = screenshot_np
 

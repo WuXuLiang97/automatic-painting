@@ -392,6 +392,7 @@ class SkillUtil:
         :return: str
         """
         game_img = screenshot_util.get_game_screenshot()
+        game_img = cv2.cvtColor(game_img, cv2.COLOR_RGB2BGR)
         logger.info(f"self.already_release_skill:{self.already_release_skill}")
         # 如果没有释放过技能
         if not self.already_release_skill:

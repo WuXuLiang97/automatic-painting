@@ -3166,11 +3166,9 @@ class PlayerThread(QThread):
                 self.agg_pick_up_goods()
                 self.send_log(f"当前刷图次数{self.brush_cnt + 1}")
                 pl_value = self.operator_module.ocr_pl(self.get_text, self.send_log)
-                x1, y1, x2, y2 = (899, 77, 964, 96)
-                min_img = screenshot_util.get_game_screenshot()[y1:y2, x1:x2]
-                ret = self.mm.is_colored(min_img, 30)
+                ret = self.mm.FindPic(888,68,965,102,"再次挑战.bmp",0.95,1,None,([0, 0, 28], [2, 10, 207]))
                 # 如果体力不为0、小于预留体力、ret是False代表按f10不能再刷
-                if pl_value is not None and isinstance(pl_value, (int, float)) and pl_value <= self.player.pl_value or not ret:
+                if pl_value is not None and isinstance(pl_value, (int, float)) and pl_value <= self.player.pl_value or ret:
                     role_settings = self.all_role_settings[self.current_role_index]
                     dic_data = {'career': role_settings['career'],
                                 'convert_career': role_settings['convert_career'],
@@ -3555,7 +3553,7 @@ class PlayerThread(QThread):
                     time.sleep(0.1)
                     pyauto.click()
 
-                    pyauto.keyPressChar("space")
+                    pyauto.keyPressChar("esc")
                     time.sleep(0.1)
 
                 time.sleep(0.1)

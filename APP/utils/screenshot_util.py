@@ -110,7 +110,7 @@ class ScreenshotUtil:
                 # 提取黑色矩形区域
                 blackImage = croppedImage[225:377, 465:674].copy()
                 # 转换为灰度图像
-                blackImageGray = cv2.cvtColor(blackImage, cv2.COLOR_BGR2GRAY)
+                blackImageGray = cv2.cvtColor(blackImage, cv2.COLOR_RGBA2GRAY)
 
                 # 计算黑色像素比例
                 countBelow20 = np.count_nonzero(blackImageGray < 20)

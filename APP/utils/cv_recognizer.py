@@ -147,6 +147,7 @@ class MM:
         # 捕获指定区域的屏幕截图
         try:
             screenshot_np = self.VNC.capture()
+            screenshot_np = cv2.cvtColor(screenshot_np, cv2.COLOR_RGB2BGR)
             if isinstance(screenshot_np, np.ndarray):
                 logger.info("vnc_mm截图成功")
             else:
@@ -563,6 +564,7 @@ class MM:
             elif self.VNC is not None:
                 logger.info("VNC截图")
                 screenshot_np = self.VNC.capture()
+                screenshot_np = cv2.cvtColor(screenshot_np, cv2.COLOR_RGB2BGR)
                 if isinstance(screenshot_np, np.ndarray):
                     logger.info("vnc_mm截图成功")
                 else:
@@ -834,7 +836,7 @@ class MM:
         判断图像是否为彩色的。阈值用于确定彩色和灰色的界限。
         """
         # 转换为灰度图像
-        gray = cv2.cvtColor(skill_img, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(skill_img, cv2.COLOR_RGB2GRAY)
 
         # 计算每个像素的绝对差值
         diff = cv2.absdiff(skill_img, cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR))

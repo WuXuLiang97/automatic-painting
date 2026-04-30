@@ -49,18 +49,33 @@ class VNC:
         self.client.disconnect()
 
     # 截图,可以保存到本地，也可以直接获取cv图像对象
+    # def capture(self, path=None):
+    #     with Capture_lock:
+    #         if path:
+    #             self.client.captureScreen(path)
+    #         else:  # 不写入图像,直接转cv图像bgr格式
+    #             self.flush_screen(1)
+    #             imgae = cv2.cvtColor(np.asarray(self.client.screen), cv2.COLOR_RGB2BGR)[0:600, 0:1067]
+    #             if not display_queue.full():
+    #                 # 为展示线程缩小分辨率
+    #                 display_frame = cv2.resize(imgae, (356, 200))
+    #                 display_queue.put(display_frame)
+    #             return imgae
+    # 截图,可以保存到本地，也可以直接获取【原始RGB】cv图像对象
     def capture(self, path=None):
         with Capture_lock:
             if path:
                 self.client.captureScreen(path)
-            else:  # 不写入图像,直接转cv图像bgr格式
+            else:
                 self.flush_screen(1)
-                imgae = cv2.cvtColor(np.asarray(self.client.screen), cv2.COLOR_RGB2BGR)[0:600, 0:1067]
+                # ✅ 核心修改：删除 cv2.COLOR_RGB2BGR 转换，直接用原始RGB
+                # self.client.screen 本身就是 RGB 格式，直接切片即可
+                image = np.asarray(self.client.screen)[0:600, 0:1067]
                 if not display_queue.full():
-                    # 为展示线程缩小分辨率
-                    display_frame = cv2.resize(imgae, (356, 200))
+                    # 缩小分辨率，依然保持原始RGB格式
+                    display_frame = cv2.resize(image, (356, 200))
                     display_queue.put(display_frame)
-                return imgae
+                return image
 
     def capture_to_addr(self):
         self.flush_screen(1)
@@ -140,23 +155,7 @@ if __name__ == '__main__':
         # api.shutdown()  # 关闭事件循环
     except:
         print(v)
-    def is_colored(skill_img: np.ndarray, threshold=30):
-        """
-        判断图像是否为彩色的。阈值用于确定彩色和灰色的界限。
-        """
-        # 转换为灰度图像
-        gray = cv2.cvtColor(skill_img, cv2.COLOR_BGR2GRAY)
 
-        # 计算每个像素的绝对差值
-        diff = cv2.absdiff(skill_img, cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR))
-        diff_sum = np.sum(diff, axis=2)  # 求和RGB通道的差值
-        print(f"is_colored:{np.mean(diff_sum)}")
-
-        # 判断差值是否大于阈值
-        return np.mean(diff_sum) > threshold
-    x1, y1, x2, y2 = (162, 383, 256, 401)
-    min_img = v.capture()[y1:y2, x1:x2]
-    ret = is_colored(min_img, 50)
     # from utils.cv_recognizer import vnc_mm
     #
     # vnc_mm.VNC = v
@@ -193,10 +192,11 @@ if __name__ == '__main__':
     # v.click(1)
     # 截图测试
     # FPS = 0
+
     while True:
         s = time.time()
         new_image = v.capture(path=None)[0:600, 0:1067]  # 获取新图像
-
+        new_image = cv2.cvtColor(new_image,cv2.COLOR_RGB2BGR)
         FPS = 1 / (time.time() - s)
         # 绘制帧率
         cv2.putText(new_image, str(int(FPS)), (0, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
