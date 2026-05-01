@@ -32,7 +32,7 @@ def Information():
         edition_dnf = post_edition
         min_edition_dnf = int(post_min_edition)
         information_dnf = post_information
-        print('版本更新成功1')
+        print('版本更新成功')
         return jsonify({'edition': edition_dnf, 'result': '版本更新成功。', 'timestamp': current_time.isoformat(), 'information': information_dnf}), 200
     if post_id is None:
         print('未提供身份标识码')

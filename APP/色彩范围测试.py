@@ -209,7 +209,7 @@ if __name__ == "__main__":
     analyzer = HSVAnalyzer(delta=10)
 
     # 分析单张图像
-    image_path = r"C:\Users\Administrator\Downloads\automatic-painting-development-tryaddwuse\front_renew\map_depot\选择角色.bmp"
+    image_path = r"C:\Users\Administrator\Downloads\automatic-painting\APP\map_depot\再次挑战.bmp"
     hsv_range = analyzer.analyze_image(image_path)
 
 

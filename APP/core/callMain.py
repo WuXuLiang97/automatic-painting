@@ -230,9 +230,9 @@ class AppMain(QMainWindow, Ui_MainWindow):
         # 设置长文本列的初始宽度和最大宽度
         self.rolesTable.setColumnWidth(1, 80)  # 角色职业类型
         self.rolesTable.setColumnWidth(2, 80)  # 角色转职职业
-        self.rolesTable.setColumnWidth(1, 80)  # 角色职业类型
+        self.rolesTable.setColumnWidth(4, 80)  # 角色职业类型
         self.rolesTable.setColumnWidth(5, 120)  # 地图名称
-        self.rolesTable.setColumnWidth(7, 50)  # 地图名称
+        self.rolesTable.setColumnWidth(8, 50)  # 地图名称
 
         # 允许用户手动调整列宽
         header.setSectionsMovable(True)
@@ -510,6 +510,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 # 确保我们有足够的数据
                 if not role_data:
                     continue
+
                 # 填充每一列数据
                 self.rolesTable.setItem(index, 0, QTableWidgetItem(str(role_id)))
                 self.rolesTable.setItem(index, 1, QTableWidgetItem(role_data.get('career', '')))

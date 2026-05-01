@@ -129,7 +129,7 @@ map_boss_info = {
         'boss_sy-zmcbz_box': {'height': 0},
     },
     "深渊：最终调律者": {
-        'boss_sy': {'height': 100},
+        'boss_sy': {'height': 0},
         'boss_sy_1': {'height': 0},
         'boss_sy-zmcbz': {'height': 175},
         'boss_sy-zmcbz_box': {'height': 0},

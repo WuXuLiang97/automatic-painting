@@ -10,7 +10,7 @@ from utils.cv_recognizer import vnc_mm, my_imread
 import random
 from core import global_variable as gv
 from utils.logging_setup import logger
-
+from utils.screenshot_util import screenshot_util
 
 # from utils.yjs import yjs
 
@@ -386,7 +386,7 @@ class OperatorModule:
 
     def handle_return_to_town(self):
         logger.info("进入返回城镇(handle_return_to_town)")
-        for attempt in range(5):
+        for _ in range(3):
             open_status = self.open_window("选择菜单")
             if not open_status:  # 如果没打开
                 continue

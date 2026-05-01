@@ -147,6 +147,7 @@ class MM:
         # 捕获指定区域的屏幕截图
         try:
             screenshot_np = self.VNC.capture()
+            screenshot_np = cv2.cvtColor(screenshot_np, cv2.COLOR_RGB2BGR)
             if isinstance(screenshot_np, np.ndarray):
                 logger.info("vnc_mm截图成功")
             else:
@@ -509,242 +510,34 @@ class MM:
             logger.info("搜索已停止。")
             return []
 
-    # def FindPic(self, x1: int, y1: int, x2: int, y2: int, img_name, sim=0.7, mc=False, drag=None, delta_color=([0, 0, 0], [179, 255, 255]), add_offset=True, img_numpy=None):
-    #     """
-    #     FindPic(self,x1, y1, x2, y2,img_name,sim=0.7,use_hsv=False,Multiple_coordinates=False,drag=None)
-    #     找到图就返回[[id,x,y]],找不到图则返回[],这里的id,为第几张图片,从0开始:x,y为找到图的中心坐标+随机偏移 0 到 2 。
-    #     x1 整形数:区域的左上X坐标
-    #     y1 整形数:区域的左上Y坐标
-    #     x2 整形数:区域的右下X坐标
-    #     y2 整形数:区域的右下Y坐标
-    #     img_name 字符串:
-    #         图片名,可以是多个图片,比如"test.png|test2.png|test3.png,要用"|"隔开；图片的路径和名字不能有中文,比如"1.png,test2.png"
-    #     sim 浮点数:
-    #         相似度,取值范围0.1-1.0
-    #     mc:
-    #         布尔值,True或False、1或0 ,默认False,为True或1时返回找到的多个坐标,否则只返回找到的第一个坐标
-    #     drag:
-    #         是否在找到的位置画图并显示,默认不画
-    #         drag==1时画图并显示，彩色图片
-    #         drag==2时画图并显示，过滤颜色后的图片
-    #         drag==3时画图并显示，过滤颜色后的灰度图片
-    #         drag==4时画图并显示，过滤颜色后的二值化图片
-    #     delta_color：
-    #         hsv空间的过滤色彩范围
-    #     add_offset:
-    #         是否在找图结果加上随机偏移0~2
-    #     返回值：[[0, 338, 232, 320, 210], [0, 339, 332, 321, 310], [0, 338, 431, 321, 410], [0, 337, 531, 320, 510]]
-    #         在返回的多个坐标中：
-    #             每个列表代表找到的一个位置,arr[i][0]代表img_name中的第一张图,arr[i][1]代表img_name中的第二张图
-    #             arr[0][1]arr[0][2]为找到图片的中心（加了随机偏移+2)坐标;arr[0][3]arr[0][4]为找到图片的左上角的坐标
-    #     """
-    #     screenshot_np = None
-    #     start_time = timeit.default_timer()  # 获取当前时间作为开始时间
-    #     # 初始化一个列表来存放返回结果
-    #     self.arr_ret = []
-    #     # 打印截图路径
-    #     if drag is not None:
-    #         logger.info(f"打印大图路径:{self.path}")
-    #     # 指定截图区域的大小
-    #     try:
-    #
-    #         # 如果指定了路径，读取路径中的图片
-    #         if self.path is not None:
-    #             if drag is not None:
-    #                 logger.info("读取路径中的图片")
-    #             # 读取图片，默认读取是BGR格式
-    #             screenshot_np = cv2.imread(self.path)
-    #             # 这里用做画出找到位置显示的图片
-    #             self.screenshot_show_image = screenshot_np  # 转为灰度图像  # self.target_image = cv2.cvtColor(screenshot_np, cv2.COLOR_BGR2GRAY)
-    #         elif img_numpy is not None:
-    #             screenshot_np = img_numpy[y1:y2, x1:x2]
-    #             self.screenshot_show_image = screenshot_np
-    #
-    #         elif self.VNC is not None:
-    #             logger.info("VNC截图")
-    #             screenshot_np = self.VNC.capture()
-    #             if isinstance(screenshot_np, np.ndarray):
-    #                 logger.info("vnc_mm截图成功")
-    #             else:
-    #                 logger.info("vnc_mm截图失败")
-    #                 return self.arr_ret
-    #             if screenshot_np is None:
-    #                 logger.error("截图获取为空数组")
-    #                 return self.arr_ret
-    #             screenshot_np = screenshot_np[y1:y2, x1:x2]
-    #             # 这里用做画出找到位置显示的图片
-    #             self.screenshot_show_image = screenshot_np
-    #             # 转为灰度图像  # self.target_image = cv2.cvtColor(screenshot_np, cv2.COLOR_BGR2GRAY)
-    #
-    #     except Exception as ee:
-    #         if drag is not None:
-    #             logger.info(f"截图或保存失败: {ee}")
-    #         return self.arr_ret
-    #     if screenshot_np is None:
-    #         logger.error("截图获取为空数组")
-    #         return self.arr_ret
-    #     # 将图像从BGR转换到HSV
-    #     hsv_image = cv2.cvtColor(screenshot_np, cv2.COLOR_BGR2HSV)
-    #
-    #     # 定义HSV颜色范围
-    #     lower_color = np.array(delta_color[0])
-    #     upper_color = np.array(delta_color[1])
-    #
-    #     # 创建一个掩码来只选择落在指定颜色范围内的像素
-    #     mask = cv2.inRange(hsv_image, lower_color, upper_color)
-    #
-    #     # 使用掩码从原始BGR图像中提取颜色范围内的像素
-    #     color_filtered_image = cv2.bitwise_and(screenshot_np, screenshot_np, mask=mask)
-    #
-    #     # 转换提取的图像到灰度空间（如果模板是灰度的）
-    #     gray_filtered_image = cv2.cvtColor(color_filtered_image, cv2.COLOR_BGR2GRAY)
-    #
-    #     # 使用split()方法分割字符串看看传进几个图片
-    #     img_name_array = img_name.split("|")
-    #
-    #     for id, img_name in enumerate(img_name_array):
-    #
-    #         # 输入图片名返回预加载的图片数据
-    #         template_image = self.get_image(img_name)
-    #         if template_image is None:
-    #             logger.info(f"模板图片：{img_name}不存在")
-    #             sys.exit(0)
-    #         # 获取图片的尺寸
-    #         h, w = template_image.shape
-    #
-    #         # 打印图像尺寸信息
-    #         # logger.info_if_enabled(f"模板图像template_image尺寸: 宽 {w}, 高 {h}")
-    #
-    #         # 提取四个角上的像素值
-    #         top_left = template_image[0, 0]  # 左上角
-    #         top_right = template_image[-1, 0]  # 右上角
-    #         bottom_left = template_image[0, -1]  # 左下角
-    #         bottom_right = template_image[-1, -1]  # 右下角
-    #         # 打印这四个像素值
-    #         # logger.info(f"Top Left: {top_left}")
-    #         # logger.info_if_enabled(f"Top Right: {top_right}")
-    #         # logger.info_if_enabled(f"Bottom Left: {bottom_left}")
-    #         # logger.info_if_enabled(f"Bottom Right: {bottom_right}")
-    #
-    #         percentage = None
-    #
-    #         # 对比这四个像素值，使用列表推导式和all函数来比较所有像素是否相同
-    #         if all(np.array_equal(top_left, pixel) for pixel in [top_right, bottom_left, bottom_right]):
-    #             # logger.info("四个角上的像素值——相同。")
-    #             if top_left < 200:
-    #                 # 如果四个角上的像素值相同，我们创建一个掩码，其中与左上角像素不同的区域被设置为0（黑色）
-    #                 # 假设 templ 是一个形状为 (height, width, 3) 的三通道图像数组
-    #                 # 假设 top_left 是一个形状为 (3,) 的数组，包含 RGB 三个通道的值
-    #
-    #                 # 使用NumPy的向量化操作创建掩码
-    #                 mask = (template_image != top_left).any(axis=-1).astype(np.uint8)
-    #
-    #                 # 应用掩码到模板图像：将掩码中为0的像素在模板图像中对应位置设置为0
-    #                 template_image[mask == 0] = 0  # 假设0是模板匹配中不会匹配的值
-    #
-    #             else:
-    #                 logger.info("如果是透明图请将透明部分用大漠综合工具设置为黑色，注意透明部分不能为白色")
-    #         else:
-    #             pass
-    #             # logger.info("四个角上的像素值——不相同。")
-    #             # 匹配图像
-    #         if gray_filtered_image.shape[0] < h or gray_filtered_image.shape[1] < w:
-    #             continue
-    #         result = cv2.matchTemplate(gray_filtered_image, template_image, 5)
-    #
-    #         # if percentage is not None:
-    #         #     Sim = Sim - percentage
-    #
-    #         # 找出匹配的区域
-    #         loc = np.where(result >= sim)
-    #         """如果多个符合相似度则返回多个的坐标，例如(array([210, 310, 310, 310, 410, 410, 410, 510, 510], dtype=int64),
-    #          array([320, 319, 320, 321, 319, 320, 321, 319, 320], dtype=int64))前面的arrary()是y坐标,后面的arrary()是x坐标"""
-    #
-    #         # 使用 loc 中的索引从 result 中获取对应的相似度的值
-    #         values = result[loc[0], loc[1]]
-    #         # logger.info_if_enabled(values)
-    #         # 输出[0.9536035  0.9617588  0.96420443 0.9806926  0.95081407 0.9815434   0.9661575  0.9131024  0.95362145]
-    #
-    #         # 初始化一个列表来存放匹配结果,这个列表是存放找到当前图片的坐标，每次迭代重新存放
-    #         xy_array = []
-    #         # 获取匹配的区域坐标
-    #         for pt in zip(*loc[::-1]):
-    #             xy_array.append(pt)
-    #
-    #         xy_array = self.process_coordinates(xy_array)
-    #
-    #         # 初始化计数器
-    #         count = 0
-    #
-    #         for xy in xy_array:
-    #
-    #             # 生成随机坐标偏移量
-    #             pard = random.randint(0, 2)
-    #
-    #             # 如果最大相似度大于我们设定的值则把找到的坐标加入存放坐标的数组
-    #
-    #             self.print_and_append_coordinates(img_name, values[count], xy, w, h, pard, x1, y1, id)
-    #
-    #             count += 1
-    #
-    #             if drag == 1:
-    #                 self.screenshot_show_image = cv2.cvtColor(self.screenshot_show_image, cv2.COLOR_BGRA2BGR)
-    #                 # 如果drag为True,则在目标图像上绘制矩形框标记模板位置
-    #                 self.draw_rectangle_if_needed(self.screenshot_show_image, xy, w, h, drag)
-    #             elif drag == 2:
-    #                 self.screenshot_show_image = color_filtered_image
-    #                 # 如果drag为True,则在目标图像上绘制矩形框标记模板位置
-    #                 self.draw_rectangle_if_needed(self.screenshot_show_image, xy, w, h, drag)
-    #             elif drag == 3:
-    #                 self.screenshot_show_image = gray_filtered_image
-    #                 # 如果drag为True,则在目标图像上绘制矩形框标记模板位置
-    #                 self.draw_rectangle_if_needed(self.screenshot_show_image, xy, w, h, drag)
-    #             # # 如果drag为True,则在目标图像上绘制矩形框标记模板位置
-    #             # self.draw_rectangle_if_needed(self.screenshot_show_image, xy, w, h, drag)
-    #
-    #             # 如果Multiple_coordinates为False，默认为False则只找到第一个坐标后退出循环
-    #             if not mc:
-    #                 break
-    #
-    #         # 用全局变量called来判断是否启动多线程显示图片，默认为False
-    #         if called is True:
-    #             # 将图片数据放入队列中
-    #             image_queue.put(self.screenshot_show_image)
-    #         else:
-    #             end_time = timeit.default_timer()  # 获取当前时间作为结束时间
-    #             elapsed_time = end_time - start_time  # 计算代码块执行所花费的时间（秒)
-    #             if drag == 1:
-    #                 while True:
-    #                     # 显示帧
-    #                     cv2.imshow('image', self.screenshot_show_image)
-    #                     # 等待按键
-    #                     if cv2.waitKey(1) & 0xFF == ord('q'):
-    #                         break
-    #             elif drag == 2:
-    #                 while True:
-    #                     # 显示帧
-    #                     cv2.imshow('image', color_filtered_image)
-    #                     # 等待按键
-    #                     if cv2.waitKey(1) & 0xFF == ord('q'):
-    #                         break
-    #             elif drag == 3:
-    #                 while True:
-    #                     # 显示帧
-    #                     cv2.imshow('image', gray_filtered_image)
-    #                     # 等待按键
-    #                     if cv2.waitKey(1) & 0xFF == ord('q'):
-    #                         break
-    #         # 找到图片就不继续找后边的图了
-    #         if len(loc) > 0:
-    #             if not mc:
-    #                 break
-    #
-    #     return self.arr_ret
-
-    def FindPic(self, x1: int, y1: int, x2: int, y2: int, img_name, sim=0.7, mc=False, drag=None,
-                delta_color=([0, 0, 0], [179, 255, 255]), add_offset=True, img_numpy=None):
+    def FindPic(self, x1: int, y1: int, x2: int, y2: int, img_name, sim=0.7, mc=False, drag=None, delta_color=([0, 0, 0], [179, 255, 255]), add_offset=True, img_numpy=None):
         """
-        优化后的图像识别方法，增加了亮度适应性处理
+        FindPic(self,x1, y1, x2, y2,img_name,sim=0.7,use_hsv=False,Multiple_coordinates=False,drag=None)
+        找到图就返回[[id,x,y]],找不到图则返回[],这里的id,为第几张图片,从0开始:x,y为找到图的中心坐标+随机偏移 0 到 2 。
+        x1 整形数:区域的左上X坐标
+        y1 整形数:区域的左上Y坐标
+        x2 整形数:区域的右下X坐标
+        y2 整形数:区域的右下Y坐标
+        img_name 字符串:
+            图片名,可以是多个图片,比如"test.png|test2.png|test3.png,要用"|"隔开；图片的路径和名字不能有中文,比如"1.png,test2.png"
+        sim 浮点数:
+            相似度,取值范围0.1-1.0
+        mc:
+            布尔值,True或False、1或0 ,默认False,为True或1时返回找到的多个坐标,否则只返回找到的第一个坐标
+        drag:
+            是否在找到的位置画图并显示,默认不画
+            drag==1时画图并显示，彩色图片
+            drag==2时画图并显示，过滤颜色后的图片
+            drag==3时画图并显示，过滤颜色后的灰度图片
+            drag==4时画图并显示，过滤颜色后的二值化图片
+        delta_color：
+            hsv空间的过滤色彩范围
+        add_offset:
+            是否在找图结果加上随机偏移0~2
+        返回值：[[0, 338, 232, 320, 210], [0, 339, 332, 321, 310], [0, 338, 431, 321, 410], [0, 337, 531, 320, 510]]
+            在返回的多个坐标中：
+                每个列表代表找到的一个位置,arr[i][0]代表img_name中的第一张图,arr[i][1]代表img_name中的第二张图
+                arr[0][1]arr[0][2]为找到图片的中心（加了随机偏移+2)坐标;arr[0][3]arr[0][4]为找到图片的左上角的坐标
         """
         screenshot_np = None
         start_time = timeit.default_timer()  # 获取当前时间作为开始时间
@@ -771,6 +564,7 @@ class MM:
             elif self.VNC is not None:
                 logger.info("VNC截图")
                 screenshot_np = self.VNC.capture()
+                screenshot_np = cv2.cvtColor(screenshot_np, cv2.COLOR_RGB2BGR)
                 if isinstance(screenshot_np, np.ndarray):
                     logger.info("vnc_mm截图成功")
                 else:
@@ -807,144 +601,147 @@ class MM:
         # 转换提取的图像到灰度空间（如果模板是灰度的）
         gray_filtered_image = cv2.cvtColor(color_filtered_image, cv2.COLOR_BGR2GRAY)
 
-        # 亮度自适应处理
-        def adjust_brightness_contrast(img, brightness=0, contrast=0):
-
-            if brightness != 0:
-                if brightness > 0:
-                    shadow = brightness
-                    highlight = 255
-                else:
-                    shadow = 0
-                    highlight = 255 + brightness
-                alpha_b = (highlight - shadow) / 255
-                gamma_b = shadow
-
-                img = cv2.addWeighted(img, alpha_b, img, 0, gamma_b)
-
-            if contrast != 0:
-                f = 131 * (contrast + 127) / (127 * (131 - contrast))
-                alpha_c = f
-                gamma_c = 127 * (1 - f)
-
-                img = cv2.addWeighted(img, alpha_c, img, 0, gamma_c)
-            return img
-
-        # 尝试多种亮度/对比度组合
-        brightness_levels = [-50, 0, 50]
-        contrast_levels = [-50, 0, 50]
-
+        # 使用split()方法分割字符串看看传进几个图片
         img_name_array = img_name.split("|")
-        found = False  # 新增标志位，用于控制循环中断
 
         for id, img_name in enumerate(img_name_array):
+
+            # 输入图片名返回预加载的图片数据
             template_image = self.get_image(img_name)
             if template_image is None:
                 logger.info(f"模板图片：{img_name}不存在")
                 sys.exit(0)
-
+            # 获取图片的尺寸
             h, w = template_image.shape
 
-            # 检查模板图像四个角是否相同
-            top_left = template_image[0, 0]
-            top_right = template_image[-1, 0]
-            bottom_left = template_image[0, -1]
-            bottom_right = template_image[-1, -1]
+            # 打印图像尺寸信息
+            # logger.info_if_enabled(f"模板图像template_image尺寸: 宽 {w}, 高 {h}")
 
+            # 提取四个角上的像素值
+            top_left = template_image[0, 0]  # 左上角
+            top_right = template_image[-1, 0]  # 右上角
+            bottom_left = template_image[0, -1]  # 左下角
+            bottom_right = template_image[-1, -1]  # 右下角
+            # 打印这四个像素值
+            # logger.info(f"Top Left: {top_left}")
+            # logger.info_if_enabled(f"Top Right: {top_right}")
+            # logger.info_if_enabled(f"Bottom Left: {bottom_left}")
+            # logger.info_if_enabled(f"Bottom Right: {bottom_right}")
+
+            percentage = None
+
+            # 对比这四个像素值，使用列表推导式和all函数来比较所有像素是否相同
             if all(np.array_equal(top_left, pixel) for pixel in [top_right, bottom_left, bottom_right]):
+                # logger.info("四个角上的像素值——相同。")
                 if top_left < 200:
+                    # 如果四个角上的像素值相同，我们创建一个掩码，其中与左上角像素不同的区域被设置为0（黑色）
+                    # 假设 templ 是一个形状为 (height, width, 3) 的三通道图像数组
+                    # 假设 top_left 是一个形状为 (3,) 的数组，包含 RGB 三个通道的值
+
+                    # 使用NumPy的向量化操作创建掩码
                     mask = (template_image != top_left).any(axis=-1).astype(np.uint8)
-                    template_image[mask == 0] = 0
+
+                    # 应用掩码到模板图像：将掩码中为0的像素在模板图像中对应位置设置为0
+                    template_image[mask == 0] = 0  # 假设0是模板匹配中不会匹配的值
+
                 else:
                     logger.info("如果是透明图请将透明部分用大漠综合工具设置为黑色，注意透明部分不能为白色")
-            # 尝试不同亮度/对比度组合
-            for brightness in brightness_levels:
-                if found and not mc:  # 如果已经找到且不需要多个结果，则中断
+            else:
+                pass
+                # logger.info("四个角上的像素值——不相同。")
+                # 匹配图像
+            if gray_filtered_image.shape[0] < h or gray_filtered_image.shape[1] < w:
+                continue
+            result = cv2.matchTemplate(gray_filtered_image, template_image, 5)
+
+            # if percentage is not None:
+            #     Sim = Sim - percentage
+
+            # 找出匹配的区域
+            loc = np.where(result >= sim)
+            """如果多个符合相似度则返回多个的坐标，例如(array([210, 310, 310, 310, 410, 410, 410, 510, 510], dtype=int64),
+             array([320, 319, 320, 321, 319, 320, 321, 319, 320], dtype=int64))前面的arrary()是y坐标,后面的arrary()是x坐标"""
+
+            # 使用 loc 中的索引从 result 中获取对应的相似度的值
+            values = result[loc[0], loc[1]]
+            # logger.info_if_enabled(values)
+            # 输出[0.9536035  0.9617588  0.96420443 0.9806926  0.95081407 0.9815434   0.9661575  0.9131024  0.95362145]
+
+            # 初始化一个列表来存放匹配结果,这个列表是存放找到当前图片的坐标，每次迭代重新存放
+            xy_array = []
+            # 获取匹配的区域坐标
+            for pt in zip(*loc[::-1]):
+                xy_array.append(pt)
+
+            xy_array = self.process_coordinates(xy_array)
+
+            # 初始化计数器
+            count = 0
+
+            for xy in xy_array:
+
+                # 生成随机坐标偏移量
+                pard = random.randint(0, 2)
+
+                # 如果最大相似度大于我们设定的值则把找到的坐标加入存放坐标的数组
+
+                self.print_and_append_coordinates(img_name, values[count], xy, w, h, pard, x1, y1, id)
+
+                count += 1
+
+                if drag == 1:
+                    self.screenshot_show_image = cv2.cvtColor(self.screenshot_show_image, cv2.COLOR_BGRA2BGR)
+                    # 如果drag为True,则在目标图像上绘制矩形框标记模板位置
+                    self.draw_rectangle_if_needed(self.screenshot_show_image, xy, w, h, drag)
+                elif drag == 2:
+                    self.screenshot_show_image = color_filtered_image
+                    # 如果drag为True,则在目标图像上绘制矩形框标记模板位置
+                    self.draw_rectangle_if_needed(self.screenshot_show_image, xy, w, h, drag)
+                elif drag == 3:
+                    self.screenshot_show_image = gray_filtered_image
+                    # 如果drag为True,则在目标图像上绘制矩形框标记模板位置
+                    self.draw_rectangle_if_needed(self.screenshot_show_image, xy, w, h, drag)
+                # # 如果drag为True,则在目标图像上绘制矩形框标记模板位置
+                # self.draw_rectangle_if_needed(self.screenshot_show_image, xy, w, h, drag)
+
+                # 如果Multiple_coordinates为False，默认为False则只找到第一个坐标后退出循环
+                if not mc:
                     break
-                for contrast in contrast_levels:
-                    if found and not mc:  # 同上
-                        break
-                    adjusted_img = adjust_brightness_contrast(screenshot_np.copy(), brightness, contrast)
-                    # print("亮度处理完毕")
-                    # 颜色过滤处理
-                    hsv_image = cv2.cvtColor(adjusted_img, cv2.COLOR_BGR2HSV)
-                    lower_color = np.array(delta_color[0])
-                    upper_color = np.array(delta_color[1])
-                    mask = cv2.inRange(hsv_image, lower_color, upper_color)
-                    color_filtered_image = cv2.bitwise_and(adjusted_img, adjusted_img, mask=mask)
-                    gray_filtered_image = cv2.cvtColor(color_filtered_image, cv2.COLOR_BGR2GRAY)
 
-                    if gray_filtered_image.shape[0] < h or gray_filtered_image.shape[1] < w:
-                        continue
-
-                    # 使用归一化相关系数匹配方法
-                    result = cv2.matchTemplate(gray_filtered_image, template_image, cv2.TM_CCOEFF_NORMED)
-                    loc = np.where(result >= sim)
-                    values = result[loc[0], loc[1]]
-
-                    xy_array = []
-                    for pt in zip(*loc[::-1]):
-                        xy_array.append(pt)
-
-                    xy_array = self.process_coordinates(xy_array)
-                    if len(xy_array) > 0:
-                        found = True  # 标记已找到
-                        count = 0
-                        # 只取第一个匹配（如果 mc=False）
-                        if not mc:
-                            xy_array = [xy_array[0]]  # 只保留第一个匹配
-                            values = [values[0]]  # 只保留第一个相似度值
-                        for xy in xy_array:
-                            pard = random.randint(0, 2)
-                            self.print_and_append_coordinates(img_name, values[count], xy, w, h, pard, x1, y1, id)
-                            count += 1
-
-                            if drag == 1:
-                                self.screenshot_show_image = cv2.cvtColor(self.screenshot_show_image,
-                                                                          cv2.COLOR_BGRA2BGR)
-                                self.draw_rectangle_if_needed(self.screenshot_show_image, xy, w, h, drag)
-                            elif drag == 2:
-                                self.screenshot_show_image = color_filtered_image
-                                self.draw_rectangle_if_needed(self.screenshot_show_image, xy, w, h, drag)
-                            elif drag == 3:
-                                self.screenshot_show_image = gray_filtered_image
-                                self.draw_rectangle_if_needed(self.screenshot_show_image, xy, w, h, drag)
-
-                        if not mc:
+            # 用全局变量called来判断是否启动多线程显示图片，默认为False
+            if called is True:
+                # 将图片数据放入队列中
+                image_queue.put(self.screenshot_show_image)
+            else:
+                end_time = timeit.default_timer()  # 获取当前时间作为结束时间
+                elapsed_time = end_time - start_time  # 计算代码块执行所花费的时间（秒)
+                if drag == 1:
+                    while True:
+                        # 显示帧
+                        cv2.imshow('image', self.screenshot_show_image)
+                        # 等待按键
+                        if cv2.waitKey(1) & 0xFF == ord('q'):
                             break
-
-                    if len(xy_array) > 0 and not mc:
-                        break
-
-                if len(xy_array) > 0 and not mc:
+                elif drag == 2:
+                    while True:
+                        # 显示帧
+                        cv2.imshow('image', color_filtered_image)
+                        # 等待按键
+                        if cv2.waitKey(1) & 0xFF == ord('q'):
+                            break
+                elif drag == 3:
+                    while True:
+                        # 显示帧
+                        cv2.imshow('image', gray_filtered_image)
+                        # 等待按键
+                        if cv2.waitKey(1) & 0xFF == ord('q'):
+                            break
+            # 找到图片就不继续找后边的图了
+            if len(loc) > 0:
+                if not mc:
                     break
-
-        if called is True:
-            image_queue.put(self.screenshot_show_image)
-        else:
-            end_time = timeit.default_timer()
-            elapsed_time = end_time - start_time
-            if drag == 1:
-                while True:
-                    cv2.imshow('image', self.screenshot_show_image)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
-            elif drag == 2:
-                while True:
-                    cv2.imshow('image', color_filtered_image)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
-            elif drag == 3:
-                while True:
-                    cv2.imshow('image', gray_filtered_image)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
 
         return self.arr_ret
-
-
-
-
 
     def process_coordinates(self, coordinates):
         """
@@ -1039,7 +836,7 @@ class MM:
         判断图像是否为彩色的。阈值用于确定彩色和灰色的界限。
         """
         # 转换为灰度图像
-        gray = cv2.cvtColor(skill_img, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(skill_img, cv2.COLOR_RGB2GRAY)
 
         # 计算每个像素的绝对差值
         diff = cv2.absdiff(skill_img, cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR))

@@ -105,6 +105,7 @@ class SkillUtil:
 
     def init(self, image, player_occupation):
         """初始化技能系统"""
+        # 假设输入image是RGB格式，不再转换
         self.player_occupation = player_occupation
         self.skill_image_dict = {}
         self.skill_dict = {}
@@ -138,7 +139,7 @@ class SkillUtil:
                         position_data['x1']:position_data['x2']]
 
             # 检查技能是否有效
-            gray_img = cv2.cvtColor(skill_img, cv2.COLOR_BGR2GRAY)
+            gray_img = cv2.cvtColor(skill_img, cv2.COLOR_RGB2GRAY)
             ratio = self.calculate_pixel_ratio_below_threshold(gray_img, 60)
 
             if ratio > 0.85:
@@ -183,8 +184,8 @@ class SkillUtil:
 
     def is_colored(self, skill_img: np.ndarray, threshold=30):
         """判断图像是否为彩色的"""
-        gray = cv2.cvtColor(skill_img, cv2.COLOR_BGR2GRAY)
-        diff = cv2.absdiff(skill_img, cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR))
+        gray = cv2.cvtColor(skill_img, cv2.COLOR_RGB2GRAY)
+        diff = cv2.absdiff(skill_img, cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB))
         diff_sum = np.sum(diff, axis=2)
         return np.mean(diff_sum) > threshold
 
@@ -192,8 +193,8 @@ class SkillUtil:
         return self.is_colored(skill_img)
 
     def is_match_template(self, skill_img, skill_img_dic):
-        gray_skill_img = cv2.cvtColor(skill_img, cv2.COLOR_BGR2GRAY)
-        gray_skill_img_dic = cv2.cvtColor(skill_img_dic, cv2.COLOR_BGR2GRAY)
+        gray_skill_img = cv2.cvtColor(skill_img, cv2.COLOR_RGB2GRAY)
+        gray_skill_img_dic = cv2.cvtColor(skill_img_dic, cv2.COLOR_RGB2GRAY)
         result = cv2.matchTemplate(gray_skill_img, gray_skill_img_dic, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, max_loc = cv2.minMaxLoc(result)
         return max_val > 0.99
@@ -201,6 +202,7 @@ class SkillUtil:
     def get_release_boss_skill(self, game_img):
         """获取可释放的Boss技能键"""
         try:
+
             for skill_code in self.boss_skill_release_order:
                 logger.info(f"检查Boss技能: {skill_code}")
 
@@ -232,7 +234,7 @@ class SkillUtil:
                     if self.player_occupation == "弓箭手-奇美拉":
                         lower = np.array([0, 0, 0])
                         upper = np.array([140, 255, 255])
-                        hsv = cv2.cvtColor(skill_img, cv2.COLOR_BGR2HSV)
+                        hsv = cv2.cvtColor(skill_img, cv2.COLOR_RGB2HSV)
                         mask = cv2.inRange(hsv, lower, upper)
                         result = cv2.bitwise_and(skill_img, skill_img, mask=mask)
                         if self.is_available(result, skill_img_dic):
@@ -280,7 +282,7 @@ class SkillUtil:
                 if self.player_occupation == "弓箭手-奇美拉":
                     lower = np.array([0, 0, 0])
                     upper = np.array([140, 255, 255])
-                    hsv = cv2.cvtColor(skill_img, cv2.COLOR_BGR2HSV)
+                    hsv = cv2.cvtColor(skill_img, cv2.COLOR_RGB2HSV)
                     mask = cv2.inRange(hsv, lower, upper)
                     result = cv2.bitwise_and(skill_img, skill_img, mask=mask)
                     if self.is_available(result, template_img):
@@ -337,6 +339,7 @@ class SkillUtil:
     def skill_status(self, game_img):
         """检查技能状态（通过最后一个技能判断）"""
         try:
+            # 输入已经是RGB格式，无需转换
             # 根据职业获取最后一个技能的位置
             if self.player_occupation != "黑暗武士-黑暗武士":
                 position_idx = 13  # 第14个位置
