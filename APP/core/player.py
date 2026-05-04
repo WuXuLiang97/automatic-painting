@@ -2985,7 +2985,7 @@ class PlayerThread(QThread):
                         x, y = r[1], r[2]
                         self.operator_module.move_to(x, y)
                         pyauto.click()
-                        time.sleep(0.2)
+                        time.sleep(0.1)
                         pyauto.click()
                         time.sleep(0.2)
         if self.player.map_name not in ("深渊：终末崇拜者", "深渊：最终调律者"):
@@ -3070,7 +3070,7 @@ class PlayerThread(QThread):
                                     x, y = r[1], r[2]
                                     self.operator_module.move_to(x, y)
                                     pyauto.click()
-                                    time.sleep(0.2)
+                                    time.sleep(0.1)
                                     pyauto.click()
                                     time.sleep(0.2)
                         pyauto.keyPressChar("esc")
@@ -3229,7 +3229,7 @@ class PlayerThread(QThread):
                                 x, y = r[1], r[2]
                                 self.operator_module.move_to(x, y)
                                 pyauto.click()
-                                time.sleep(0.2)
+                                time.sleep(0.1)
                                 pyauto.click()
                                 time.sleep(0.2)
                         pyauto.keyPressChar("esc")
