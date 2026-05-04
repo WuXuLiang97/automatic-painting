@@ -2658,20 +2658,40 @@ class PlayerThread(QThread):
                                 screen_out.append(coord)
                                 logger.info(f"筛选出精英房间：{coord}")
 
+
     def send_with_retry(self, data, message):
         """封装发送逻辑，带自动重连"""
         max_retries = 3
-        for attempt in range(max_retries):
+        attempt = 0
+        #for attempt in range(max_retries):
+        while True:
             try:
                 self.sock.sendall(data)
                 logger.info(f"成功发送 {message}")
                 return True
             except socket.error as e:
+                self.send_log(f"发送失败（尝试 {attempt + 1}/{max_retries}）: {e}")
                 logger.info(f"发送失败（尝试 {attempt + 1}/{max_retries}）: {e}")
                 traceback.print_exc()
                 self._reconnect()
                 time.sleep(3)
+                attempt += 1
         return False
+
+    # def send_with_retry(self, data, message):
+    #     """封装发送逻辑，带自动重连"""
+    #     max_retries = 3
+    #     for attempt in range(max_retries):
+    #         try:
+    #             self.sock.sendall(data)
+    #             logger.info(f"成功发送 {message}")
+    #             return True
+    #         except socket.error as e:
+    #             logger.info(f"发送失败（尝试 {attempt + 1}/{max_retries}）: {e}")
+    #             traceback.print_exc()
+    #             self._reconnect()
+    #             time.sleep(3)
+    #     return False
 
     def _reconnect(self):
         """关闭旧连接并建立新连接"""
@@ -3319,6 +3339,10 @@ class PlayerThread(QThread):
         """
         logger.info("boss房聚物拾取")
         pyauto.releaseallkey()
+        time.sleep(0.05)
+        pyauto.keyDownChar('left')
+        time.sleep(0.4)
+        pyauto.keyUpChar('left')
         time.sleep(0.05)
         pyauto.keyDownChar('up')
         time.sleep(0.4)
