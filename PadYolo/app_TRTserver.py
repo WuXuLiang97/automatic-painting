@@ -542,12 +542,34 @@ class ThreadedServer:
         except BrokenPipeError:
             print("客户端连接已中断")  # 客户端提前断开，无法发送响应
 
-    def _ocr_process(self, image, ocr_engine):
-        """OCR处理流程：转为灰度图→调用OCR→拼接识别结果"""
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # 转为灰度图（减少计算量，提高OCR精度）
-        results = ocr_engine.ocr(gray, det=False, cls=False)  # 仅识别（不检测文字区域，假设输入是纯文字图像）
-        # 拼接所有识别结果（PaddleOCR返回格式：[[(文字, 置信度), ...]]）
-        return ''.join(line[0] for page in results for line in page)
+    # def _ocr_process(self, image, ocr_engine):
+    #     """OCR处理流程：转为灰度图→调用OCR→拼接识别结果"""
+    #     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # 转为灰度图（减少计算量，提高OCR精度）
+    #     results = ocr_engine.ocr(gray, det=False, cls=False)  # 仅识别（不检测文字区域，假设输入是纯文字图像）
+    #     # 拼接所有识别结果（PaddleOCR返回格式：[[(文字, 置信度), ...]]）
+    #     return ''.join(line[0] for page in results for line in page)
+
+    def _ocr_process(self, image: np.ndarray, ocr_engine: PaddleOCR) -> str:
+        """处理OCR请求"""
+        try:
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            results = ocr_engine.ocr(gray, det=False, cls=False)
+
+            # 保持原有格式但添加异常处理
+            text_parts = []
+            for page in results:
+                for line in page:
+                    try:
+                        text_parts.append(str(line[0]))
+                    except (IndexError, TypeError):
+                        # 跳过有问题的行
+                        continue
+
+            return ''.join(text_parts)
+
+        except Exception as e:
+            print(f"OCR处理异常: {e}")
+            return ""
 
 
 class PrintRedirector:

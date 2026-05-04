@@ -386,22 +386,21 @@ class OperatorModule:
 
     def handle_return_to_town(self):
         logger.info("进入返回城镇(handle_return_to_town)")
-        for _ in range(3):
+        while True:
             open_status = self.open_window("选择菜单")
             if not open_status:  # 如果没打开
                 continue
             """下面这两个退出是为了更新界面"""
             pyauto.keyPressChar("esc")
             time.sleep(0.2)
-            pyauto.keyPressChar("esc")
-            time.sleep(0.2)
-            ret = self.mm.FindPic(0, 0, 1067, 600, "金币寄售.bmp", 0.9, drag=None, delta_color=([20, 0, 0], [23, 255, 255]))
+            ret = self.mm.FindPic(0, 0, 1067, 600, "畅玩.bmp", 0.9, drag=None)
             if ret:
-                pyauto.keyPressChar("esc")
                 time.sleep(0.2)
                 logger.info("退出返回城镇(handle_return_to_town)")
                 return True
             else:
+                pyauto.keyPressChar("esc")
+                time.sleep(0.2)
                 x, y = self.get_menu_item_coordinates("返回城镇")
                 self.move_to(x, y)
                 time.sleep(0.5)
@@ -415,7 +414,6 @@ class OperatorModule:
                 if ret:
                     pyauto.keyPressChar("space")
                     time.sleep(0.2)
-        return True
 
     def handle_transfer_matrix(self):
         if self.is_esc_menu_open():

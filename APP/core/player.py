@@ -292,7 +292,7 @@ class PlayerThread(QThread):
                 self.send_log("程序启动倒计时" + str(i) + "s")
                 time.sleep(1)
             self.send_log("程序已启动")
-            self.operator_module.move_to(640, 40)
+            self.operator_module.move_to(540, 40)
             time.sleep(0.1)
             pyauto.click()
             time.sleep(0.1)
@@ -317,6 +317,7 @@ class PlayerThread(QThread):
                     self.wait_until_next_start()
                     continue
 
+                self.player.is_daily_tasks = "是"
                 screenshot_util.activate_window_by_handle()  # 激活窗口
                 # 选择角色
                 self.select_role()
@@ -413,7 +414,7 @@ class PlayerThread(QThread):
                 self.send_log("程序启动倒计时" + str(i) + "s")
                 time.sleep(1)
             self.send_log("程序已启动")
-            self.operator_module.move_to(640, 40)
+            self.operator_module.move_to(540, 40)
             time.sleep(0.1)
             pyauto.click()
             time.sleep(0.1)
@@ -506,7 +507,7 @@ class PlayerThread(QThread):
                 self.send_log("程序启动倒计时" + str(i) + "s")
                 time.sleep(1)
             self.send_log("程序已启动")
-            self.operator_module.move_to(640, 40)
+            self.operator_module.move_to(540, 40)
             time.sleep(0.1)
             pyauto.click()
             time.sleep(0.1)
@@ -1734,7 +1735,6 @@ class PlayerThread(QThread):
         self.player.has_get_speed = False
 
         self.player.is_daily_tasks = role_settings["today_task_completed"]
-
         # 打印当前玩家的地图名称
         logger.info(self.player.map_name)
 
@@ -2097,7 +2097,7 @@ class PlayerThread(QThread):
                 else:
                     self.send_log("没有找到移动坐标")
                     continue
-                # results = self.waiting_for_the_text_to_appear([x1, y1, x2, y2], "0123456789", r'[0-9]+', 0.5, amplify=False)
+                results = self.waiting_for_the_text_to_appear([328,465,377,482], "0123456789", r'[0-9]+', 0.5, amplify=False)
                 img_dict = {
                     '0': ['0.bmp'], '1': ['1.bmp', '1-1.bmp'], '2': ['2.bmp', '2-1.bmp'],
                     '3': ['3.bmp', '3-1.bmp'], '4': ['4.bmp', '4_1.bmp'],
@@ -2105,7 +2105,7 @@ class PlayerThread(QThread):
                     '8': ['8.bmp', '8-1.bmp'], '9': ['9.bmp', '9-1.bmp']
 
                 }
-                results = self.mm.screenshot_OCR_str(x1, y1, x2, y2, img_dict, 0.8, get_colour=([62, 130, 159], [65, 141, 163]), drag=None)
+                #results = self.mm.screenshot_OCR_str(x1, y1, x2, y2, img_dict, 0.8, get_colour=([62, 130, 159], [65, 141, 163]), drag=None)
                 self.send_log(f"移速识别结果：{results}")
                 if len(results) > 0:
                     if len(results) > 2:
@@ -2349,7 +2349,7 @@ class PlayerThread(QThread):
                 logger.info(f"{data}")
                 continue
             elif data[0].startswith("goods") and data[5] > 0.5:
-                if not self.is_boss and self.player.map_name in ("深渊：终末崇拜者", "深渊：最终调律者"):
+                if not self.is_boss and self.player.map_name in ("深渊：终末崇拜者", "深渊：最终调律者","风暴逆鳞普通"):
                     logger.info(f"刷深渊中，当前不是boss房不捡物品")
                     continue
                 # 如果物品位置在特定区域外，也跳过
@@ -2979,7 +2979,7 @@ class PlayerThread(QThread):
         if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪","生命巡礼","怀纳千海之天", "深渊：最终调律者"):
             ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
             if ret:
-                ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp", 0.85, 1)
+                ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp|巡礼之证.bmp|闪闪明1.bmp|闪闪明2.bmp|闪闪明3.bmp", 0.85, 1, drag=None)
                 if ret:
                     for r in ret:
                         x, y = r[1], r[2]
@@ -3064,7 +3064,7 @@ class PlayerThread(QThread):
                     ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
                     if ret:
                         if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪","生命巡礼","怀纳千海之天", "深渊：最终调律者"):
-                            ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp", 0.85, 1)
+                            ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp|巡礼之证.bmp|闪闪明1.bmp|闪闪明2.bmp|闪闪明3.bmp", 0.85, 1, drag=None)
                             if ret:
                                 for r in ret:
                                     x, y = r[1], r[2]
@@ -3223,7 +3223,7 @@ class PlayerThread(QThread):
                         time.sleep(0.1)
 
                     if self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85) or self.mm.FindPic(145, 22, 255, 54, "模糊的奥拉蔻.bmp", 0.85):
-                        ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp", 0.85, 1)
+                        ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp|巡礼之证.bmp|闪闪明1.bmp|闪闪明2.bmp|闪闪明3.bmp", 0.85, 1, drag=None)
                         if ret:
                             for r in ret:
                                 x, y = r[1], r[2]
@@ -3537,7 +3537,7 @@ class PlayerThread(QThread):
             pyauto.keyPressChar("f2")
             # yjs.KeyPressChar("f2")
             time.sleep(0.2)
-            xy_list = [(492, 361), (497, 293), (492, 227)]
+            xy_list = [(492, 361), (497, 293), (492, 230)]
             game_image = screenshot_util.get_game_screenshot()
             text = self.get_text(159, 89, 242, 118, game_image)
             logger.info(f"识别文字：{text}")
@@ -3553,7 +3553,7 @@ class PlayerThread(QThread):
                     time.sleep(0.1)
                     pyauto.click()
 
-                    pyauto.keyPressChar("esc")
+                    pyauto.keyPressChar("space")
                     time.sleep(0.1)
 
                 time.sleep(0.1)
@@ -4069,7 +4069,7 @@ class PlayerThread(QThread):
                 ret = self.mm.FindPic_sleep(963, 536, 1066, 570, "返回城镇.bmp", 0.9, time_s=20)
                 if ret:
                     pyauto.keyUpChar("left")
-                    time.sleep(0.1)
+                    time.sleep(1)
                 while self.brush_running:
                     ret = self.mm.FindPic(64, 281, 248, 326, "深渊最终调律者.bmp", 0.9)
                     if ret:

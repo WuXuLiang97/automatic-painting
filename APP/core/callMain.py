@@ -223,6 +223,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         # 设置特定列的自适应策略
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # 位置 - 按内容调整
         header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # 身高 - 按内容调整
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # 进图移速 - 按内容调整
         header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # 难度 - 按内容调整
         header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # 刷完？ - 按内容调整
 
@@ -230,9 +231,8 @@ class AppMain(QMainWindow, Ui_MainWindow):
         # 设置长文本列的初始宽度和最大宽度
         self.rolesTable.setColumnWidth(1, 80)  # 角色职业类型
         self.rolesTable.setColumnWidth(2, 80)  # 角色转职职业
-        self.rolesTable.setColumnWidth(4, 80)  # 角色职业类型
         self.rolesTable.setColumnWidth(5, 120)  # 地图名称
-        self.rolesTable.setColumnWidth(8, 50)  # 地图名称
+        self.rolesTable.setColumnWidth(8, 50)  # 预留疲劳
 
         # 允许用户手动调整列宽
         header.setSectionsMovable(True)
@@ -564,7 +564,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         """
         if Network == 1:
             try:
-                send_request(f_program_version=f_program_version, state=1)
+                #send_request(f_program_version=f_program_version, state=1)
 
                 # 确保显示线程已创建
                 if not self.displaythread:
