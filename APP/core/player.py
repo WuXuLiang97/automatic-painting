@@ -2070,19 +2070,19 @@ class PlayerThread(QThread):
                     logger.info("已打开个人信息")
                     return True
             return False
-        if self.player.moving_speed is not None:
-            self.send_log(f"手动预设速度为：{self.player.moving_speed}")
-            plain_move_speed = float(self.player.moving_speed) / 100
-            base_speed_x, base_speed_y = self.operator_module.get_base_speed(self.player.player_occupation, plain_move_speed)
-            self.send_log(f"人物x轴基本速度为：{base_speed_x}\t人物y轴基本速度为：{base_speed_y}")
-            self.player.x_speed = base_speed_x * (1 + plain_move_speed)
-            self.player.y_speed = base_speed_y * (1 + plain_move_speed)
-            # 步行速度一样的
-            self.player.x_speed_walk = base_speed_y * (1 + plain_move_speed)
-            self.player.y_speed_walk = base_speed_y * (1 + plain_move_speed)
-            self.send_log(f"人物x轴速度为：{self.player.x_speed}\t人物y轴速度为：{self.player.y_speed}")
-            self.player.has_get_speed = True
-            return
+        # if self.player.moving_speed is not None:
+        #     self.send_log(f"手动预设速度为：{self.player.moving_speed}")
+        #     plain_move_speed = float(self.player.moving_speed) / 100
+        #     base_speed_x, base_speed_y = self.operator_module.get_base_speed(self.player.player_occupation, plain_move_speed)
+        #     self.send_log(f"人物x轴基本速度为：{base_speed_x}\t人物y轴基本速度为：{base_speed_y}")
+        #     self.player.x_speed = base_speed_x * (1 + plain_move_speed)
+        #     self.player.y_speed = base_speed_y * (1 + plain_move_speed)
+        #     # 步行速度一样的
+        #     self.player.x_speed_walk = base_speed_y * (1 + plain_move_speed)
+        #     self.player.y_speed_walk = base_speed_y * (1 + plain_move_speed)
+        #     self.send_log(f"人物x轴速度为：{self.player.x_speed}\t人物y轴速度为：{self.player.y_speed}")
+        #     self.player.has_get_speed = True
+        #     return
         status = False
         for i in range(5):
             try:
@@ -2090,7 +2090,7 @@ class PlayerThread(QThread):
                 if not open_status:
                     continue
                 time.sleep(0.1)
-                ret = self.mm.FindPic_sleep(0, 0, 1067, 600, "移动速度.bmp", 0.9, 1, time_s=3,my_sleep=0.1)
+                ret = self.mm.FindPic_sleep(0, 0, 1067, 600, "移动速度.bmp", 0.9, 1, time_s=1,my_sleep=0.1)
                 if ret:
                     x1, y1 = ret[0][3] + 60, ret[0][4] - 5
                     x2, y2 = x1 + 55, y1 + 20

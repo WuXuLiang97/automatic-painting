@@ -2,37 +2,46 @@
 import os
 import queue
 import struct
-import socket  # 用于网络通信（客户端-服务器连接）
+import socket
 import time
 import traceback
-import cv2  # 用于图像处理（解码、格式转换等）
-import json  # 用于数据序列化（请求/响应格式处理）
-import numpy as np  # 用于图像数据存储（数组形式）
+import cv2
+import json
+import numpy as np
 from datetime import datetime
-import threading  # 用于多线程处理（提高并发能力）
-from queue import Queue  # 用于任务队列（缓冲请求，平衡负载）
-from paddleocr import PaddleOCR  # 百度PaddleOCR库（文字识别）
-import tkinter as tk  # 用于GUI界面（显示服务器日志）
+import threading
+from queue import Queue
+from paddleocr import PaddleOCR
+import tkinter as tk
 from tkinter import scrolledtext
 import sys
+import gc
+import random
 
-# TensorRT 相关导入
 import tensorrt as trt
 import ctypes
 
-from root_dir import root_path  # 项目根路径配置
+from root_dir import root_path
 
-# 全局配置
-MAX_WORKERS = 4  # 工作线程数量（根据CPU核心数调整，提高并发处理能力）
-TASK_QUEUE_SIZE = 20  # 任务队列最大缓冲量（避免请求堆积溢出）
-MODEL_WARMUP = True  # 模型预热开关（提前加载模型，减少首次推理延迟）
+# ============ 全局配置 ============
+MAX_WORKERS = 2
+TASK_QUEUE_SIZE = 20
+MODEL_WARMUP = True
+BUFFER_SIZE = 4096
+HEADER_SIZE = 4
+FIXED_PORT = 12345
+CONNECTION_TIMEOUT = 30            # 客户端超时 (秒)
+ACCEPT_TIMEOUT = 1                 # accept 轮询间隔
+WORKER_CRASH_THRESHOLD = 3         # 连续崩溃阈值
+CUDA_CLEANUP_INTERVAL = 60         # CUDA 清理间隔 (秒)
+CUDA_CLEANUP_COUNT = 1000          # 每 N 次推理后清理 CUDA
+MODEL_RELOAD_INTERVAL = 1800       # 模型定期重载间隔 (秒), 30分钟
 
-# 模型路径（OCR的检测/识别模型）
-det_model_dir = os.path.join(root_path, 'ch_PP-OCRv4_det_infer')  # OCR检测模型（定位文字区域）
-rec_model_dir = os.path.join(root_path, 'ch_PP-OCRv4_rec_infer')  # OCR识别模型（识别文字内容）
+# OCR模型路径
+DET_MODEL_DIR = os.path.join(root_path, 'ch_PP-OCRv4_det_infer')
+REC_MODEL_DIR = os.path.join(root_path, 'ch_PP-OCRv4_rec_infer')
 
-# YOLO 模型路径配置
-# 游戏窗口检测模型
+# YOLO 模型路径
 GAME_WINDOWS_MODEL_PATH = os.path.join(root_path, 'yolo/model_data/1_tensorrt_final.onnx')
 GAME_WINDOWS_ENGINE_PATH = os.path.join(root_path, 'yolo/model_data/1_tensorrt_final.engine')
 GAME_WINDOWS_CLASS_NAMES = ['player', 'door', 'goods', 'continue', 'reward', 'forward', 'monster', 'monster_frost',
@@ -44,17 +53,15 @@ GAME_WINDOWS_CLASS_NAMES = ['player', 'door', 'goods', 'continue', 'reward', 'fo
                             'monster_115_4_box', 'monster_115_5', 'monster_115_5_box', 'boss_sy_1', 'monster_115_6',
                             'monster_115_6_box']
 
-# 小地图检测模型
 MIN_MAP_MODEL_PATH = os.path.join(root_path, 'yolo/model_data/min_map_best.onnx')
 MIN_MAP_ENGINE_PATH = os.path.join(root_path, 'yolo/model_data/min_map_best.engine')
 MIN_MAP_CLASS_NAMES = ['map_hero', 'map_boss', 'map_query', 'map_elite', 'map_special', 'map_query_1']
 
 
 def convert_to_serializable(obj):
-    """递归转换对象为JSON可序列化的Python原生类型"""
-    if isinstance(obj, np.integer):
+    if isinstance(obj, (np.integer,)):
         return int(obj)
-    elif isinstance(obj, np.floating):
+    elif isinstance(obj, (np.floating,)):
         return float(obj)
     elif isinstance(obj, np.ndarray):
         return obj.tolist()
@@ -64,53 +71,40 @@ def convert_to_serializable(obj):
         return [convert_to_serializable(item) for item in obj]
     elif isinstance(obj, dict):
         return {convert_to_serializable(key): convert_to_serializable(value) for key, value in obj.items()}
-    else:
-        return obj
+    return obj
 
 
 class YOLOv8TRTInfer:
-    """YOLOv8 TensorRT 封装推理类
-    功能：高精度TensorRT推理，返回结果与Ultralytics YOLOv8 predict完全一致
-    """
+    """YOLOv8 TensorRT 推理封装"""
 
     def __init__(self, onnx_path, engine_path, class_names, input_shape=(640, 640),
                  conf_thres=0.25, nms_thres=0.45):
-        """
-        初始化TensorRT推理类
-        :param onnx_path: ONNX模型路径
-        :param engine_path: TensorRT引擎保存路径
-        :param class_names: 类别名称列表
-        :param input_shape: 模型输入尺寸 (w, h)
-        :param conf_thres: 置信度阈值
-        :param nms_thres: NMS IOU阈值
-        """
-        # 基础配置
         self.onnx_path = onnx_path
         self.engine_path = engine_path
         self.class_names = class_names
         self.input_shape = input_shape
         self.conf_thres = conf_thres
         self.nms_thres = nms_thres
-
-        # TensorRT 核心对象
         self.TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
         self.engine = None
         self.context = None
-        self.cuda_mem = None
-        self.input_name = None
-        self.output_name = None
-
-        # CUDA内存初始化
         self.cuda_mem = self.SimpleCudaMem()
-
-        # 加载/构建引擎
+        self._init_lock = threading.Lock()
+        self.inference_count = 0
         self._init_engine()
 
     class SimpleCudaMem:
-        """CUDA内存操作封装（内部类）"""
-
         def __init__(self):
-            self.cuda = ctypes.CDLL('nvcuda')
+            _libs = ["nvcuda.dll", "cuda", "nvcuda"]
+            self.cuda = None
+            for lib in _libs:
+                try:
+                    self.cuda = ctypes.CDLL(lib)
+                    break
+                except OSError:
+                    continue
+            if self.cuda is None:
+                raise RuntimeError("无法加载 CUDA 运行时库")
             self.cuda.cuMemAlloc_v2.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.c_ulonglong]
             self.cuda.cuMemFree_v2.argtypes = [ctypes.c_void_p]
             self.cuda.cuMemcpyHtoD_v2.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_ulonglong]
@@ -118,11 +112,14 @@ class YOLOv8TRTInfer:
 
         def alloc(self, size):
             ptr = ctypes.c_void_p()
-            self.cuda.cuMemAlloc_v2(ctypes.byref(ptr), size)
+            err = self.cuda.cuMemAlloc_v2(ctypes.byref(ptr), size)
+            if err != 0:
+                raise MemoryError(f"cuMemAlloc 失败, 错误码: {err}")
             return ptr
 
         def free(self, ptr):
-            self.cuda.cuMemFree_v2(ptr)
+            if ptr:
+                self.cuda.cuMemFree_v2(ptr)
 
         def h2d(self, dst, src, size):
             self.cuda.cuMemcpyHtoD_v2(dst, src, size)
@@ -131,61 +128,49 @@ class YOLOv8TRTInfer:
             self.cuda.cuMemcpyDtoH_v2(dst, src, size)
 
     def _init_engine(self):
-        """初始化TensorRT引擎（内部调用）"""
-        # 加载已有引擎
-        if os.path.exists(self.engine_path):
-            self.engine = self._load_engine()
-        else:
-            # 构建新引擎
-            self._build_engine()
-            self.engine = self._load_engine()
-
-        # 创建执行上下文
-        self.context = self.engine.create_execution_context()
-        self.input_name = self.engine.get_tensor_name(0)
-        self.output_name = self.engine.get_tensor_name(1)
+        with self._init_lock:
+            if os.path.exists(self.engine_path):
+                self.engine = self._load_engine()
+            else:
+                self._build_engine()
+                self.engine = self._load_engine()
+            if self.context:
+                del self.context
+            self.context = self.engine.create_execution_context()
 
     def _build_engine(self):
-        """构建TensorRT引擎"""
         builder = trt.Builder(self.TRT_LOGGER)
         network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
         config = builder.create_builder_config()
-        config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 4 << 30)
+        config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 2 << 30)
         if builder.platform_has_fast_fp16:
             config.set_flag(trt.BuilderFlag.FP16)
-
         parser = trt.OnnxParser(network, self.TRT_LOGGER)
         with open(self.onnx_path, 'rb') as f:
             if not parser.parse(f.read()):
-                raise RuntimeError("ONNX模型解析失败！")
-
+                raise RuntimeError("ONNX模型解析失败")
         serialized_engine = builder.build_serialized_network(network, config)
         with open(self.engine_path, 'wb') as f:
             f.write(serialized_engine)
 
     def _load_engine(self):
-        """加载TensorRT引擎"""
         with open(self.engine_path, 'rb') as f:
             runtime = trt.Runtime(self.TRT_LOGGER)
             return runtime.deserialize_cuda_engine(f.read())
 
     def _letterbox(self, img):
-        """图像等比例缩放+填充"""
         h, w = img.shape[:2]
         ratio = min(self.input_shape[0] / h, self.input_shape[1] / w)
-        new_w = int(round(w * ratio))
-        new_h = int(round(h * ratio))
+        new_w, new_h = int(round(w * ratio)), int(round(h * ratio))
         top = (self.input_shape[0] - new_h) // 2
         left = (self.input_shape[1] - new_w) // 2
         bottom = self.input_shape[0] - new_h - top
         right = self.input_shape[1] - new_w - left
-
         img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
         img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(114, 114, 114))
         return img, ratio, top, left
 
     def _preprocess(self, img):
-        """图像预处理"""
         img, ratio, top, left = self._letterbox(img)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = img.transpose(2, 0, 1).astype(np.float32) / 255.0
@@ -193,7 +178,6 @@ class YOLOv8TRTInfer:
 
     @staticmethod
     def _xywh2xyxy(x):
-        """坐标格式转换"""
         y = np.copy(x)
         y[..., 0] = x[..., 0] - x[..., 2] / 2
         y[..., 1] = x[..., 1] - x[..., 3] / 2
@@ -202,15 +186,10 @@ class YOLOv8TRTInfer:
         return y
 
     def _nms(self, boxes, scores):
-        """非极大值抑制"""
-        x1 = boxes[:, 0]
-        y1 = boxes[:, 1]
-        x2 = boxes[:, 2]
-        y2 = boxes[:, 3]
+        x1, y1, x2, y2 = boxes[:, 0], boxes[:, 1], boxes[:, 2], boxes[:, 3]
         areas = (x2 - x1) * (y2 - y1)
         order = scores.argsort()[::-1]
         keep = []
-
         while order.size > 0:
             i = order[0]
             keep.append(i)
@@ -222,114 +201,101 @@ class YOLOv8TRTInfer:
             h = np.maximum(0.0, yy2 - yy1)
             inter = w * h
             ovr = inter / (areas[i] + areas[order[1:]] - inter)
-            inds = np.where(ovr <= self.nms_thres)[0]
-            order = order[inds + 1]
+            order = order[inds + 1] if (inds := np.where(ovr <= self.nms_thres)[0]).size > 0 else np.array([], dtype=int)
         return keep
 
     def _postprocess(self, output, img, ratio, top, left):
-        """
-        后处理：返回和YOLO一致的结果列表
-        :return: [(label, x1, y1, x2, y2, confidence), ...]
-        """
         pred = output[0].T
         boxes = self._xywh2xyxy(pred[:, :4])
         cls_scores = pred[:, 4:]
         max_scores = cls_scores.max(axis=1)
         classes = cls_scores.argmax(axis=1)
         mask = max_scores > self.conf_thres
-
         boxes, scores, classes = boxes[mask], max_scores[mask], classes[mask]
         if len(boxes) == 0:
             return []
-
-        # 坐标还原到原图
         boxes[:, [0, 2]] -= left
         boxes[:, [1, 3]] -= top
         boxes /= ratio
-
         h, w = img.shape[:2]
         boxes = np.clip(boxes, 0, [w, h, w, h]).astype(np.int32)
-
-        # NMS
         indices = self._nms(boxes, scores)
-
-        # 构造YOLO格式结果（转换为Python原生类型）
         res = []
         for i in indices:
             x1, y1, x2, y2 = boxes[i]
-            cls_id = int(classes[i])  # 转换为Python int
-            conf = float(scores[i])  # 转换为Python float
-            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)  # 转换为Python int
+            cls_id = int(classes[i])
             label = self.class_names[cls_id] if 0 <= cls_id < len(self.class_names) else "unknown"
-            res.append((label, x1, y1, x2, y2, conf))
+            res.append((label, int(x1), int(y1), int(x2), int(y2), float(scores[i])))
         return res
 
     def predict(self, image):
-        """
-        对外核心接口：与YOLOv8 predict返回格式完全一致
-        :param image: 图片路径 或 cv2读取的BGR图像
-        :return: 检测结果列表 [(label, x1, y1, x2, y2, confidence), ...]
-        """
         d_input, d_output = None, None
         try:
-            # 1. 读取图像
             if isinstance(image, str):
                 img = cv2.imread(image)
                 if img is None:
-                    raise ValueError("图片读取失败！")
+                    raise ValueError("图片读取失败")
             else:
                 img = image
-
-            # 2. 预处理
             input_data, ratio, top, left = self._preprocess(img)
-
-            # 3. 分配显存
             input_size = input_data.nbytes
-            output_shape = self.engine.get_tensor_shape(self.output_name)
-            output_size = np.prod(output_shape) * 4
+            output_shape = self.engine.get_tensor_shape(self.engine.get_tensor_name(1))
+            output_size = int(np.prod(output_shape)) * 4
 
             d_input = self.cuda_mem.alloc(input_size)
             d_output = self.cuda_mem.alloc(output_size)
-
-            # 4. 推理
             self.cuda_mem.h2d(d_input, input_data.ctypes.data, input_size)
             self.context.execute_v2([d_input.value, d_output.value])
 
-            # 5. 获取结果
             output = np.empty(output_shape, dtype=np.float32)
             self.cuda_mem.d2h(output.ctypes.data, d_output, output_size)
 
-            # 6. 后处理返回结果
+            self.inference_count += 1
             return self._postprocess(output, img, ratio, top, left)
 
+        except Exception:
+            # 推理异常时尝试重建引擎
+            try:
+                self._init_engine()
+            except Exception:
+                pass
+            raise
         finally:
-            # 释放显存
             if d_input:
-                self.cuda_mem.free(d_input)
+                try:
+                    self.cuda_mem.free(d_input)
+                except Exception:
+                    pass
             if d_output:
-                self.cuda_mem.free(d_output)
+                try:
+                    self.cuda_mem.free(d_output)
+                except Exception:
+                    pass
+
+    def maybe_cleanup_cuda(self):
+        """定期清理 CUDA 缓存"""
+        if self.inference_count > 0 and self.inference_count % CUDA_CLEANUP_COUNT == 0:
+            gc.collect()
+            # 不调用 torch.cuda.empty_cache() 因为这里用的是纯 TensorRT + ctypes
 
     def __del__(self):
-        """析构函数：释放所有资源"""
-        if hasattr(self, 'context') and self.context:
-            del self.context
-        if hasattr(self, 'engine') and self.engine:
-            del self.engine
+        try:
+            if hasattr(self, 'context') and self.context:
+                del self.context
+            if hasattr(self, 'engine') and self.engine:
+                del self.engine
+        except Exception:
+            pass
 
 
 class YoloV8TRT:
-    """YOLOv8 TensorRT 统一接口类
-    提供与原 YoloV8 类相同的接口方法，内部使用 TensorRT 推理
-    直接暴露 YOLOv8TRTInfer 实例，保持与 tensorrt_native.py 相同的使用方式
-    """
+    """与原 YoloV8 接口兼容的封装"""
 
     def __init__(self):
         self.game_windows_model = None
         self.min_map_model = None
 
     def loadModel(self):
-        """加载模型（与原 YoloV8 接口一致）"""
-        # 直接使用 YOLOv8TRTInfer 初始化，保持原有方式
         self.game_windows_model = YOLOv8TRTInfer(
             onnx_path=GAME_WINDOWS_MODEL_PATH,
             engine_path=GAME_WINDOWS_ENGINE_PATH,
@@ -338,7 +304,6 @@ class YoloV8TRT:
             conf_thres=0.25,
             nms_thres=0.45
         )
-
         self.min_map_model = YOLOv8TRTInfer(
             onnx_path=MIN_MAP_MODEL_PATH,
             engine_path=MIN_MAP_ENGINE_PATH,
@@ -349,266 +314,349 @@ class YoloV8TRT:
         )
 
     def detect(self, image):
-        """游戏窗口目标检测
-
-        返回格式与 YOLOv8TRTInfer.predict 完全一致：
-        [(label, x1, y1, x2, y2, confidence), ...]
-        """
         return self.game_windows_model.predict(image)
 
     def min_map_detect(self, image):
-        """小地图目标检测
-
-        返回格式与 YOLOv8TRTInfer.predict 完全一致：
-        [(label, x1, y1, x2, y2, confidence), ...]
-        """
         return self.min_map_model.predict(image)
 
 
 class ThreadedServer:
-    """多线程图像处理服务器
+    """多线程推理服务器 (带健康监控和自动恢复)"""
 
-    功能：接收客户端发送的图像数据，根据请求类型调用YOLO（目标检测）或OCR（文字识别）处理，
-          并将结果返回给客户端。支持多客户端并发请求（通过多线程和任务队列实现）。
-    """
-
-    def __init__(self, host='0.0.0.0', port=12345):
-        self.server_address = (host, port)  # 服务器监听地址（0.0.0.0表示允许所有IP连接）
-        self.task_queue = Queue(maxsize=TASK_QUEUE_SIZE)  # 任务队列（存储客户端连接任务）
-        self.workers = []  # 工作线程列表
-        self.running = False  # 服务器运行状态标志
+    def __init__(self, host='0.0.0.0', port=FIXED_PORT):
+        self.server_address = (host, port)
+        self.task_queue = Queue(maxsize=TASK_QUEUE_SIZE)
+        self.workers = []
+        self._worker_lock = threading.Lock()
+        self.running = False
+        self.active_connections = 0
+        self._conn_lock = threading.Lock()
 
     def start(self):
-        """启动服务器：初始化工作线程和监听线程"""
         self.running = True
-        # 启动工作线程（负责处理图像推理）
-        for _ in range(MAX_WORKERS):
-            worker = threading.Thread(target=self._worker)
-            worker.daemon = True  # 守护线程（主程序退出时自动结束）
-            worker.start()
-            self.workers.append(worker)
+        self._spawn_all_workers()
 
-        # 启动网络监听线程（负责接收客户端连接）
-        listener = threading.Thread(target=self._listen)
+        listener = threading.Thread(target=self._listen, daemon=True)
         listener.start()
-        print(f"服务器已启动在 {self.server_address[0]}:{self.server_address[1]}")
+
+        # 健康监控线程：检测死 worker 并重启
+        monitor = threading.Thread(target=self._health_monitor, daemon=True)
+        monitor.start()
+
+        print(f"服务器已启动 {self.server_address[0]}:{self.server_address[1]}")
+        print(f"工作线程: {MAX_WORKERS} | 任务队列: {TASK_QUEUE_SIZE}")
         listener.join()
 
+    def _spawn_all_workers(self):
+        with self._worker_lock:
+            self.workers.clear()
+            for i in range(MAX_WORKERS):
+                w = threading.Thread(target=self._worker, daemon=True, name=f"Worker-{i}")
+                w.start()
+                self.workers.append(w)
+
+    def _spawn_one_worker(self):
+        """补充一个工作线程"""
+        with self._worker_lock:
+            alive = [w for w in self.workers if w.is_alive()]
+            if len(alive) < MAX_WORKERS:
+                idx = len(alive)
+                w = threading.Thread(target=self._worker, daemon=True, name=f"Worker-{idx}")
+                w.start()
+                self.workers.append(w)
+                print(f"已补充新 Worker: {w.name} (当前存活: {len(alive) + 1})")
+
     def _listen(self):
-        """独立监听线程：持续接收客户端连接，将连接放入任务队列"""
-        # 创建TCP socket（流式传输，保证数据顺序和完整性）
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # 允许端口复用（避免服务器重启时端口占用）
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         sock.bind(self.server_address)
-        sock.listen(10)  # 最大等待连接数（超过后新连接会被拒绝）
+        sock.listen(10)
+        sock.settimeout(ACCEPT_TIMEOUT)
 
         try:
             while self.running:
-                conn, addr = sock.accept()  # 阻塞等待客户端连接（conn是连接对象，addr是客户端IP:端口）
-                self.task_queue.put((conn, addr))  # 将连接放入任务队列，由工作线程处理
+                try:
+                    conn, addr = sock.accept()
+                    self._configure_client(conn)
+                    # 队列满时拒绝连接，防止内存爆炸
+                    if self.task_queue.full():
+                        print(f"任务队列已满, 拒绝: {addr}")
+                        conn.close()
+                        continue
+                    self.task_queue.put((conn, addr))
+                except socket.timeout:
+                    continue
+                except OSError:
+                    if self.running:
+                        traceback.print_exc()
+                    break
         finally:
-            sock.close()  # 服务器停止时关闭socket
+            try:
+                sock.close()
+            except Exception:
+                pass
+
+    def _configure_client(self, conn):
+        conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 30)
+        conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)
+        conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
+        conn.settimeout(CONNECTION_TIMEOUT)
 
     def _worker(self):
-        """工作线程：每个线程独立初始化模型，从任务队列取连接并处理"""
-        # 初始化YOLO模型（使用 TensorRT 加速）
-        yolo = YoloV8TRT()
-        yolo.loadModel()
-
-        # 初始化OCR模型（文字识别，如提取图像中的文字内容）
-        ocr_engine = PaddleOCR(
-            lang='ch',  # 支持中文识别
-            det_model_dir=det_model_dir,  # 文字检测模型路径
-            rec_model_dir=rec_model_dir,  # 文字识别模型路径
-            use_gpu=True  # 使用GPU加速（需配置CUDA环境）
-        )
-
-        # 模型预热（用空图像触发首次推理，加载权重到内存/GPU，减少后续请求延迟）
-        if MODEL_WARMUP:
-            dummy = np.zeros((640, 640, 3), dtype=np.uint8)  # 生成640x640的空图像（模拟输入）
-            yolo.detect(dummy)  # YOLO预热
-            gray = cv2.cvtColor(dummy, cv2.COLOR_BGR2GRAY)  # 转为灰度图（OCR常见输入格式）
-            ocr_engine.ocr(gray, det=False, cls=False)  # OCR预热
-
-        print(f"线程 {threading.get_ident()} 模型初始化完成\n")
+        """工作线程: 独立初始化模型, 处理连接"""
+        crash_count = 0
+        yolo, ocr_engine = None, None
 
         while self.running:
             try:
-                # 从任务队列取连接（超时1秒，避免线程一直阻塞）
-                conn, addr = self.task_queue.get(timeout=1)
-                self._handle_client(conn, addr, yolo, ocr_engine)  # 处理客户端请求
-            except queue.Empty:
-                continue  # 队列空时继续等待
+                # 初始化模型
+                yolo = YoloV8TRT()
+                yolo.loadModel()
+                ocr_engine = PaddleOCR(
+                    lang='ch',
+                    det_model_dir=DET_MODEL_DIR,
+                    rec_model_dir=REC_MODEL_DIR,
+                    use_gpu=True,
+                    use_angle_cls=False,
+                    use_space_char=False,
+                    show_log=False,
+                    enable_mkldnn=False,
+                )
+                if MODEL_WARMUP:
+                    self._warmup_models(yolo, ocr_engine)
 
-    def _handle_client(self, conn, addr, yolo, ocr_engine):
-        """处理单个客户端请求：接收图像→调用模型处理→返回结果"""
-        try:
-            with conn:  # 自动关闭连接（退出with块时）
-                formatted_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                print(f"{formatted_time}\t新连接: {addr}")  # 记录客户端连接信息
+                print(f"[{threading.current_thread().name}] 模型初始化完成")
+                crash_count = 0
 
-                while True:
-                    # 接收客户端发送的消息（包含图像和请求头）
-                    header, image = self._receive_message(conn)
-                    if not header:  # 客户端断开连接时退出循环
+                # 主处理循环
+                while self.running:
+                    try:
+                        conn, addr = self.task_queue.get(timeout=1)
+                    except queue.Empty:
+                        if self._periodic_cleanup(yolo, ocr_engine):
+                            # 需要重载模型, 跳出内循环触发外层重建
+                            break
+                        continue
+
+                    try:
+                        with self._conn_lock:
+                            self.active_connections += 1
+                        self._handle_client(conn, addr, yolo, ocr_engine)
+                    finally:
+                        with self._conn_lock:
+                            self.active_connections -= 1
+                        self.task_queue.task_done()
+
+            except Exception as e:
+                crash_count += 1
+                print(f"[{threading.current_thread().name}] 崩溃 (第{crash_count}次): {e}")
+                traceback.print_exc()
+
+                if crash_count >= WORKER_CRASH_THRESHOLD:
+                    print(f"[{threading.current_thread().name}] 连续崩溃{crash_count}次, 放弃该 Worker")
+                    break
+
+                backoff = min(30, 2 ** crash_count)
+                print(f"[{threading.current_thread().name}] {backoff}秒后重试...")
+                time.sleep(backoff)
+
+            # 内循环退出后始终清理旧模型（正常重载 or 异常恢复）
+            self._cleanup_models(yolo, ocr_engine)
+            yolo, ocr_engine = None, None
+
+    def _warmup_models(self, yolo, ocr_engine):
+        dummy = np.zeros((640, 640, 3), dtype=np.uint8)
+        yolo.detect(dummy)
+        gray = cv2.cvtColor(dummy, cv2.COLOR_BGR2GRAY)
+        ocr_engine.ocr(gray, det=False, cls=False)
+
+    def _periodic_cleanup(self, yolo, ocr_engine):
+        """定期资源清理。返回 True 表示需要重载模型。"""
+        now = time.time()
+        if not hasattr(self, '_last_cleanup'):
+            self._last_cleanup = now
+            self._last_model_reload = now
+            yolo.game_windows_model.maybe_cleanup_cuda()
+            return False
+        # CUDA 碎片清理
+        if now - self._last_cleanup > CUDA_CLEANUP_INTERVAL:
+            self._last_cleanup = now
+            yolo.game_windows_model.maybe_cleanup_cuda()
+            gc.collect()
+        # 定期重载模型防止 GPU 碎片化
+        if now - self._last_model_reload > MODEL_RELOAD_INTERVAL:
+            self._last_model_reload = now
+            self._cleanup_models(yolo, ocr_engine)
+            print(f"[{threading.current_thread().name}] 定期重载模型")
+            return True
+        return False
+
+    @staticmethod
+    def _cleanup_models(yolo, ocr_engine):
+        for obj in (yolo, ocr_engine):
+            try:
+                if obj is not None:
+                    del obj
+            except Exception:
+                pass
+        gc.collect()
+
+    def _health_monitor(self):
+        """监控 Worker 存活, 自动补充"""
+        while self.running:
+            time.sleep(5)
+            with self._worker_lock:
+                alive = [w for w in self.workers if w.is_alive()]
+                # 清理死线程引用
+                self.workers = alive
+                dead = MAX_WORKERS - len(alive)
+                if dead > 0:
+                    print(f"检测到 {dead} 个 Worker 已死亡, 正在补充...")
+                    for _ in range(dead):
+                        self._spawn_one_worker()
+                # 清理队列中堆积的旧任务
+                while not self.task_queue.empty():
+                    try:
+                        stale = self.task_queue.get_nowait()
+                        try:
+                            stale[0].close()
+                        except Exception:
+                            pass
+                    except queue.Empty:
                         break
 
-                    start_time = time.time()  # 记录处理开始时间（用于计算耗时）
+    def _handle_client(self, conn, addr, yolo, ocr_engine):
+        try:
+            with conn:
+                print(f"{datetime.now().strftime('%H:%M:%S')}\t连接: {addr}")
+                while self.running:
+                    header, image = self._receive_message(conn)
+                    if not header:
+                        break
 
-                    # 根据请求类型调用对应模型处理
-                    if header['type'] == 'game_windows':
-                        # 处理"游戏窗口"目标检测
-                        # 返回格式: [(label, x1, y1, x2, y2, confidence), ...]
-                        result = yolo.detect(image)
-                    elif header['type'] == 'min_map':
-                        # 处理"小地图"目标检测
-                        # 返回格式: [(label, x1, y1, x2, y2, confidence), ...]
-                        result = yolo.min_map_detect(image)
-                    elif header['type'] == 'ocr':
-                        # 处理文字识别
-                        result = self._ocr_process(image, ocr_engine)
-                    else:
-                        raise ValueError("无效的请求类型")
-
-                    # 将处理结果发送给客户端（转换数据为JSON可序列化格式）
+                    t0 = time.time()
+                    result = self._process(header, image, yolo, ocr_engine)
                     self._send_response(conn, result, header['type'])
 
-                    # 计算并打印处理耗时（用于性能监控）
-                    latency = (time.time() - start_time) * 1000
-                    print(f"{header['type']} 请求处理完成 耗时: {latency:.2f}ms")
+                    latency = (time.time() - t0) * 1000
+                    print(f"  {header['type']} | {latency:.1f}ms | 活跃连接: {self.active_connections}")
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError, socket.timeout):
+            pass  # 客户端断开不算服务器异常
 
-        except Exception as e:
-            traceback.print_exc()  # 打印异常堆栈（便于调试）
-            print(f"客户端 {addr} 处理异常: {str(e)}")
+    def _process(self, header, image, yolo, ocr_engine):
+        req_type = header['type']
+        if req_type == 'game_windows':
+            return yolo.detect(image)
+        elif req_type == 'min_map':
+            return yolo.min_map_detect(image)
+        elif req_type == 'ocr':
+            return self._ocr_process(image, ocr_engine)
+        raise ValueError(f"无效请求类型: {req_type}")
 
     def _receive_message(self, conn):
-        """接收客户端消息：解析消息头→接收图像数据→解码为OpenCV格式
-
-        消息格式：
-        1. 4字节（uint32）：消息头长度（header_size）
-        2. header_size字节：消息头（JSON格式，包含请求类型、图像大小等）
-        3. 图像大小字节：图像数据（二进制，JPG/PNG编码）
-        """
         try:
-            # 接收消息头长度（4字节，大端格式）
-            header_len = conn.recv(4)
-            if len(header_len) < 4:  # 未收到完整的头长度（客户端断开）
+            header_len = self._recv_exact(conn, HEADER_SIZE)
+            if not header_len:
                 return None, None
-
-            header_size = struct.unpack('!I', header_len)[0]  # 解析为无符号整数（!表示网络字节序，大端）
-            header_data = conn.recv(header_size)  # 接收消息头数据
-            header = json.loads(header_data.decode('utf-8'))  # 解码为字典
-
-            # 接收图像数据
-            image_size = header['image_size']  # 从消息头获取图像总大小
-            received = 0
-            chunks = []
-            while received < image_size:
-                # 每次最多接收4096字节（平衡效率和内存）
-                chunk = conn.recv(min(4096, image_size - received))
-                if not chunk:  # 客户端断开，未收到完整图像
-                    break
-                chunks.append(chunk)
-                received += len(chunk)
-
-            # 将二进制数据解码为OpenCV图像（BGR格式）
-            image = cv2.imdecode(np.frombuffer(b''.join(chunks), dtype=np.uint8), cv2.IMREAD_COLOR)
+            header_size = struct.unpack('!I', header_len)[0]
+            header_data = self._recv_exact(conn, header_size)
+            if not header_data:
+                return None, None
+            header = json.loads(header_data.decode('utf-8'))
+            image_data = self._recv_exact(conn, header['image_size'])
+            if not image_data:
+                return None, None
+            image = cv2.imdecode(np.frombuffer(image_data, dtype=np.uint8), cv2.IMREAD_COLOR)
             return header, image
+        except (socket.timeout, ConnectionResetError, ConnectionAbortedError,
+                json.JSONDecodeError, OSError, BrokenPipeError):
+            return None, None
 
-        except (socket.timeout, ConnectionResetError):
-            return None, None  # 连接超时或被客户端重置
+    def _recv_exact(self, conn, size):
+        data = bytearray()
+        while len(data) < size:
+            try:
+                chunk = conn.recv(min(BUFFER_SIZE, size - len(data)))
+                if not chunk:
+                    return None
+                data.extend(chunk)
+            except socket.timeout:
+                return None
+        return bytes(data)
 
     def _send_response(self, conn, data, msg_type):
-        """向客户端发送处理结果：构建响应头→发送头→发送结果数据
-
-        响应格式：
-        1. 4字节：响应头长度
-        2. 响应头字节：JSON格式（包含响应类型、结果数据大小）
-        3. 结果数据字节：JSON编码的处理结果
-        """
         try:
-            # 转换数据为JSON可序列化格式
-            serializable_data = convert_to_serializable(data)
-            json_data = json.dumps(serializable_data).encode('utf-8')
-            header = json.dumps({
-                'type': msg_type,  # 与请求类型一致（便于客户端匹配）
-                'data_size': len(json_data)  # 结果数据大小
-            }).encode('utf-8')  # 响应头序列化
-
-            # 发送响应头长度→响应头→结果数据
+            json_data = json.dumps(convert_to_serializable(data)).encode('utf-8')
+            header = json.dumps({'type': msg_type, 'data_size': len(json_data)}).encode('utf-8')
             conn.sendall(struct.pack('!I', len(header)))
             conn.sendall(header)
             conn.sendall(json_data)
-        except BrokenPipeError:
-            print("客户端连接已中断")  # 客户端提前断开，无法发送响应
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass
 
-    # def _ocr_process(self, image, ocr_engine):
-    #     """OCR处理流程：转为灰度图→调用OCR→拼接识别结果"""
-    #     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # 转为灰度图（减少计算量，提高OCR精度）
-    #     results = ocr_engine.ocr(gray, det=False, cls=False)  # 仅识别（不检测文字区域，假设输入是纯文字图像）
-    #     # 拼接所有识别结果（PaddleOCR返回格式：[[(文字, 置信度), ...]]）
-    #     return ''.join(line[0] for page in results for line in page)
-
-    def _ocr_process(self, image: np.ndarray, ocr_engine: PaddleOCR) -> str:
-        """处理OCR请求"""
+    def _ocr_process(self, image, ocr_engine):
         try:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             results = ocr_engine.ocr(gray, det=False, cls=False)
-
-            # 保持原有格式但添加异常处理
             text_parts = []
             for page in results:
                 for line in page:
                     try:
                         text_parts.append(str(line[0]))
                     except (IndexError, TypeError):
-                        # 跳过有问题的行
                         continue
-
             return ''.join(text_parts)
-
         except Exception as e:
-            print(f"OCR处理异常: {e}")
+            print(f"OCR异常: {e}")
             return ""
 
 
 class PrintRedirector:
-    """日志重定向：将print输出到Tkinter的文本框（方便可视化查看服务器日志）"""
-
     def __init__(self, text_widget):
-        self.text_widget = text_widget  # Tkinter的文本框组件
+        self.text_widget = text_widget
+        self.queue = queue.Queue()
+        self.running = True
+        self.thread = threading.Thread(target=self._pump, daemon=True)
+        self.thread.start()
+
+    def _pump(self):
+        while self.running:
+            try:
+                while not self.queue.empty():
+                    msg = self.queue.get_nowait()
+                    self.text_widget.insert(tk.END, msg)
+                    self.text_widget.see(tk.END)
+                time.sleep(0.1)
+            except Exception:
+                break
 
     def write(self, message):
-        self.text_widget.insert(tk.END, message)  # 插入日志到文本框末尾
-        self.text_widget.see(tk.END)  # 自动滚动到最新内容
+        self.queue.put(message)
 
     def flush(self):
-        pass  # 实现flush方法（兼容print的flush参数）
+        pass
 
 
 if __name__ == '__main__':
-    # 创建Tkinter窗口（服务器日志界面）
     root = tk.Tk()
-    root.title("服务器日志")
-    root.geometry("800x600")  # 窗口大小
+    root.title("TensorRT 推理服务器")
+    root.geometry("800x600")
 
-    # 添加带滚动条的文本框（显示日志）
     text_area = scrolledtext.ScrolledText(root, width=80, height=30)
     text_area.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
-    sys.stdout = PrintRedirector(text_area)  # 重定向stdout到文本框
+    redirector = PrintRedirector(text_area)
+    sys.stdout = redirector
 
-    # 启动服务器（在独立线程中，避免阻塞GUI）
     server = ThreadedServer()
-    server_thread = threading.Thread(target=server.start)
-    server_thread.daemon = True  # 服务器线程随GUI退出
+    server_thread = threading.Thread(target=server.start, daemon=True)
     server_thread.start()
 
-
-    # 窗口关闭时的处理（停止服务器）
     def on_closing():
-        server.running = False  # 停止服务器运行标志
-        root.destroy()  # 关闭GUI窗口
+        server.running = False
+        redirector.running = False
+        root.destroy()
 
-
-    root.protocol("WM_DELETE_WINDOW", on_closing)  # 绑定窗口关闭事件
-    root.mainloop()  # 启动GUI主循环
+    root.protocol("WM_DELETE_WINDOW", on_closing)
+    root.mainloop()
