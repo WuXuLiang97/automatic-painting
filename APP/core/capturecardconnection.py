@@ -31,6 +31,10 @@ class CaptureCardConnection:
         self.preview_active = False  # 预览窗口状态标志
         self.max_device_index = 10  # 最大尝试设备索引数
         self.crop_region = None  # 裁剪区域 (x, y, width, height)
+        # 交互式裁剪选择状态
+        self._selecting = False
+        self._sel_start = (0, 0)
+        self._sel_end = (0, 0)
 
     def find_available_devices(self) -> List[Dict[str, str]]:
         """
@@ -290,16 +294,32 @@ class CaptureCardConnection:
             logger.error(f"捕获帧失败: {str(e)}")
             return None
 
+    def _on_mouse(self, event, x, y, flags, param):
+        """鼠标回调：拖拽选择裁剪区域"""
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self._selecting = True
+            self._sel_start = (x, y)
+            self._sel_end = (x, y)
+        elif event == cv2.EVENT_MOUSEMOVE and self._selecting:
+            self._sel_end = (x, y)
+        elif event == cv2.EVENT_LBUTTONUP:
+            self._selecting = False
+            self._sel_end = (x, y)
+            x1, y1 = self._sel_start
+            x2, y2 = self._sel_end
+            if abs(x2 - x1) > 5 and abs(y2 - y1) > 5:
+                rx = min(x1, x2)
+                ry = min(y1, y2)
+                rw = abs(x2 - x1)
+                rh = abs(y2 - y1)
+                self.set_crop_region(rx, ry, rw, rh)
+                logger.info(f"交互式设置裁剪区域: x={rx}, y={ry}, w={rw}, h={rh}")
+
     def start_preview(self, window_name: str = "Capture Card Preview", duration: float = 0) -> bool:
-        """
-        启动预览窗口显示采集卡画面
+        """启动预览窗口。
 
-        参数:
-            window_name (str): 窗口名称
-            duration (float): 预览持续时间(秒)，0表示无限
-
-        返回:
-            bool: 预览是否成功启动
+        鼠标拖拽选择裁剪区域，按键:
+          c = 截图 (BMP),  r = 重置裁剪,  Esc/q = 退出
         """
         if not self.is_connected():
             logger.error("无法启动预览：未连接到设备")
@@ -307,8 +327,10 @@ class CaptureCardConnection:
 
         try:
             self.preview_active = True
+            self._selecting = False
             cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
             cv2.resizeWindow(window_name, 800, 600)
+            cv2.setMouseCallback(window_name, self._on_mouse)
             frame_count = 0
             start_time = time.time()
 
@@ -320,36 +342,44 @@ class CaptureCardConnection:
                     logger.error("连接已断开")
                     break
 
-                # 捕获一帧
                 frame = self.capture()
                 if frame is not None:
                     frame_count += 1
-                    # 计算帧率
                     elapsed_time = time.time() - start_time
                     if elapsed_time > 0:
                         fps = frame_count / elapsed_time
-                        # 在帧上显示信息
-                        info_text = f"FPS: {fps:.1f} | Res: {frame.shape[1]}x{frame.shape[0]}"
+                        info_lines = [f"FPS: {fps:.1f} | Res: {frame.shape[1]}x{frame.shape[0]}"]
                         if self.crop_region:
-                            info_text += f" | Crop: {self.crop_region[2]}x{self.crop_region[3]}"
-                        cv2.putText(frame, info_text, (10, 30),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                            info_lines.append(f"Crop: {self.crop_region[2]}x{self.crop_region[3]}")
+                        info_lines.append("Drag mouse to set crop | c=snap(BMP) r=reset q=quit")
+                        y0 = 30
+                        for line in info_lines:
+                            cv2.putText(frame, line, (10, y0),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                            y0 += 24
 
-                    # 显示帧
+                    # 绘制拖拽中的矩形框
+                    if self._selecting:
+                        cv2.rectangle(frame, self._sel_start, self._sel_end, (0, 0, 255), 1)
+                    # 绘制已设置的裁剪区域
+                    elif self.crop_region:
+                        x, y, w, h = self.crop_region
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), (255, 255, 0), 1)
+
                     cv2.imshow(window_name, frame)
 
-                    # 处理按键
                     key = cv2.waitKey(1) & 0xFF
-                    if key == ord('q') or key == 27:  # 27 is ESC
+                    if key == ord('q') or key == 27:
                         break
-                    elif key == ord('c'):  # 按'c'键截图
+                    elif key == ord('c'):
                         self.capture_screenshot()
-                    elif key == ord('r'):  # 按'r'键重置裁剪
+                    elif key == ord('r'):
                         self.clear_crop_region()
-                        logger.info("已重置裁剪区域")
+                        self._sel_start = (0, 0)
+                        self._sel_end = (1067, 600)
                 else:
                     logger.warning("未能捕获到帧")
-                    time.sleep(0.1)  # 避免CPU占用过高
+                    time.sleep(0.1)
 
             cv2.destroyWindow(window_name)
             self.preview_active = False
@@ -389,13 +419,13 @@ class CaptureCardConnection:
             logger.error("无法捕获帧")
             return None
 
-        # 生成文件名
+        # 生成文件名 (BMP 格式)
         timestamp = time.strftime("%Y%m%d_%H%M%S")
-        filename = os.path.join(save_dir, f"screenshot_{timestamp}.jpg")
+        filename = os.path.join(save_dir, f"screenshot_{timestamp}.bmp")
 
         # 保存图像
         try:
-            cv2.imwrite(filename, frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            cv2.imwrite(filename, frame)
             logger.info(f"截图已保存: {filename}")
             return filename
         except Exception as e:
@@ -445,7 +475,7 @@ if __name__ == "__main__":
             print("  c 键 - 在预览模式下截图")
             print("  r 键 - 重置裁剪区域")
             print("  ESC 或 q 键 - 退出")
-
+            capture_card.set_crop_region(0,0,1067,600)
             # 启动预览
             capture_card.start_preview(duration=0)  # 0表示无限预览
 

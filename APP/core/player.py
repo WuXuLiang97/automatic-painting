@@ -2090,22 +2090,22 @@ class PlayerThread(QThread):
                 if not open_status:
                     continue
                 time.sleep(0.1)
-                ret = self.mm.FindPic(0, 0, 1067, 600, "移动速度.bmp", 0.9, 1, None, delta_color=([19, 0, 0], [21, 255, 255]))
+                ret = self.mm.FindPic_sleep(0, 0, 1067, 600, "移动速度.bmp", 0.9, 1, time_s=3,my_sleep=0.1)
                 if ret:
                     x1, y1 = ret[0][3] + 60, ret[0][4] - 5
                     x2, y2 = x1 + 55, y1 + 20
                 else:
                     self.send_log("没有找到移动坐标")
                     continue
-                #results = self.waiting_for_the_text_to_appear([328,465,377,482], "0123456789", r'[0-9]+', 0.5, amplify=False)
-                img_dict = {
-                    '0': ['0.bmp', '0-2.bmp'], '1': ['1.bmp', '1-1.bmp', '1-2.bmp'], '2': ['2.bmp', '2-1.bmp', '2-2.bmp'],
-                    '3': ['3.bmp', '3-1.bmp', '3-2.bmp'], '4': ['4.bmp', '4_1.bmp', '4_3.bmp'],
-                    '5': ['5.bmp', '5-1.bmp', '5-2.bmp'], '6': ['6.bmp', '6-1.bmp', '6-2.bmp'], '7': ['7.bmp', '7-1.bmp', '7-2.bmp'],
-                    '8': ['8.bmp', '8-1.bmp', '8-2.bmp'], '9': ['9.bmp', '9-1.bmp', '9-2.bmp']
-
-                }
-                results = self.mm.screenshot_OCR_str(x1, y1, x2, y2, img_dict, 0.8, get_colour=([62, 130, 159], [65, 141, 163]), drag=None)
+                results = self.waiting_for_the_text_to_appear([328,465,377,482], "0123456789", r'[0-9]+', 0.5, amplify=False)
+                # img_dict = {
+                #     '0': ['0.bmp', '0-2.bmp'], '1': ['1.bmp', '1-1.bmp', '1-2.bmp'], '2': ['2.bmp', '2-1.bmp', '2-2.bmp'],
+                #     '3': ['3.bmp', '3-1.bmp', '3-2.bmp'], '4': ['4.bmp', '4_1.bmp', '4_2.bmp'],
+                #     '5': ['5.bmp', '5-1.bmp', '5-2.bmp'], '6': ['6.bmp', '6-1.bmp', '6-2.bmp'], '7': ['7.bmp', '7-1.bmp', '7-2.bmp'],
+                #     '8': ['8.bmp', '8-1.bmp', '8-2.bmp'], '9': ['9.bmp', '9-1.bmp', '9-2.bmp']
+                #
+                # }
+                #results = self.mm.screenshot_OCR_str(x1, y1, x2, y2, img_dict, 0.8, get_colour=([62, 130, 159], [65, 141, 163]), drag=None)
                 self.send_log(f"移速识别结果：{results}")
                 if len(results) > 0:
                     if len(results) > 2:
