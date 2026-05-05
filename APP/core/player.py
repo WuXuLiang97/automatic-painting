@@ -2097,15 +2097,15 @@ class PlayerThread(QThread):
                 else:
                     self.send_log("没有找到移动坐标")
                     continue
-                results = self.waiting_for_the_text_to_appear([328,465,377,482], "0123456789", r'[0-9]+', 0.5, amplify=False)
+                #results = self.waiting_for_the_text_to_appear([328,465,377,482], "0123456789", r'[0-9]+', 0.5, amplify=False)
                 img_dict = {
-                    '0': ['0.bmp'], '1': ['1.bmp', '1-1.bmp'], '2': ['2.bmp', '2-1.bmp'],
-                    '3': ['3.bmp', '3-1.bmp'], '4': ['4.bmp', '4_1.bmp'],
-                    '5': ['5.bmp', '5-1.bmp'], '6': ['6.bmp', '6-1.bmp'], '7': ['7.bmp', '7-1.bmp'],
-                    '8': ['8.bmp', '8-1.bmp'], '9': ['9.bmp', '9-1.bmp']
+                    '0': ['0.bmp', '0-2.bmp'], '1': ['1.bmp', '1-1.bmp', '1-2.bmp'], '2': ['2.bmp', '2-1.bmp', '2-2.bmp'],
+                    '3': ['3.bmp', '3-1.bmp', '3-2.bmp'], '4': ['4.bmp', '4_1.bmp', '4_3.bmp'],
+                    '5': ['5.bmp', '5-1.bmp', '5-2.bmp'], '6': ['6.bmp', '6-1.bmp', '6-2.bmp'], '7': ['7.bmp', '7-1.bmp', '7-2.bmp'],
+                    '8': ['8.bmp', '8-1.bmp', '8-2.bmp'], '9': ['9.bmp', '9-1.bmp', '9-2.bmp']
 
                 }
-                #results = self.mm.screenshot_OCR_str(x1, y1, x2, y2, img_dict, 0.8, get_colour=([62, 130, 159], [65, 141, 163]), drag=None)
+                results = self.mm.screenshot_OCR_str(x1, y1, x2, y2, img_dict, 0.8, get_colour=([62, 130, 159], [65, 141, 163]), drag=None)
                 self.send_log(f"移速识别结果：{results}")
                 if len(results) > 0:
                     if len(results) > 2:
@@ -2999,7 +2999,7 @@ class PlayerThread(QThread):
         if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪","生命巡礼","怀纳千海之天", "深渊：最终调律者"):
             ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
             if ret:
-                ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp|巡礼之证.bmp|闪闪明1.bmp|闪闪明2.bmp|闪闪明3.bmp", 0.85, 1, drag=None)
+                ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp|巡礼之证.bmp|闪闪明1.bmp|闪闪明2.bmp|闪闪明3.bmp", 0.85, 1)
                 if ret:
                     for r in ret:
                         x, y = r[1], r[2]
@@ -3216,6 +3216,8 @@ class PlayerThread(QThread):
                     # 每日任务
                     if self.player.is_daily_tasks == "是":
                         self.daily_tasks()
+                    #分解装备
+                    self.operator_module.sort_goods()
                     self.brush_running = False
                     self.first_press_to_exit = True
                     self.direction_dic.clear()
@@ -3596,6 +3598,7 @@ class PlayerThread(QThread):
             else:
                 pyauto.keyPressChar("esc")
                 time.sleep(0.2)
+
 
     def access_0(self):
         pyauto.keyPressChar("i")

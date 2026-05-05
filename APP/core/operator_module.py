@@ -256,6 +256,41 @@ class OperatorModule:
         """
         return random.randint(x1, x2), random.randint(y1, y2)
 
+    def sort_goods(self):
+        """分解装备"""
+        pyauto.keyPressChar("esc")
+        time.sleep(0.2)
+        if self.is_esc_menu_open():
+            pyauto.keyPressChar("esc")
+            time.sleep(0.2)
+        logger.info("分解装备")
+        pyauto.keyPressChar("8")
+        time.sleep(0.6)
+        for _ in range(3):
+            ret = self.mm.FindPic_sleep(0, 0, 1067, 600, "分解_添加.bmp", 0.9, time_s=2, my_sleep=0.1)
+            if ret:
+                x, y = ret[0][1], ret[0][2]
+                self.move_to(x, y)
+                time.sleep(0.1)
+                pyauto.click()
+                time.sleep(0.2)
+                for _ in range(2):
+                    pyauto.keyPressChar("a")
+                    time.sleep(0.2)
+                    pyauto.keyPressChar("space")
+                    time.sleep(0.2)
+                    pyauto.keyPressChar("space")
+                    time.sleep(2.6)
+                pyauto.keyPressChar("esc")
+                time.sleep(0.2)
+                pyauto.keyPressChar("esc")
+                time.sleep(0.2)
+                return True
+            else:
+                logger.info("装备库未打开")
+                pyauto.keyPressChar("8")
+                time.sleep(0.2)
+
     def sale_goods(self, sell):
         """
         销售货物
