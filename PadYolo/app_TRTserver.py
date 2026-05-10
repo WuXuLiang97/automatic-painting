@@ -24,8 +24,8 @@ import ctypes
 from root_dir import root_path
 
 # ============ 全局配置 ============
-MAX_WORKERS = 2
-TASK_QUEUE_SIZE = 20
+MAX_WORKERS = 1
+TASK_QUEUE_SIZE = 5
 MODEL_WARMUP = True
 BUFFER_SIZE = 4096
 HEADER_SIZE = 4
@@ -35,7 +35,7 @@ ACCEPT_TIMEOUT = 1                 # accept 轮询间隔
 WORKER_CRASH_THRESHOLD = 3         # 连续崩溃阈值
 CUDA_CLEANUP_INTERVAL = 60         # CUDA 清理间隔 (秒)
 CUDA_CLEANUP_COUNT = 1000          # 每 N 次推理后清理 CUDA
-MODEL_RELOAD_INTERVAL = 1800       # 模型定期重载间隔 (秒), 30分钟
+MODEL_RELOAD_INTERVAL = 18000       # 模型定期重载间隔 (秒), 300分钟
 
 # OCR模型路径
 DET_MODEL_DIR = os.path.join(root_path, 'ch_PP-OCRv4_det_infer')
@@ -398,6 +398,9 @@ class ThreadedServer:
                 pass
 
     def _configure_client(self, conn):
+        conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        conn.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 256 * 1024)
+        conn.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 256 * 1024)
         conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 30)
         conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 10)

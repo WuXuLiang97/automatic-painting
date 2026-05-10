@@ -35,6 +35,10 @@ class CaptureCardConnection:
         self._selecting = False
         self._sel_start = (0, 0)
         self._sel_end = (0, 0)
+        # 限速节流
+        self._target_fps = 30.0  # 目标帧率
+        self._min_frame_interval = 1.0 / self._target_fps
+        self._last_capture_time = 0.0
 
     def find_available_devices(self) -> List[Dict[str, str]]:
         """
@@ -128,13 +132,23 @@ class CaptureCardConnection:
             height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             self.actual_resolution = (width, height)
 
-            # 设置自动对焦（如果可用）
+            # 限制采集卡的输出帧率（从源头减少数据量）
+            try:
+                self.cap.set(cv2.CAP_PROP_FPS, 30)
+            except:
+                pass
+            # 降低分辨率可大幅减少网络带宽
+            try:
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+            except:
+                pass
+            # 设置自动对焦
             try:
                 self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
             except:
                 pass
-
-            # 设置自动曝光（如果可用）
+            # 设置自动曝光
             try:
                 self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
             except:
@@ -245,9 +259,24 @@ class CaptureCardConnection:
             'crop_region': self.crop_region
         }
 
+    def set_target_fps(self, fps: float):
+        """设置目标帧率（降低可减少网络带宽）"""
+        self._target_fps = max(1.0, min(fps, 120.0))
+        self._min_frame_interval = 1.0 / self._target_fps
+        logger.info(f"目标帧率设置为: {self._target_fps:.0f} FPS")
+
+    def _throttle(self):
+        """节流：控制帧率上限"""
+        now = time.time()
+        elapsed = now - self._last_capture_time
+        if elapsed < self._min_frame_interval:
+            return False  # 帧太快，跳过
+        self._last_capture_time = now
+        return True
+
     def capture(self, blocking: bool = True) -> Optional[np.ndarray]:
         """
-        捕获单帧图像
+        捕获单帧图像（带 FPS 节流）
 
         参数:
             blocking (bool): 是否阻塞直到获取到帧
@@ -257,6 +286,10 @@ class CaptureCardConnection:
         """
         if not self.is_connected() or self.cap is None:
             return None
+
+        # FPS 节流
+        if not self._throttle():
+            return self.current_frame  # 返回上一帧，避免重复读流
 
         try:
             # 从视频流中读取帧

@@ -232,7 +232,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.rolesTable.setColumnWidth(1, 80)  # 角色职业类型
         self.rolesTable.setColumnWidth(2, 80)  # 角色转职职业
         self.rolesTable.setColumnWidth(5, 120)  # 地图名称
-        self.rolesTable.setColumnWidth(8, 50)  # 预留疲劳
+        self.rolesTable.setColumnWidth(8, 100)  # 预留疲劳
 
         # 允许用户手动调整列宽
         header.setSectionsMovable(True)

@@ -201,6 +201,9 @@ class PlayerThread(QThread):
         server_address = (gv.server_ip, gv.server_port)
         logger.info(server_address)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 256 * 1024)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 256 * 1024)
         self.sock.connect(server_address)
         self.sock.settimeout(1)
         self.sock_connect_flags = True
@@ -1933,6 +1936,7 @@ class PlayerThread(QThread):
                 time.sleep(0.05)
                 pyauto.keyPressChar("space")
                 time.sleep(0.05)
+            time.sleep(0.35)
         self.buffer_is_release = True
 
     def find_nearest_zero_to_target(self, room_info_map, target):
@@ -2699,6 +2703,9 @@ class PlayerThread(QThread):
         logger.info(server_address)
         self.sock.close()
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 256 * 1024)
+        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 256 * 1024)
         self.sock.connect(server_address)
         self.sock.settimeout(5.0)
 
@@ -2711,11 +2718,11 @@ class PlayerThread(QThread):
                 game_image = screenshot_util.get_game_screenshot()  # logger.info(f"截图用时：{time.time() - st}")  # game_image = Capture(hwnd, 0, 0, 1067, 600)
                 logger.info(f"截图完毕")
             # 1. 转换图片为二进制
-            img_bytes = cv2.imencode('.jpg', game_image)[1].tobytes()
+            img_bytes = cv2.imencode('.jpg', game_image, [cv2.IMWRITE_JPEG_QUALITY, 75])[1].tobytes()
             image_size = len(img_bytes)
 
             # 2. 创建消息头
-            header_data = json.dumps({"type": "game_windows", "width": 1067, "height": 600, "image_size": image_size  # 添加图片大小到header
+            header_data = json.dumps({"type": "game_windows", "width": 1067, "height": 600, "image_size": image_size
                                       }).encode('utf-8')
 
             # 3. 打包消息头长度（4字节）
@@ -2867,11 +2874,13 @@ class PlayerThread(QThread):
             # cv2.imwrite(f"D:/automatic-painting/min_map/{min_map_name}.png", min_map)
             # min_map_name += 1
             # 1. 转换图片为二进制
-            img_bytes = cv2.imencode('.jpg', min_map)[1].tobytes()
+            # 小地图太小，直接发 PNG 比 JPEG 更快（跳过编码开销）
+            _, img_bytes = cv2.imencode('.png', min_map)
+            img_bytes = img_bytes.tobytes()
             image_size = len(img_bytes)
 
             # 2. 创建消息头
-            header_data = json.dumps({"type": "min_map", "width": 1, "height": 1, "image_size": image_size  # 添加图片大小到header
+            header_data = json.dumps({"type": "min_map", "width": 1, "height": 1, "image_size": image_size
                                       }).encode('utf-8')
 
             # 3. 打包消息头长度（4字节）
@@ -2999,7 +3008,7 @@ class PlayerThread(QThread):
         if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪","生命巡礼","怀纳千海之天", "深渊：最终调律者"):
             ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
             if ret:
-                ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp|巡礼之证.bmp|闪闪明1.bmp|闪闪明2.bmp|闪闪明3.bmp", 0.85, 1)
+                ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp|巡礼之证.bmp|闪闪明1.bmp|闪闪明2.bmp|闪闪明3.bmp", 0.85,1)
                 if ret:
                     for r in ret:
                         x, y = r[1], r[2]
@@ -3084,7 +3093,7 @@ class PlayerThread(QThread):
                     ret = self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85)
                     if ret:
                         if self.player.map_name in ("深渊：终末崇拜者", "跌宕群岛", "妖气追踪","生命巡礼","怀纳千海之天", "深渊：最终调律者"):
-                            ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp|巡礼之证.bmp|闪闪明1.bmp|闪闪明2.bmp|闪闪明3.bmp", 0.85, 1, drag=None)
+                            ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp|巡礼之证.bmp|闪闪明1.bmp|闪闪明2.bmp|闪闪明3.bmp", 0.85,1)
                             if ret:
                                 for r in ret:
                                     x, y = r[1], r[2]
@@ -3245,7 +3254,7 @@ class PlayerThread(QThread):
                         time.sleep(0.1)
 
                     if self.mm.FindPic(152, 505, 248, 549, "一键出售.bmp", 0.85) or self.mm.FindPic(145, 22, 255, 54, "模糊的奥拉蔻.bmp", 0.85):
-                        ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp|巡礼之证.bmp|闪闪明1.bmp|闪闪明2.bmp|闪闪明3.bmp", 0.85, 1, drag=None)
+                        ret = self.mm.FindPic(62, 433, 304, 510, "歼灭门票.bmp|玛瑙.bmp|闪闪明的闪亮谢礼.bmp|巡礼之证.bmp|闪闪明1.bmp|闪闪明2.bmp|闪闪明3.bmp", 0.85,1)
                         if ret:
                             for r in ret:
                                 x, y = r[1], r[2]
