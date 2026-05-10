@@ -544,7 +544,7 @@ class ThreadedServer:
                     self._send_response(conn, result, header['type'])
 
                     latency = (time.time() - t0) * 1000
-                    print(f"  {header['type']} | {latency:.1f}ms | 活跃连接: {self.active_connections}")
+                    print(f"  {header['type']} | {latency:.1f}ms ")
         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError, socket.timeout):
             pass  # 客户端断开不算服务器异常
 

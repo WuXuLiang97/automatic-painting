@@ -857,18 +857,13 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 QMessageBox.information(self, "警告", f"连接失败，请检查ip、端口和密码！")
 
     def list_capture_devices(self):
-        """
-        列出所有可用的视频采集设备
-        """
-        # 创建采集卡连接实例
-        self.identifier = CaptureCardConnection()
-        self.identifier.crop_region = [0, 0, 1067, 600]
-        devices = self.identifier.find_available_devices()
-        id = []
-        for i, device in enumerate(devices):
-            print(f"  {i}. {device['id']}")
-            id.append(device['id'])
-        return id
+        """列出所有可用的视频采集设备（复用实例 + 缓存）"""
+        if not hasattr(self, '_capture_card') or self._capture_card is None:
+            self._capture_card = CaptureCardConnection()
+            self._capture_card.crop_region = [0, 0, 1067, 600]
+        self.identifier = self._capture_card  # 兼容旧引用
+        devices = self._capture_card.find_available_devices()
+        return [device['id'] for device in devices]
 
     def save_vnc_config(self, ip, port, password):
         """保存VNC配置到文件"""

@@ -39,54 +39,61 @@ class CaptureCardConnection:
         self._target_fps = 30.0  # 目标帧率
         self._min_frame_interval = 1.0 / self._target_fps
         self._last_capture_time = 0.0
+        # 设备缓存
+        self._devices_cache = None
+        self._devices_cache_time = 0.0
 
-    def find_available_devices(self) -> List[Dict[str, str]]:
-        """
-        查找所有可用的视频设备
-
-        返回:
-            List[Dict]: 可用设备的信息列表，包含名称和ID
-        """
-        devices = []
-
-        # 尝试不同的设备索引
-        for i in range(self.max_device_index):
+    def _probe_device(self, i):
+        """探测单个设备索引（不读帧，只查是否打开成功）"""
+        # 优先用 MSMF 后端（Windows 上比 DirectShow 快 5-10 倍）
+        for api in (cv2.CAP_MSMF, cv2.CAP_DSHOW, cv2.CAP_ANY):
             try:
-                # 尝试打开设备
-                cap = cv2.VideoCapture(i)
-                if cap.isOpened():
-                    # 尝试读取一帧以确认设备可用
-                    ret, frame = cap.read()
-                    if ret:
-                        # 获取设备名称（在某些平台上可能不可用）
-                        device_name = f"Device {i}"
-
-                        # 尝试获取更详细的设备信息
-                        try:
-                            # 获取后端名称
-                            backend_name = cap.getBackendName()
-                            # 获取分辨率
-                            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                            device_name = f"Device {i} ({backend_name}, {width}x{height})"
-                        except:
-                            pass
-
-                        # 添加到设备列表
-                        devices.append({
-                            'name': device_name,
-                            'id': str(i),
-                            'full_name': device_name,
-                            'resolution': (width, height) if 'width' in locals() else (0, 0)
-                        })
-
-                    # 释放设备
+                cap = cv2.VideoCapture(i, api)
+                if not cap.isOpened():
                     cap.release()
-            except Exception as e:
-                logger.debug(f"检查设备索引 {i} 时出错: {str(e)}")
-                continue
+                    continue
 
+                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                if width <= 0 or height <= 0:
+                    width, height = 1920, 1080  # 默认值
+
+                backend = cap.getBackendName()
+                cap.release()
+                return {
+                    'name': f"Device {i} ({backend}, {width}x{height})",
+                    'id': str(i),
+                    'full_name': f"Device {i} ({backend}, {width}x{height})",
+                    'resolution': (width, height)
+                }
+            except Exception:
+                continue
+        return None
+
+    def find_available_devices(self, force_refresh=False) -> List[Dict[str, str]]:
+        """查找所有可用的视频设备（缓存 30 秒）"""
+        if not force_refresh and self._devices_cache is not None:
+            if time.time() - self._devices_cache_time < 30:
+                return self._devices_cache
+
+        devices = []
+        # 并行探测 0-4 号设备
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            futures = {pool.submit(self._probe_device, i): i for i in range(5)}
+            for f in as_completed(futures):
+                result = f.result()
+                if result:
+                    devices.append(result)
+
+        # 按设备 ID 排序
+        devices.sort(key=lambda d: int(d['id']))
+
+        self._devices_cache = devices
+        self._devices_cache_time = time.time()
+        self.available_devices = devices
         logger.info(f"找到 {len(devices)} 个可用设备")
+        return devices
         self.available_devices = devices
         return devices
 
