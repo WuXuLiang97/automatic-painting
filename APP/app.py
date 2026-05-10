@@ -330,6 +330,7 @@ class LoginPage(QWidget):
             dic = {"username": username, "cookies": ret}
 
             self.main_app = AppMain(dic=dic)
+            self.main_app.setWindowFlags(window.windowFlags() | Qt.WindowStaysOnTopHint)
             self.main_app.show()
             self.main_app.authapp = self.window()
             # 关闭登录窗口
