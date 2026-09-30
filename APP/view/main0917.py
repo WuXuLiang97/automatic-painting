@@ -256,7 +256,7 @@ class Ui_MainWindow(object):
         self.lineEdit.setObjectName("lineEdit")
         self.horizontalLayout_14.addWidget(self.lineEdit)
         self.layoutWidget3 = QtWidgets.QWidget(self.centralwidget)
-        self.layoutWidget3.setGeometry(QtCore.QRect(580, 343, 123, 30))
+        self.layoutWidget3.setGeometry(QtCore.QRect(580, 343, 180, 30))
         self.layoutWidget3.setObjectName("layoutWidget3")
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout(self.layoutWidget3)
         self.horizontalLayout_3.setContentsMargins(0, 0, 0, 0)
@@ -270,6 +270,15 @@ class Ui_MainWindow(object):
         self.helpBtn.setMinimumSize(QtCore.QSize(0, 28))
         self.helpBtn.setObjectName("helpBtn")
         self.horizontalLayout_3.addWidget(self.helpBtn)
+        self.regetSpeedBtn = QtWidgets.QPushButton(self.layoutWidget3)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.regetSpeedBtn.sizePolicy().hasHeightForWidth())
+        self.regetSpeedBtn.setSizePolicy(sizePolicy)
+        self.regetSpeedBtn.setMinimumSize(QtCore.QSize(0, 28))
+        self.regetSpeedBtn.setObjectName("regetSpeedBtn")
+        self.horizontalLayout_3.addWidget(self.regetSpeedBtn)
         spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_3.addItem(spacerItem1)
         self.layoutWidget4 = QtWidgets.QWidget(self.centralwidget)
@@ -355,6 +364,7 @@ class Ui_MainWindow(object):
         self.tabWidget.setCurrentIndex(0)
         self.startBtn.clicked.connect(MainWindow.start_clicked) # type: ignore
         self.stopBtn.clicked.connect(MainWindow.stop_clicked) # type: ignore
+        self.regetSpeedBtn.clicked.connect(MainWindow.reget_speed_clicked) # type: ignore
         self.addSettingsGroupAction.triggered.connect(MainWindow.open_settings_group_dialog) # type: ignore
         self.addRoleAction.triggered.connect(MainWindow.open_roles_dialog) # type: ignore
         # self.Keyboardsettings.triggered.connect(self.)
@@ -387,6 +397,7 @@ class Ui_MainWindow(object):
         self.label_2.setText(_translate("MainWindow", "yolo/ocr主机IP："))
         self.lineEdit.setPlaceholderText(_translate("MainWindow", "192.168.1.1"))
         self.helpBtn.setText(_translate("MainWindow", "帮助"))
+        self.regetSpeedBtn.setText(_translate("MainWindow", "重新获取移速"))
         self.startBtn.setText(_translate("MainWindow", "开始(home)"))
         self.stopBtn.setText(_translate("MainWindow", "停止(end)"))
         self.label_3.setText(_translate("MainWindow", "机器码："))

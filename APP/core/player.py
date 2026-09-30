@@ -7,6 +7,7 @@ import struct
 # import re
 import time
 import traceback
+from collections import Counter
 from copy import deepcopy
 import datetime
 
@@ -47,6 +48,83 @@ HOUR = 60 * MINUTE
 
 target_items = ["风化的碎骨", "破旧的皮革", "碎布片", "生锈的铁片", "最下级硬化剂", "最下级砥石", "炉岩核", "协调结晶体", "嘿", "嗯", "呀"]
 SIMILARITY_THRESHOLD = 0.7  # 相似度阈值
+
+# 个人信息面板"移动速度"的量程。occupation_info_*.json 的档位为 30~300，
+# 这里上下各留余量，只用于剔除 OCR 明显错读，不参与速度换算。
+MOVE_SPEED_MIN = 10
+MOVE_SPEED_MAX = 400
+
+
+def parse_move_speed(ocr_text):
+    """把面板移速的 OCR 结果解析成整数百分比。
+
+    面板显示形如 "124%" / "124.0%" / "+124.0%"，OCR 常常丢掉小数点、百分号和加号，
+    甚至把小数点前后的数字粘成一串（"124.0" 读成 "1240"）。由于移速量程只有
+    30~300，凡是超过 MOVE_SPEED_MAX 的数字串，都可以判定末位是小数位，逐位回退。
+
+    例：124 -> 124；1240 -> 124；980 -> 98；1245 -> 124；124.6 -> 125。
+
+    :param ocr_text: OCR 文本，或已由正则过滤出的数字串
+    :return: 整数移速百分比；超出量程或无法解析时返回 None（调用方应重试识别）
+    """
+    if ocr_text is None:
+        return None
+    text = str(ocr_text).strip()
+    if not text:
+        return None
+
+    # 1) 保留小数点时按真实小数解析（124.6 -> 125）
+    m = re.search(r'(\d+)\s*[.,·。]\s*(\d+)', text)
+    if m:
+        decimal_value = int(round(float('{}.{}'.format(m.group(1), m.group(2)))))
+        if MOVE_SPEED_MIN <= decimal_value <= MOVE_SPEED_MAX:
+            return decimal_value
+
+    # 2) 纯数字串：去掉小数位后回到量程内
+    digits = ''.join(re.findall(r'\d+', text))
+    if not digits:
+        return None
+    while len(digits) > 1 and int(digits) > MOVE_SPEED_MAX:
+        digits = digits[:-1]
+    value = int(digits)
+    if MOVE_SPEED_MIN <= value <= MOVE_SPEED_MAX:
+        return value
+    return None
+
+
+# 移速识别的多次采样策略。OCR 偶发丢掉首位数字（"127" 读成 "27"），单次结果不可信，
+# 因此改为连续采样若干次投票确认，并丢弃明显偏小的误读。
+MOVE_SPEED_SAMPLE_MIN = 3      # 最少采样次数，少于该次数不做一致性判定
+MOVE_SPEED_SAMPLE_MAX = 5      # 最多采样次数
+MOVE_SPEED_CONFIRM_MIN = 50    # 低于该值视为误读（127->27 这类丢首位），不参与首选判定
+MOVE_SPEED_CONFIRM_VOTES = 2   # 同一数值出现该次数即认定识别成功
+
+
+def pick_move_speed(samples):
+    """从多次采样结果中投票选出可信的移速。
+
+    判定顺序：
+    1. 只看 >= MOVE_SPEED_CONFIRM_MIN 的样本，某个数值出现 MOVE_SPEED_CONFIRM_VOTES 次即认定成功；
+    2. 没有达成一致但有 >= 阈值的样本时，取出现次数最多的那个（标记为未确认）；
+    3. 所有样本都低于阈值时，视为面板移速本身偏低，同样取出现次数最多的那个（未确认）；
+    4. 一个有效样本都没有则返回 None。
+
+    :param samples: 采样列表，元素为 parse_move_speed() 的结果（整数或 None）
+    :return: (移速或 None, 是否已确认, 说明文本)
+    """
+    high = Counter(s for s in samples if s is not None and s >= MOVE_SPEED_CONFIRM_MIN)
+    for value, count in high.most_common():
+        if count >= MOVE_SPEED_CONFIRM_VOTES:
+            return value, True, f"{count} 次识别一致"
+    if high:
+        value, count = high.most_common(1)[0]
+        return value, False, f"未达成 {MOVE_SPEED_CONFIRM_VOTES} 次一致，暂取出现最多的 {value}（{count} 次）"
+    low = Counter(s for s in samples if s is not None)
+    if low:
+        value, count = low.most_common(1)[0]
+        return value, False, f"所有结果都低于 {MOVE_SPEED_CONFIRM_MIN}，疑似面板移速本身偏低，暂取 {value}（{count} 次）"
+    return None, False, "多次识别均无有效结果"
+
 
 # min_map_name = 0
 
@@ -117,6 +195,7 @@ class PlayerThread(QThread):
         self.first_press_to_exit = True
         self.brush_cnt = 0  # 刷图次数
         self.brush_running = True  # 刷图中
+        self.reget_move_speed_requested = False  # UI 的"重新获取移速"按钮置位，刷图主循环响应后清空
         self.ghost_state = False  # 挂了
         self.pass_room_id = []
         self.find_player_direction = "right"  # 查找玩家方向
@@ -594,6 +673,22 @@ class PlayerThread(QThread):
             self.sock.close()
             self.sock = None
 
+    def request_reget_move_speed(self):
+        """请求重新识别移速。
+
+        由主界面的"重新获取移速"按钮调用，可能来自 GUI 线程，因此只置一个标志位，
+        真正的识别放在刷图主循环的下一个循环点（那里才有正确的窗口焦点和截图时机）。
+        """
+        self.reget_move_speed_requested = True
+
+    def check_reget_move_speed(self):
+        """刷图主循环每个循环点调用：若收到重新识别移速的请求就立刻执行"""
+        if not self.reget_move_speed_requested:
+            return
+        self.reget_move_speed_requested = False
+        self.send_log("收到请求，重新识别移速")
+        self.get_move_speed(stop_on_failure=False)
+
     def stop(self):
         self.running = False
         self.brush_running = False
@@ -711,6 +806,7 @@ class PlayerThread(QThread):
                 # todo 判断是否在图内
                 self.ghost_state = False
                 self.release_buffer()
+            self.check_reget_move_speed()  # 响应"重新获取移速"按钮
             self.get_yolo_res()
             func()
 
@@ -746,6 +842,7 @@ class PlayerThread(QThread):
             time.sleep(0.05)
         logger.info('开始刷图')
         while self.brush_running:
+            self.check_reget_move_speed()  # 响应"重新获取移速"按钮
             self.get_yolo_res()
             func()
 
@@ -781,6 +878,7 @@ class PlayerThread(QThread):
             time.sleep(0.05)
         logger.info('开始刷图')
         while self.brush_running:
+            self.check_reget_move_speed()  # 响应"重新获取移速"按钮
             self.get_yolo_res()
             func()
 
@@ -1512,8 +1610,9 @@ class PlayerThread(QThread):
             if isinstance(pickup_count, int) and pickup_count > 5 and not self.is_boss:
                 logger.info(f"房间{current_room_id}拾取次数大于或等于5次，重新识别移速")
                 if self.player_pos.x:
-                    # 重新识别移速
-                    self.get_move_speed()
+                    # 重新识别移速。这里是刷图中途的校正，捡物时会被反复触发，
+                    # 只做单次读取，不能走多次采样，否则每次捡物都要连拍好几张 VNC 截图。
+                    self.get_move_speed(sample=False)
                     # 实时移动
                     # # 处理X方向移动：添加按键状态标记
                     # x_reached = False
@@ -2063,7 +2162,51 @@ class PlayerThread(QThread):
     #     room_info = room_info_map.get(self.player.player_room_id)
     #     return room_info['direction']
 
-    def get_move_speed(self):
+    def sample_move_speed(self, read_text):
+        """连续采样识别个人信息面板上的移速，投票确认。
+
+        OCR 偶发丢掉首位数字（"127" 读成 "27"），单次结果不可信：连续采样
+        MOVE_SPEED_SAMPLE_MIN~MOVE_SPEED_SAMPLE_MAX 次，丢弃低于 MOVE_SPEED_CONFIRM_MIN
+        的误读，同一数值出现 MOVE_SPEED_CONFIRM_VOTES 次即判定成功并提前结束采样。
+
+        :param read_text: 无参可调用对象，返回该区域的 OCR 原始文本
+        :return: (移速或 None, 是否已确认一致, 说明文本)
+        """
+        samples = []
+        value, confirmed, note = None, False, ""
+        for n in range(MOVE_SPEED_SAMPLE_MAX):
+            results = read_text()
+            sample = parse_move_speed(results)
+            if sample is None:
+                self.send_log(f"移速识别结果：{results or '空'}（无法解析，本次不作数）")
+            elif sample < MOVE_SPEED_CONFIRM_MIN:
+                # 低值仍记录在样本里，但不参与一致性判定；只有全部样本都偏低时才会作为兜底取值
+                self.send_log(f"移速识别结果：{results} → {sample}，低于 {MOVE_SPEED_CONFIRM_MIN} 判为误读，不参与一致性判定")
+            else:
+                self.send_log(f"移速识别结果：{results} → {sample}")
+            samples.append(sample)
+            # 采满最少次数后才做一致性判定，避免偶然一次结果被当成共识
+            if n + 1 >= MOVE_SPEED_SAMPLE_MIN:
+                value, confirmed, note = pick_move_speed(samples)
+                if confirmed:
+                    note = f"{len(samples)} 次采样，{note}"
+                    break
+            time.sleep(0.05)
+        if value is None:
+            # 采样次数不足或全部是误读时兜底判定一次
+            value, confirmed, note = pick_move_speed(samples)
+            if value is None:
+                self.send_log(f"连续 {len(samples)} 次均未识别到有效移速（原始结果：{samples}）")
+        return value, confirmed, note
+
+    def get_move_speed(self, stop_on_failure=True, sample=True):
+        """读取个人信息面板上的移动速度。
+
+        :param stop_on_failure: 识别失败时是否停止脚本。启动阶段没有移速就无法换算坐标，必须停；
+                                UI 上"重新获取移速"按钮触发的重试传 False，失败只提示不停机。
+        :param sample: 是否用多次采样投票。开局和手动重试传 True（求准）；
+                       刷图中途的校正传 False，只读一次，避免连拍多张 VNC 截图拖慢刷图。
+        """
         def open_window():
             for _ in range(5):
                 pyauto.keyPressChar('m')
@@ -2101,7 +2244,6 @@ class PlayerThread(QThread):
                 else:
                     self.send_log("没有找到移动坐标")
                     continue
-                results = self.waiting_for_the_text_to_appear([328,465,377,482], "0123456789", r'[0-9]+', 0.5, amplify=False)
                 # img_dict = {
                 #     '0': ['0.bmp', '0-2.bmp'], '1': ['1.bmp', '1-1.bmp', '1-2.bmp'], '2': ['2.bmp', '2-1.bmp', '2-2.bmp'],
                 #     '3': ['3.bmp', '3-1.bmp', '3-2.bmp'], '4': ['4.bmp', '4_1.bmp', '4_2.bmp'],
@@ -2109,18 +2251,25 @@ class PlayerThread(QThread):
                 #     '8': ['8.bmp', '8-1.bmp', '8-2.bmp'], '9': ['9.bmp', '9-1.bmp', '9-2.bmp']
                 #
                 # }
-                #results = self.mm.screenshot_OCR_str(x1, y1, x2, y2, img_dict, 0.8, get_colour=([62, 130, 159], [65, 141, 163]), drag=None)
-                self.send_log(f"移速识别结果：{results}")
-                if len(results) > 0:
-                    if len(results) > 2:
-                        # 取前面最后一个前面的个字符
-                        plain_move_speed = int(results[:-1])
+                # results = self.mm.screenshot_OCR_str(x1, y1, x2, y2, img_dict, 0.8, get_colour=([62, 130, 159], [65, 141, 163]), drag=None)
+                if sample:
+                    plain_move_speed, confirmed, note = self.sample_move_speed(
+                        lambda: self.waiting_for_the_text_to_appear([x1, y1, x2, y2], "0123456789", r'[0-9]+', 0.5, amplify=False))
+                    if plain_move_speed is None:
+                        continue
+                    if confirmed:
+                        self.send_log(f"移速确认：{plain_move_speed}（{note}）")
                     else:
-                        plain_move_speed = int(results)
+                        self.send_log(f"移速未确认：{note}；如与面板不符，可点击\"重新获取移速\"重试")
                     self.send_log(f"处理后移速为：{plain_move_speed}")
                 else:
-                    self.send_log("没有识别到移速")
-                    continue
+                    results = self.waiting_for_the_text_to_appear([x1, y1, x2, y2], "0123456789", r'[0-9]+', 0.5, amplify=False)
+                    plain_move_speed = parse_move_speed(results)
+                    if plain_move_speed is None:
+                        self.send_log(f"移速识别结果：{results or '空'}，本次不更新移速")
+                        continue
+                    self.send_log(f"移速识别结果：{results} → {plain_move_speed}")
+                    self.send_log(f"处理后移速为：{plain_move_speed}")
                 if self.player.player_occupation == "弓箭手-缪斯":
                     plain_move_speed += 20
                 self.player.moving_speed = plain_move_speed
@@ -2150,8 +2299,13 @@ class PlayerThread(QThread):
                 logger.exception(f"player模块:{e}")
                 continue
         if not status:
-            self.send_log("获取面板速度失败")
-            self.stop()
+            if stop_on_failure:
+                self.send_log("获取面板速度失败")
+                self.stop()
+            else:
+                # 手动重试失败时不要把脚本停掉，并顺手关掉可能被反复按 M 打开的窗口
+                self.operator_module.close_all_window()
+                self.send_log("重新识别移速失败，请确认个人信息面板能正常打开（按 M）；脚本继续运行")
 
     def compute_move_info(self, player_pos, target_pos, diff_x, diff_y):
         # 检查无效输入
@@ -3654,6 +3808,9 @@ class PlayerThread(QThread):
         start_time = time.time()
         while self.brush_running:
             text = self.get_text(*region, amplify=amplify)
+            if not isinstance(text, str):
+                # get_text 在发送失败时会返回 False，视作本轮没读到文本，继续重试
+                text = ''
             pattern = regular
             # 使用 re.findall() 找出所有匹配的内容
             matches = re.findall(pattern, text)

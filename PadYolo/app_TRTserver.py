@@ -602,7 +602,9 @@ class ThreadedServer:
     def _ocr_process(self, image, ocr_engine):
         try:
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            results = ocr_engine.ocr(gray, det=False, cls=False)
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+            enhanced = clahe.apply(gray)
+            results = ocr_engine.ocr(enhanced, det=False, cls=False)
             text_parts = []
             for page in results:
                 for line in page:

@@ -39,6 +39,7 @@ from core.device_time_utils import get_identity_mark
 # from core.window_position import WindowPositionUpdater
 from core import global_variable as gv
 from utils.api import test_view_subgroups, test_view_subgroup_config
+from utils.logging_setup import logger
 from core.vnc import VNC, api
 from core.capturecardconnection import CaptureCardConnection
 from utils.cv_recognizer import vnc_mm
@@ -64,6 +65,8 @@ def get_gui_config():
         'vid': '',
         'pid': '',
         'identifier': "0",
+        # 采集卡设备身份（索引+后端+最大分辨率），用于索引漂移时自动找回
+        'capture_device': {},
     }
 
     try:
@@ -138,6 +141,7 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.dic = dic
         self.authapp = None
         self.role_settings = {}
+        self._device_list = []  # 采集设备候选列表（下拉框每一项对应其中一个）
         # self.sock = None
         self.setupUi(self)  # 假设这个方法是在某个UI文件中通过pyuic生成的，用于设置窗口的UI界面
         self.action12.triggered.connect(self.show_login)
@@ -149,7 +153,9 @@ class AppMain(QMainWindow, Ui_MainWindow):
         self.lineEdit_10.textChanged.connect(self.on_text_changed)
         self.lineEdit_9.textChanged.connect(self.on_text_changed)
         # self.lineEdit_8.textChanged.connect(self.on_text_changed)
-        self.comboBox.addItems(self.list_capture_devices())
+        # 启动时不探测设备：MSMF 打开采集卡并切到 1080p 可能要几十秒，
+        # 先用配置里记住的设备把下拉框填上，等切到该标签页时再真正探测
+        self._populate_device_combo_from_config()
 
         self.tabWidget.currentChanged.connect(self.on_tab_changed)
         self.comboBox.currentTextChanged.connect(self.on_combobox_changed)
@@ -349,7 +355,8 @@ class AppMain(QMainWindow, Ui_MainWindow):
             gv.tab_index = tab_text
             settings["tab_index"] = tab_text
             if index == 1:
-                self.comboBox.addItems(self.list_capture_devices())
+                # 切换标签页时刷新设备列表（先清空，老代码直接 addItems 会不断累积重复项）
+                self.refresh_capture_devices()
         with open(CONFIG_PATH, 'w') as file:
             json.dump(settings, file, indent=4)
 
@@ -414,8 +421,16 @@ class AppMain(QMainWindow, Ui_MainWindow):
             gv.banzhuan = currentIndex
         elif sender_obj == self.comboBox:
             currentIndex = self.comboBox.currentText()
-            settings['identifier'] = currentIndex
-            gv.identifier = currentIndex
+            # 下拉框现在显示的是带标签的设备项（"1 · 采集卡 · 1920x1080 · MSMF"），
+            # 把设备身份一起存下来，下次按身份找，不再依赖会漂移的索引
+            current_identity = self._selected_device_identity()
+            if current_identity:
+                settings['capture_device'] = current_identity
+                gv.identifier = current_identity.get('index')
+                settings['identifier'] = str(current_identity.get('index'))
+            else:
+                settings['identifier'] = currentIndex
+                gv.identifier = currentIndex
         with open(CONFIG_PATH, 'w') as file:
             json.dump(settings, file, indent=4)
 
@@ -628,6 +643,18 @@ class AppMain(QMainWindow, Ui_MainWindow):
         except Exception as e:
             print("停止操作异常", e)
 
+    def reget_speed_clicked(self):
+        """重新识别面板移速：只置一个请求标志，由刷图线程在下一个循环点执行。
+
+        移速识别需要按 M 打开个人信息面板并截图 OCR，必须和刷图动作串行；
+        若在 GUI 线程里直接执行，会和刷图线程抢截图与按键，因此这里只发请求。
+        """
+        if not self.playerThread or not self.playerThread.isRunning():
+            QMessageBox.information(self, "提示", "脚本未运行，请先点击开始")
+            return
+        self.playerThread.request_reget_move_speed()
+        self.update_log("已请求重新识别移速，将在当前动作结束后执行")
+
     def open_settings_group_dialog(self):
         """
         打开设置组对话框的方法。
@@ -794,8 +821,14 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 QMessageBox.information(self, "警告", f"连接失败，请检查ip、端口和密码！")
         elif sender_obj == self.startBtn_4:
             if self.identifier.connection_status:
-                QMessageBox.information(self, "提示", f"采集卡连接状态：已连接成功")
-                return
+                # 之前这里直接return，连错设备就只能重启程序；现在允许按当前选择重连
+                answer = QMessageBox.question(
+                    self, "提示",
+                    f"采集卡已连接：{self.identifier.device_name}\n\n是否断开并按当前选择的设备重新连接？",
+                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                if answer != QMessageBox.Yes:
+                    return
+                self.identifier.disconnect()
             image = None
             try:
                 vid_str = self.lineEdit_10.text().strip()
@@ -828,12 +861,23 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 vid = convert_to_int(vid_str)
                 pid = convert_to_int(pid_str)
 
-                self.identifier.connect(int(identifier), (1920, 1080))
+                # 按设备身份自动挑选并连接采集卡：
+                # 索引漂移/后端变化时自动找回，首选连不上还会自动回退到其他设备
+                identity = self._selected_device_identity()
+                # 采集卡切到 1080p 可能要等十几秒，先把提示刷出来，别让界面看起来像卡死
+                self.label_15.setText("正在连接采集卡，请稍候…")
+                self.label_15.setStyleSheet("color: #096dd9;")
+                QtCore.QCoreApplication.processEvents()
+                connected = self.identifier.connect_auto(identity, (1920, 1080))
+                if not connected:
+                    raise RuntimeError("所有采集设备都连接失败")
 
                 print(f"self.identifier:{self.identifier}")
 
-                # 截图
+                # 截图（顺便确认采集卡是否真有画面：没接 HDMI 信号时读不到帧）
                 image = self.identifier.capture()
+                has_signal = image is not None or self.identifier.check_signal()
+                blank_frame = self.identifier.frame_looks_blank(image)
                 # 更新共享对象
                 pyauto.VNC = None
                 pyauto.pyauto_init(2, 0.02)
@@ -842,28 +886,137 @@ class AppMain(QMainWindow, Ui_MainWindow):
                 vnc_mm.VNC = self.identifier
                 screenshot_util.VNC = self.identifier
                 # 保存配置
-                self.save_capturecardconnection_config(vid, pid, identifier)
+                self.save_capturecardconnection_config(vid, pid, self.identifier.device_identity)
+                if has_signal and not blank_frame:
+                    self.label_15.setText(f"已连接：{self.identifier.device_name}")
+                    self.label_15.setStyleSheet("color: green;")  # 设置文字为绿色
+                elif has_signal:
+                    # 只是提示，不打断：画面全黑通常就是 HDMI 没信号
+                    self.label_15.setText("已连接（画面全黑，检查采集卡输入信号）")
+                    self.label_15.setStyleSheet("color: #d46b08;")
+                else:
+                    self.label_15.setText("已连接，但暂时没有画面")
+                    self.label_15.setStyleSheet("color: #d46b08;")
+                    QMessageBox.information(
+                        self, "提示",
+                        f"已连接到 {self.identifier.device_name}，但读不到画面。\n"
+                        f"请检查采集卡的 HDMI 输入是否已接上、视频源是否已开机。")
+                return
             except Exception as e:
                 self.cleanup_vnc()
                 print("connect_to_vnc 连接失败:", e)
+                logger.exception("采集卡连接失败")
 
             if isinstance(image, np.ndarray):
                 self.label_15.setText("已连接成功")
-                self.label_15.setStyleSheet("color: green;")  # 设置文字为红色
+                self.label_15.setStyleSheet("color: green;")  # 设置文字为绿色
             else:
                 self.VNC = None
                 self.label_15.setText("状态：连接失败")
                 self.label_15.setStyleSheet("color: red;")  # 设置文字为红色
-                QMessageBox.information(self, "警告", f"连接失败，请检查ip、端口和密码！")
+                QMessageBox.information(self, "警告", f"连接失败，请检查采集卡是否插好、是否被其他软件占用！")
 
-    def list_capture_devices(self):
-        """列出所有可用的视频采集设备（复用实例 + 缓存）"""
+    def _ensure_capture_card(self):
+        """确保采集卡连接对象已就绪（只建实例，不探测设备）
+
+        采集卡标签页是启动默认页（config 里 tab_index=1），Qt 不会为初始页触发
+        currentChanged，所以不能把"创建实例"只放在切标签页的路径上——
+        否则启动后直接点"连接采集卡"会拿到 None。（identifier 是历史遗留的引用名）
+        """
         if not hasattr(self, '_capture_card') or self._capture_card is None:
             self._capture_card = CaptureCardConnection()
-            self._capture_card.crop_region = [0, 0, 1067, 600]
+            self._capture_card.crop_region = [0, 0, 1067, 600]  # 1067x600 裁剪不能丢
         self.identifier = self._capture_card  # 兼容旧引用
-        devices = self._capture_card.find_available_devices()
-        return [device['id'] for device in devices]
+        return self._capture_card
+
+    def list_capture_devices(self):
+        """列出所有可用的视频采集设备（复用实例 + 缓存）
+
+        返回的是带标签的条目，形如 "1 · 采集卡 · 1920x1080 · MSMF"，
+        一眼能看出哪个是采集卡，不用再靠索引猜。
+        """
+        self._ensure_capture_card()
+        # 走 120 秒缓存：刷新下拉框不必每次重新探测（探测要逐个打开设备，较慢）
+        self._device_list = self._capture_card.find_available_devices()
+        return [device['label'] for device in self._device_list]
+
+    def _populate_device_combo_from_config(self):
+        """启动时用配置里记住的设备先填上下拉框（不探测设备，避免启动卡顿）"""
+        self._ensure_capture_card()  # 先备好连接对象，否则点"连接采集卡"会拿到 None
+        config = get_gui_config()
+        identity = config.get('capture_device') or {}
+        label = identity.get('label')
+        if not label:
+            legacy_identifier = str(config.get('identifier', '')).strip()
+            if legacy_identifier.isdigit():
+                label = f"{legacy_identifier} · 上次使用的设备（点击本页可重新探测）"
+        self.comboBox.blockSignals(True)
+        try:
+            self.comboBox.clear()
+            if label:
+                self.comboBox.addItem(label)
+        finally:
+            self.comboBox.blockSignals(False)
+
+    def refresh_capture_devices(self):
+        """刷新采集卡下拉框：清空后重新探测，并尽量选中上次用过的设备"""
+        labels = self.list_capture_devices()
+        last_identity = get_gui_config().get('capture_device') or {}
+        legacy_identifier = str(get_gui_config().get('identifier', '')).strip()
+
+        self.comboBox.blockSignals(True)  # 重新填充过程中不要触发配置写入
+        try:
+            self.comboBox.clear()
+            self.comboBox.addItems(labels)
+            target = self._find_label_of_identity(last_identity)
+            if target is None and legacy_identifier.isdigit():
+                # 兼容旧配置：identifier 是裸索引
+                target = self._find_label_of_identity({'index': int(legacy_identifier)})
+            if target is not None:
+                self.comboBox.setCurrentText(target)
+        finally:
+            self.comboBox.blockSignals(False)
+
+        if labels:
+            logger.info(f"采集卡下拉框已刷新：当前选中 {self.comboBox.currentText()}")
+        else:
+            logger.warning("没有探测到任何视频采集设备")
+
+    def _find_label_of_identity(self, identity):
+        """在本次探测到的设备里，找出与给定身份对应的下拉框标签"""
+        if not identity or not self._device_list:
+            return None
+        for device in self._device_list:
+            if (device['index'] == identity.get('index')
+                    and (not identity.get('backend') or device['backend'] == identity.get('backend'))):
+                return device['label']
+        for device in self._device_list:
+            if device['index'] == identity.get('index'):
+                return device['label']
+        want_resolution = identity.get('max_resolution')
+        if want_resolution:
+            for device in self._device_list:
+                if device['max_resolution'] == list(want_resolution):
+                    return device['label']
+        return None
+
+    def _selected_device_identity(self):
+        """取当前应当使用的采集设备身份
+
+        下拉框里选中的那一项优先（用户手动改过就听用户的），
+        否则退回配置文件里的 capture_device / identifier。
+        """
+        current_label = self.comboBox.currentText()
+        for device in getattr(self, '_device_list', []):
+            if device['label'] == current_label:
+                return device
+        configured = get_gui_config().get('capture_device') or {}
+        if configured:
+            return configured
+        legacy_identifier = str(get_gui_config().get('identifier', '')).strip()
+        if legacy_identifier.isdigit():
+            return {'index': int(legacy_identifier)}
+        return None
 
     def save_vnc_config(self, ip, port, password):
         """保存VNC配置到文件"""
@@ -876,13 +1029,28 @@ class AppMain(QMainWindow, Ui_MainWindow):
         with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
             json.dump(config, file, indent=4, ensure_ascii=False)
 
-    def save_capturecardconnection_config(self, vid, pid, identifier):
-        """保存VNC配置到文件"""
+    def save_capturecardconnection_config(self, vid, pid, identity):
+        """保存键鼠盒子 VID/PID 与采集卡设备身份
+
+        identity 既可以是设备身份字典，也可以是旧格式的裸索引。
+        设备身份（索引+后端+最大分辨率）一并写入，下次连接按身份找设备，
+        索引漂移时会自动按分辨率找回，不用再手动切换。
+        """
         config = get_gui_config()
+        capture_device = {}
+        if isinstance(identity, dict):
+            capture_device = {
+                'index': identity.get('index'),
+                'backend': identity.get('backend'),
+                'max_resolution': identity.get('max_resolution'),
+                'supports_hd': identity.get('supports_hd'),
+                'label': identity.get('label'),
+            }
         config.update({
             "vid": vid,
             "pid": pid,
-            "identifier": str(identifier)
+            "identifier": str(capture_device.get('index') if capture_device else identity),
+            "capture_device": capture_device,
         })
         with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
             json.dump(config, file, indent=4, ensure_ascii=False)

@@ -1,12 +1,22 @@
 {
-    "ip": "192.168.0.104",
+    "ip": "192.168.0.103",
     "yjs": 1,
     "banzhuan": 0,
     "vmware_ip": "192.168.137.2",
     "vmware_prot": "5900",
     "vmware_password": "",
     "tab_index": 1,
-    "vid": "0xa001",
-    "pid": "0xc001",
-    "identifier": "0"
+    "vid": "0xa005",
+    "pid": "0xc005",
+    "identifier": "1",
+    "capture_device": {
+        "index": 1,
+        "backend": "MSMF",
+        "max_resolution": [
+            1920,
+            1080
+        ],
+        "supports_hd": true,
+        "label": "1 · 采集卡 · 1920x1080 · MSMF"
+    }
 }
