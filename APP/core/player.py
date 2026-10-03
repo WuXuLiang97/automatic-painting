@@ -30,6 +30,7 @@ from utils.common_util import sort_points_by_x, get_date
 from utils.minimap_util import miniMapUtil
 from utils.cross_control import pyauto
 # from utils.ocr_util import ocr_util
+from utils.screenshot_recorder import ScreenshotRecorder
 from utils.screenshot_util import screenshot_util
 # from utils.skill_util import skill_util
 from utils.skill_util2 import skill_util
@@ -44,15 +45,157 @@ root_path = os.path.abspath(os.path.join(current_path, '../'))
 # 基础时间单位（秒）
 MINUTE = 60
 HOUR = 60 * MINUTE
+
+
+def load_gui_config():
+    """读取 GUI 侧 config.json（与 callMain.py 的 CONFIG_PATH 指向同一个文件）。
+
+    只用于取 screenshot_recorder 这类可选功能配置；读不到就返回空字典走默认值，
+    不影响刷图本身。
+    """
+    config_file = os.path.join(root_path, "json_resources", "config.json")
+    try:
+        with open(config_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.info(f"读取 config.json 失败，使用默认配置：{e}")
+        return {}
+
+
 # 目标物品列表
 
 target_items = ["风化的碎骨", "破旧的皮革", "碎布片", "生锈的铁片", "最下级硬化剂", "最下级砥石", "炉岩核", "协调结晶体", "嘿", "嗯", "呀"]
 SIMILARITY_THRESHOLD = 0.7  # 相似度阈值
 
+# 门检测的置信度门限。
+# 服务端 YOLO 的 conf_thres=0.3（PadYolo/yolo/yolo_main.py），会把被屏幕边缘裁掉的
+# 半个门也当成门返回。2026-10-03 日志实测：243 条 door 检测里 61 条置信度 < 0.7，
+# 全部集中在屏幕边缘（bbox 贴左边 x1<=15 或贴底边 y2>=495），置信度 0.26~0.69；
+# 而真正可用的门置信度都在 0.90 以上。低于门限的门一律丢弃，否则会出现
+# “角色朝屏幕角落跑”这种与真实门方向无关的移动。
+DOOR_CONF_THRESHOLD = 0.7
+
+# ---- 掉落物（goods）检测的误检过滤 -------------------------------------------
+# 2026-10-03 实机日志（APP/log/app.log，怀纳千海之天，67 秒）实测：
+#   * 屏幕左缘 (13,379,98,399) 和右缘 (883,375,976,395) 各有一个固定的 HUD 元素，
+#     YOLO 以 0.86~0.92 的高置信度稳定误检成 goods，67 秒里坐标一个像素都没变
+#     （期间角色有 2.45s / 2.33s 的大幅跑动，地面掉落物的框不可能不动）。
+#   * OCR 把它们读成 "赫仑皇帝的印章" / "武器5/48"，都不命中 target_items，
+#     于是 self.goods 长期非空 —— 207 次日志快照里只有 53 次为空，
+#     右侧那一个 (929,415,'赫仑皇帝的印章') 单独就出现 109 次。
+#   * 后果：brush_map() 一直认为"房间里有物品没捡"，反复回到拾取分支；
+#     pickup_goods() 朝幽灵目标原地左右微抖（18 次"向物品步行"全是 0.03~0.09 秒
+#     的抖动），整个窗口「成功捡取」0 次，房间迟迟推不过去，表现为"到不了 boss 房"。
+# 命中规则：检测框**中心点**落在忽略区内才丢弃，真正的掉落物即使边角擦到边带也不会被误杀。
+# 若换地图/换模型后发现真实掉落物被误杀，只需调小对应边带的宽度。
+GOODS_IGNORE_REGIONS = [
+    (0, 340, 150, 425),        # 左缘 HUD 带：实测误检簇 (13,379,98,399)
+    (860, 340, 1067, 425),     # 右缘 HUD 带：实测误检簇 (883,375,976,395)
+]
+
+# 物品名文本的形状约束。真实掉落物名称是 2~8 个汉字、不含标点或斜杠；
+# 而语音气泡/系统提示（"嘿嘿！" "你挺厉害的嘛。" "呀喵！怎么样？" "啊·提泰妮娅。"）
+# 和 HUD 文本（"武器5/48"）会带这些字符或是整句长文本，混进 self.goods 后
+# 角色会跑去捡不存在的东西。注意不要按"含数字"过滤：金币提示是 "2142金币" 这种形式。
+GOODS_NAME_MAX_LEN = 8
+GOODS_NOISE_CHARS = '！!？?。．.，,、；;：:…~～·/\\'
+
+# 2026-10-03 四个角色 / 56 分钟实测（377088 行日志）补的两条规则。
+# 上一版只按"带标点 / 超过 8 字"过滤，结果这些文本仍然成群进入 self.goods：
+#   '呵呵' 63 次、'嘿嘿' 49 次、'请吩咐吧' 22 次、'请盼咐吧' 16 次、'好美的地方啊' 8 次、
+#   '' （空字符串）204 次
+# 它们既不带标点也不超长，全是地图里 NPC 头顶的对话气泡 / 语音。角色会为了这些
+# 根本捡不起来的东西在原地转圈，boss 房就表现为"明明拾取完毕还提示 boss房物品没拾取完"。
+# 两条判据都刻意保守，实测不会误伤任何真实物品名（见下方注释）。
+GOODS_TAIL_PARTICLES = '吧啊呀哦啦嘛呢哇哟唉呐了'
+COIN_NAME = '金币'
+# 与「金币」的编辑距离相似度门限。金币提示被 OCR 大量误读：金市 838 次、金 101 次、
+# 金币金 42、余币 23、金用 16、全市 16（正确的「金币」2383 次，误读率约 30%）。
+# 这些误读与「金币」的相似度都 >= 0.5；而金刚石(0.33)、微光星蕴石(0)、钻石硬币(0.25)
+# 等真实物品名都在门限之下，不会误判。
+COIN_SIMILARITY = 0.5
+
+# `player` 检测的几何约束。
+# 实测 10167 条 player 检测的框宽呈双峰：真实玩家 80~100px（9475 条，93%），
+# 而场景左侧的**石栏杆**装饰被误检成 player 时只有 40~70px（689 条，6.8%），
+# 典型框 (0,230)-(40,260) / (0,255)-(66,273)。
+# 危害：process_detect_message 里最后一条 player 会覆盖 player_pos，日志实证
+# boss 房里 player_pos 被钉在 (34, 423) 长达 14 秒（真实角色在屏幕中间），
+# 期间一直朝错误方向"向物品奔跑"，最后 30 秒超时→当作挂掉→返回城镇重进。
+PLAYER_MIN_BOX_WIDTH = 75
+
+
+def is_in_goods_ignore_region(x1, y1, x2, y2):
+    """检测框中心点是否落在 GOODS_IGNORE_REGIONS 的任一忽略区内。
+
+    :param x1,y1,x2,y2: YOLO 返回的检测框（左上、右下）
+    :return: True 表示这是屏幕固定 HUD 的误检，应丢弃
+    """
+    cx, cy = (x1 + x2) / 2, (y1 + y2) / 2
+    for rx1, ry1, rx2, ry2 in GOODS_IGNORE_REGIONS:
+        if rx1 <= cx <= rx2 and ry1 <= cy <= ry2:
+            return True
+    return False
+
+
+def is_noise_item_text(raw_text, cleaned_text):
+    """判断 OCR 文本是否"不像掉落物名称"（语音气泡 / 系统提示 / 空识别结果）。
+
+    :param raw_text: OCR 原始文本
+    :param cleaned_text: 去掉非汉字后的文本
+    :return: True 表示应把该物品从 self.goods 里丢掉
+    """
+    if not isinstance(raw_text, str):
+        return True
+    if not cleaned_text:
+        # 空 OCR 结果。旧实现放行，结果 self.goods 里出现 204 条 (x, y, '')，
+        # 角色会去追一个没有名字的东西；下一帧重新识别即可，这里直接丢。
+        return True
+    if any(ch in raw_text for ch in GOODS_NOISE_CHARS):
+        return True
+    if len(cleaned_text) > GOODS_NAME_MAX_LEN:
+        return True
+    # "嘿嘿" "呵呵" "哈哈" 这类叠字语气词，真实物品名里不存在
+    if len(cleaned_text) == 2 and cleaned_text[0] == cleaned_text[1]:
+        return True
+    # 以语气助词结尾的是 NPC 台词（"请吩咐吧" "好美的地方啊" "全力以赴吧"）
+    if cleaned_text[-1] in GOODS_TAIL_PARTICLES:
+        return True
+    return False
+
+
+def is_coin_text(text, similarity_func):
+    """判断一段物品名是不是「金币」（容忍 OCR 误读）。
+
+    原实现只做 `'金币' in text` 子串判断，而实测金币提示有约 30% 被读成
+    金市 / 金 / 金用 / 全市 / 余币 / 金币金，全部漏网 —— 于是 pickup_goods()
+    会对金币也按 x 键（金币是走过去自动拾取的，不该按键，按键还会打断走位）。
+
+    :param text: 已去噪的物品名
+    :param similarity_func: 相似度函数（传 self.similarity）
+    """
+    if not text:
+        return False
+    if COIN_NAME in text:
+        return True
+    return similarity_func(text, COIN_NAME) >= COIN_SIMILARITY
+
+
 # 个人信息面板"移动速度"的量程。occupation_info_*.json 的档位为 30~300，
 # 这里上下各留余量，只用于剔除 OCR 明显错读，不参与速度换算。
 MOVE_SPEED_MIN = 10
 MOVE_SPEED_MAX = 400
+
+# 刷图中途的"移速校正"节流。
+# pickup_goods() 原逻辑是"房间拾取次数 > 5 就每一轮捡物都重新识别移速"，
+# 而识别一次要按 M 开个人信息面板 + FindPic + OCR（日志里这一轮往返约 1.7 秒）。
+# 角色一旦被卡住，拾取次数只涨不落，于是每轮捡物都开一次面板 —— 这是"刷图卡一下"最直接的来源。
+# 现改为：拾取次数首次超过 MOVE_SPEED_RECHECK_AFTER_PICKUPS 时校正一次，
+# 之后每多 MOVE_SPEED_RECHECK_EVERY 次拾取、且距上次校正至少
+# MOVE_SPEED_RECHECK_COOLDOWN 秒，才再校正一次。
+MOVE_SPEED_RECHECK_AFTER_PICKUPS = 5
+MOVE_SPEED_RECHECK_EVERY = 5
+MOVE_SPEED_RECHECK_COOLDOWN = 20.0
 
 
 def parse_move_speed(ocr_text):
@@ -147,6 +290,33 @@ one_key_gather_value = key_config['one_key_gather']['key'].lower()  # 一键聚�
 move_character_value = key_config['move_character']['key'].lower()  # 移动角色
 back_to_selia_value = key_config['back_to_selia']['key'].lower()  # 回赛利亚房间
 challenge_again_value = key_config['challenge_again']['key'].lower()  # 再次挑战
+# 选择其它地下城（结算界面 F11）。老版本的 key_config.json 里没有这一项，
+# 所以用 .get 兜底，不然升级完程序直接 KeyError 起不来。
+select_other_dungeon_value = (
+    (key_config.get('select_other_dungeon') or {}).get('key') or 'F11'
+).lower()
+
+# 结算界面「再次挑战」失效时的处理。
+# 2026-10-03 实测：怀纳千海之天打完 boss 后，右上角是「是否继续？」对话框
+# （前往下一地下城/空格、再次挑战/F10、选择其它地下城/F11、返回城镇/F12）。
+# 启示类副本刷完后 F10 会失效，程序原本只会一直按 F10 直到 30 秒超时，
+# 再当作"挂掉"走返回城镇重进 —— 每次白扔十几秒。
+# 现在超时后先补按一次 F11，然后**自己在这个界面里把副本重新选出来并进入**，
+# 每个副本最多补一次。见 `_enter_dungeon_from_select_screen()`。
+SELECT_OTHER_DUNGEON_LIMIT = 1
+
+# 「选择其它地下城」(F11) 界面的定位参数。
+# 2026-10-03 19:16 实机截图（APP/screenshots/rec/2026-10-03/sess_191308/
+# f000266_191600054_r---.jpg）：F11 打开的不是 enter_map() 假设的那个城镇
+# 传送阵列表，而是一张"地下城选择地图" —— 地下城节点散布在地图上，
+# 左侧信息面板显示当前选中的地下城，底部提示条写着
+# 「shift ←→ 选择最低/最高难度 | ↑↓ 选择地下城 | ←→ 选择难度 | 空格 进入地下城」。
+# 实测左侧面板标题用 map_depot/怀纳千海之天.bmp 匹配度 0.954（探针实测），
+# 所以用「标题是不是目标地图」判断选中状态，比猜 ↑↓ 的遍历顺序可靠。
+SELECT_DUNGEON_TITLE_REGION = (30, 283, 308, 326)
+SELECT_DUNGEON_OPEN_TIMEOUT = 8     # 按下 F11 后等界面出来的最长时间（秒）
+SELECT_DUNGEON_SCAN_MAX = 12        # 最多按几次 ↑/↓ 去找目标地下城
+SELECT_DUNGEON_ENTER_TIMEOUT = 20   # 按空格之后等多久算进图成功（秒）
 
 
 class PlayerThread(QThread):
@@ -216,6 +386,16 @@ class PlayerThread(QThread):
         self.room_item_pickup_counts = {}  # 记录每个房间拾取次数
         self.doorOpenState = {}  # 记录每个房间开门状态
         self.Number_of_moves_to_the_next_room = {}  # 记录前往下个房间的移动次数
+        # 上一次中途移速校正的 (房间号, 拾取次数, 时间戳)，用于节流。
+        # 用房间号区分即可，换房间时自动重置，不必挂到各处 clear() 上。
+        self._last_speed_recheck = (None, 0, 0.0)
+        # 本副本内已经补按过几次「选择其它地下城」(F11)，每个副本最多一次
+        self._select_other_dungeon_count = 0
+
+        # 刷图截图录制器：把画面按时间戳落盘 + index.jsonl 元数据，供事后分析。
+        # 后台线程写盘，主循环只做一次图像拷贝；开关与参数见 config.json 的
+        # screenshot_recorder 段（缺失则用默认值）。仅构造不开线程，首次落盘才启动。
+        self.screenshot_recorder = ScreenshotRecorder.from_config(load_gui_config())
 
     def set_big_break_time(self):
         # 计算3-4小时后的随机时间点（以秒为单位）
@@ -484,6 +664,8 @@ class PlayerThread(QThread):
             # 打印完整的堆栈跟踪信息
             traceback.print_exc()
         finally:
+            # 刷图线程结束前把截图队列排空，避免最后几帧丢失
+            self._close_screenshot_recorder()
             self.sock.close()
             self.sock = None
 
@@ -577,6 +759,7 @@ class PlayerThread(QThread):
             # 打印完整的堆栈跟踪信息
             traceback.print_exc()
         finally:
+            self._close_screenshot_recorder()
             self.sock.close()
             self.sock = None
 
@@ -670,6 +853,7 @@ class PlayerThread(QThread):
             # 打印完整的堆栈跟踪信息
             traceback.print_exc()
         finally:
+            self._close_screenshot_recorder()
             self.sock.close()
             self.sock = None
 
@@ -693,7 +877,23 @@ class PlayerThread(QThread):
         self.running = False
         self.brush_running = False
         # screenshot_util.cancel_window_topping()
+        self._close_screenshot_recorder()
         self.send_log("脚本已停止，可关闭窗口")
+
+    def _close_screenshot_recorder(self):
+        """把截图录制器的队列排空并停掉后台线程（可重复调用）。
+
+        只停后台线程，不销毁录制器对象——万一再次进入刷图，下一次落盘时
+        会自动重新拉起线程并开新会话。
+        """
+        recorder = self.screenshot_recorder
+        if recorder is None:
+            return
+        try:
+            logger.info(f"截图录制统计：{recorder.describe()}")
+            recorder.close()
+        except Exception as e:
+            logger.info(f"关闭截图录制器失败（已忽略）：{e}")
 
     def send_log(self, log):
         self.message.emit(log)
@@ -711,6 +911,11 @@ class PlayerThread(QThread):
         self.is_boss = False
         self.to_door_count = 0
         self.first_press_to_exit = True
+        # 新副本：「再次挑战失效→补按 F11」的额度重新给一次
+        self._select_other_dungeon_count = 0
+        # 一次刷图 = 一个截图会话目录，方便按次分析（惰性建目录，不额外产生空目录）
+        if self.screenshot_recorder is not None:
+            self.screenshot_recorder.new_session()
         for room_list in self.room_info_map:
             logger.info(room_list)
         # 用buff
@@ -820,6 +1025,11 @@ class PlayerThread(QThread):
         self.is_boss = False
         self.to_door_count = 0
         self.first_press_to_exit = True
+        # 新副本：「再次挑战失效→补按 F11」的额度重新给一次
+        self._select_other_dungeon_count = 0
+        # 一次刷图 = 一个截图会话目录，方便按次分析（惰性建目录，不额外产生空目录）
+        if self.screenshot_recorder is not None:
+            self.screenshot_recorder.new_session()
         for room_list in self.room_info_map:
             logger.info(room_list)
         # 用buff
@@ -856,6 +1066,11 @@ class PlayerThread(QThread):
         self.is_boss = False
         self.to_door_count = 0
         self.first_press_to_exit = True
+        # 新副本：「再次挑战失效→补按 F11」的额度重新给一次
+        self._select_other_dungeon_count = 0
+        # 一次刷图 = 一个截图会话目录，方便按次分析（惰性建目录，不额外产生空目录）
+        if self.screenshot_recorder is not None:
+            self.screenshot_recorder.new_session()
         for room_list in self.room_info_map:
             logger.info(room_list)
         # 用buff
@@ -1544,6 +1759,38 @@ class PlayerThread(QThread):
         else:
             self.find_player_direction = "right"
 
+    def _should_recheck_move_speed(self, room_id, pickup_count):
+        """本轮捡物是否要做一次中途移速校正（带节流）。
+
+        原实现是"房间拾取次数 > 5 就每一轮捡物都重新识别移速"。角色一旦被卡住，
+        拾取次数只涨不落，于是每轮捡物都按 M 开一次个人信息面板 + FindPic + OCR
+        （日志里这一轮往返约 1.7 秒），刷图就表现为一顿一顿的。
+        现改为：首次超过 MOVE_SPEED_RECHECK_AFTER_PICKUPS 时校正一次，之后
+        每多 MOVE_SPEED_RECHECK_EVERY 次拾取、且距上次校正至少
+        MOVE_SPEED_RECHECK_COOLDOWN 秒，才再校正一次。
+        换房间时自动重置（按 room_id 判定），不需要额外挂到各处 clear() 上。
+
+        :param room_id: 当前房间号
+        :param pickup_count: 当前房间已累计的拾取次数
+        :return: True 表示本轮应当执行 get_move_speed(sample=False)
+        """
+        if not isinstance(pickup_count, int) or self.is_boss:
+            return False
+        if pickup_count <= MOVE_SPEED_RECHECK_AFTER_PICKUPS:
+            return False
+        if not self.player_pos.x:  # 位置未知时不打断，等下一轮
+            return False
+        last_room, last_count, last_time = self._last_speed_recheck
+        if last_room != room_id:
+            # 第一次进这个房间（或已经换房间），从头计时
+            last_count, last_time = 0, 0.0
+        if pickup_count - last_count < MOVE_SPEED_RECHECK_EVERY:
+            return False
+        if last_time and (time.time() - last_time) < MOVE_SPEED_RECHECK_COOLDOWN:
+            return False
+        self._last_speed_recheck = (room_id, pickup_count, time.time())
+        return True
+
     def pickup_goods(self):
         """ 优化后的货物捡取方法 """
         logger.info("开始拾取物品")
@@ -1607,12 +1854,11 @@ class PlayerThread(QThread):
                 logger.info(f"房间 {room_id}拾取次数+1")
                 logger.info(f"房间{current_room_id}拾取次数: {pickup_count}")
             pickup_count = self.room_item_pickup_counts.get(current_room_id)
-            if isinstance(pickup_count, int) and pickup_count > 5 and not self.is_boss:
-                logger.info(f"房间{current_room_id}拾取次数大于或等于5次，重新识别移速")
-                if self.player_pos.x:
-                    # 重新识别移速。这里是刷图中途的校正，捡物时会被反复触发，
-                    # 只做单次读取，不能走多次采样，否则每次捡物都要连拍好几张 VNC 截图。
-                    self.get_move_speed(sample=False)
+            if self._should_recheck_move_speed(current_room_id, pickup_count):
+                logger.info(f"房间{current_room_id}拾取次数 {pickup_count}，重新识别移速")
+                # 重新识别移速。这里是刷图中途的校正，捡物时会被反复触发，
+                # 只做单次读取，不能走多次采样，否则每次捡物都要连拍好几张 VNC 截图。
+                self.get_move_speed(sample=False)
                     # 实时移动
                     # # 处理X方向移动：添加按键状态标记
                     # x_reached = False
@@ -1694,7 +1940,8 @@ class PlayerThread(QThread):
                     # pyauto.KeyUpChar("up")
                     # pyauto.KeyUpChar("down")  # 修正之前的笔误（原代码是KeyDownChar）
 
-            if '金币' in goods_pos[0][2]:
+            if is_coin_text(goods_pos[0][2], self.similarity):
+                # 金币是走过去自动拾取的，不需要按 x；按键反而会打断走位
                 pass
             else:
                 time.sleep(0.1)
@@ -2470,6 +2717,10 @@ class PlayerThread(QThread):
         self.has_continue = False  # 是否有继续游戏的选项
         # 重置玩家位置
         self.player_pos = Point(None, None)  # 初始化玩家位置为None
+        # 本帧被各类过滤规则拦下的数量，作为截图录制的标签（见 _record_frame）。
+        # 这些正是"该存图来分析"的时刻，标出来后事后能直接筛出来看。
+        dropped = {"door_low_conf": 0, "goods_ignore_region": 0, "goods_noise": 0,
+                   "player_narrow": 0}
         # logger.info(f"物品列表已清空:{self.goods}")
         # logger.info(f"门列表已清空:{self.doors}")
         # logger.info(f"怪物列表已清空:{self.monsters}")
@@ -2481,6 +2732,13 @@ class PlayerThread(QThread):
             logger.info(f"data:{data}")
             # 处理玩家位置
             if data[0] == "player":
+                # 场景装饰（地图左侧的石栏杆）会被误检成玩家，框宽明显偏窄。
+                # 不拦掉的话它会覆盖 player_pos，把角色"传送"到屏幕角落。
+                box_width = data[3] - data[1]
+                if box_width < PLAYER_MIN_BOX_WIDTH:
+                    dropped["player_narrow"] += 1
+                    logger.info(f"玩家检测框过窄({box_width} < {PLAYER_MIN_BOX_WIDTH})，疑似场景装饰，忽略: {data}")
+                    continue
                 # if (item[1] + item[3]) / 2 < 1180:
                 if data[4] + self.player.player_height < 620:
                     self.player_pos.x = (data[1] + data[3]) / 2  # 玩家x坐标取边界中点
@@ -2510,8 +2768,12 @@ class PlayerThread(QThread):
                 if not self.is_boss and self.player.map_name in ("深渊：终末崇拜者", "深渊：最终调律者","风暴逆鳞普通"):
                     logger.info(f"刷深渊中，当前不是boss房不捡物品")
                     continue
-                # 如果物品位置在特定区域外，也跳过
-                if 5 < data[1] < 22 and 340 < data[2] < 354:
+                # 排除屏幕边带上的固定 HUD 误检（详见 GOODS_IGNORE_REGIONS 说明）。
+                # 旧代码这里只硬编码了 5<x1<22 且 340<y1<354 一个小区域，覆盖不到实测的
+                # (13,379,98,399) / (883,375,976,395) 两个高频误检簇。
+                if is_in_goods_ignore_region(data[1], data[2], data[3], data[4]):
+                    dropped["goods_ignore_region"] += 1
+                    logger.info(f"物品落在忽略区，跳过：{data}")
                     continue
                 goods.append((int(data[1]), int(data[2]), int(data[3]), int(data[4])))  # 将物品添加到列表中  # x = (data[1] + data[3]) / 2  # 物品x坐标取边界中点  # y = data[4] + 25  # 物品y坐标调整  # self.goods.append((x, y))  # 将物品添加到列表中  # logger.info(f"物品x = {x}\ty = {y}")
 
@@ -2571,6 +2833,13 @@ class PlayerThread(QThread):
 
             # 处理门
             elif data[0].startswith("door"):
+                # 丢弃低置信度的误检：服务端 conf_thres=0.3，被屏幕边缘裁掉的门、
+                # 以及地图上的装饰性贴图都可能以 0.26~0.69 的置信度混进来。
+                # 这类假门坐标会落进 a_DictInfo 的方向区域里，导致角色朝屏幕角落跑。
+                if len(data) > 5 and data[5] < DOOR_CONF_THRESHOLD:
+                    dropped["door_low_conf"] += 1
+                    logger.info(f"门置信度不足({data[5]:.3f} < {DOOR_CONF_THRESHOLD})，忽略: {data}")
+                    continue
                 x = (data[1] + data[3]) / 2  # 门x坐标取边界中点
                 y = data[4] - 17.5  # 门y坐标调整
                 if self.player.map_name == "风暴逆鳞普通":
@@ -2650,7 +2919,17 @@ class PlayerThread(QThread):
             for dx, dy, dx1, dy1 in goods:
                 text = self.get_text(dx, dy, dx1, dy1, game_image)
                 logger.info(f"识别物品：{text}")
+                # get_text 在发送失败时返回 False，这里统一成字符串再处理
+                if not isinstance(text, str):
+                    text = ''
                 cleaned_text = re.sub(r'[^\u4e00-\u9fa5]', '', text)
+
+                # 语音气泡/系统提示这类"不像掉落物名称"的文本直接丢掉，
+                # 否则角色会跑去捡屏幕上并不存在的东西（详见 is_noise_item_text）
+                if is_noise_item_text(text, cleaned_text):
+                    dropped["goods_noise"] += 1
+                    logger.info(f"物品名不像掉落物，丢弃：{text}")
+                    continue
 
                 # 检查是否需要过滤此物品
                 should_filter = any(
@@ -2666,6 +2945,46 @@ class PlayerThread(QThread):
             # 计算商品中心点坐标
             self.goods = [(int((dx + dx1) / 2), dy1 + 20, text) for dx, dy, dx1, dy1, text in filtered_goods]
             logger.info(f"self.goods:{self.goods}")
+
+        # 本帧状态已经整理完，交给截图录制器（若启用）。
+        self._record_frame(game_image, dropped)
+
+    def _record_frame(self, game_image, dropped=None):
+        """把当前帧连同游戏状态交给截图录制器（可选功能，失败不影响刷图）。
+
+        录制器自己按 interval 决定要不要存，并在后台线程里编码写盘；
+        这里只负责整理元数据。带 dropped 标签的帧（门被置信度拦下、
+        幽灵物品被拦下、OCR 噪声被丢弃）会不受间隔限制强制保存，
+        这些帧正是事后分析要找的现场。
+        """
+        recorder = self.screenshot_recorder
+        if recorder is None or not recorder.enabled or game_image is None:
+            return
+        try:
+            active_tags = sorted(k for k, v in (dropped or {}).items() if v)
+            player_pos = self.player_pos
+            meta = {
+                "room": self.player.player_room_id,
+                "map": self.player.map_name,
+                "role": self.player.player_occupation,
+                "mode": gv.banzhuan,
+                "boss": bool(self.is_boss),
+                "px": getattr(player_pos, "x", None),
+                "py": getattr(player_pos, "y", None),
+                "doors": len(self.doors),
+                "goods": len(self.goods),
+                "monsters": len(self.monsters),
+                "boxes": len(self.box),
+                "targets": [g[2] for g in self.goods if len(g) > 2],
+                "tags": active_tags,
+                "dropped": dropped or {},
+            }
+            if active_tags:
+                recorder.save_event(game_image, meta, tag="+".join(active_tags))
+            else:
+                recorder.maybe_save(game_image, meta)
+        except Exception as e:  # 录制是旁路功能，绝不能影响刷图
+            logger.info(f"截图录制失败（已忽略）：{e}")
 
     def similarity(self, s1, s2):
         """计算字符串相似度（0-1）"""
@@ -3233,7 +3552,23 @@ class PlayerThread(QThread):
                 while self.brush_running and not self.ghost_state:
                     end_time = time.time()  # 记录当前时间作为结束时间
                     execution_time = end_time - start_time  # 计算从开始到当前的执行时间
-                    if execution_time > 30:  # 如果执行时间超过15秒
+                    if execution_time > 10:  # 如果执行时间超过15秒
+                        time.sleep(0.1)
+                        # 「再次挑战」(F10) 长时间没生效：启示类副本刷完后 F10 会失效，
+                        # 需要在结算界面按 F11「选择其它地下城」重新选本。
+                        # 每个副本最多补按一次，然后把控制权交回主循环看是否生效；
+                        # F11 也没用的话下一轮超时才会走原来的"返回城镇重进"兜底。
+                        if self._select_other_dungeon_count < SELECT_OTHER_DUNGEON_LIMIT:
+                            self._select_other_dungeon_count += 1
+                            self.send_log("再次挑战未生效，尝试「选择其它地下城」")
+                            pyauto.keyPressChar(select_other_dungeon_value)
+                            # F11 只是把选图界面打开，还得自己在里面把副本选回来并进入，
+                            # 否则就停在这个界面上一直按 F10 空转到超时。
+                            if self._enter_dungeon_from_select_screen():
+                                self._reset_state_for_new_run()
+                                return True
+                            self.send_log("选图界面里没能重新进图，交回主循环")
+                            return True
                         self.ghost_state = True  # 设置幽灵状态为True
                         self.send_log("物品没拾取完，再次挑战超时")
                         break  # 退出循环
@@ -3324,6 +3659,8 @@ class PlayerThread(QThread):
                                 logger.info(room_list)
                             self.brush_cnt += 1
                             self.first_press_to_exit = True
+                            # 已经进到新的一轮，F11 额度恢复
+                            self._select_other_dungeon_count = 0
                             self.direction_dic.clear()
                             self.is_boss = False
                             self.to_door_count = 0
@@ -3396,6 +3733,21 @@ class PlayerThread(QThread):
                     end_time = time.time()  # 记录当前时间作为结束时间
                     execution_time = end_time - start_time  # 计算从开始到当前的执行时间
                     if execution_time > 30:  # 如果执行时间超过15秒
+                        # 「再次挑战」(F10) 长时间没生效：启示类副本刷完后 F10 会失效，
+                        # 需要在结算界面按 F11「选择其它地下城」重新选本。
+                        # 每个副本最多补按一次，然后把控制权交回主循环看是否生效；
+                        # F11 也没用的话下一轮超时才会走原来的"返回城镇重进"兜底。
+                        if self._select_other_dungeon_count < SELECT_OTHER_DUNGEON_LIMIT:
+                            self._select_other_dungeon_count += 1
+                            self.send_log("再次挑战未生效，尝试「选择其它地下城」")
+                            pyauto.keyPressChar(select_other_dungeon_value)
+                            # F11 只是把选图界面打开，还得自己在里面把副本选回来并进入，
+                            # 否则就停在这个界面上一直按 F10 空转到超时。
+                            if self._enter_dungeon_from_select_screen():
+                                self._reset_state_for_new_run()
+                                return True
+                            self.send_log("选图界面里没能重新进图，交回主循环")
+                            return True
                         self.ghost_state = True  # 设置幽灵状态为True
                         self.send_log("物品没拾取完，再次挑战超时")
                         break  # 退出循环
@@ -3476,6 +3828,8 @@ class PlayerThread(QThread):
                                 logger.info(room_list)
                             self.brush_cnt += 1
                             self.first_press_to_exit = True
+                            # 已经进到新的一轮，F11 额度恢复
+                            self._select_other_dungeon_count = 0
                             self.direction_dic.clear()
                             self.is_boss = False
                             self.to_door_count = 0
@@ -3496,6 +3850,120 @@ class PlayerThread(QThread):
                             return True
                 return True
         return False
+
+    def _select_dungeon_title_is(self, map_name=None):
+        """「选择其它地下城」界面左侧信息面板上的标题是不是目标地图。
+
+        实测（sess_191308/f000266）：面板标题「怀纳千海之天」用
+        map_depot/怀纳千海之天.bmp 匹配度 0.954，位置 (107,292)-(210,311)，
+        正落在 SELECT_DUNGEON_TITLE_REGION 里。
+        """
+        template = f"{map_name or self.player.map_name}.bmp"
+        try:
+            return bool(self.mm.FindPic(*SELECT_DUNGEON_TITLE_REGION, template, 0.9))
+        except Exception as e:
+            logger.info(f"选图界面标题识别失败：{e}")
+            return False
+
+    def _enter_dungeon_from_select_screen(self):
+        """在 F11 打开的「选择其它地下城」界面里重新选中目标地图并进入。
+
+        为什么不能直接复用 enter_map()：那条分支假设自己站在**城镇传送阵**的
+        可点击列表前（先点 `深渊调律之边界.bmp` 再等 `最后的圣地` 频道文字），
+        而 F11 打开的是另一套 UI（地图上散布地下城节点 + 底部方向键提示），
+        实测在该界面上 `深渊调律之边界.bmp` 匹配度只有 0.247，永远点不到。
+
+        这里只做三件事：把光标移到目标地下城 → 设难度 → 空格进图。
+        全程用「左侧标题是否等于目标地图」来确认，不猜 ↑↓ 的遍历顺序。
+
+        :return: True 表示已经进到图里（player_room_id 已被识别出来）
+        """
+        if not self.brush_running:
+            return False
+
+        # 1) F11 之后选图界面要 1~5 秒才出来，先等一段时间，并顺便看左侧面板
+        #    是不是已经选中目标地图（打完一轮之后通常就是它，不用按方向键）。
+        deadline = time.time() + SELECT_DUNGEON_OPEN_TIMEOUT
+        while self.brush_running and time.time() < deadline:
+            if self._select_dungeon_title_is():
+                break
+            time.sleep(0.5)
+
+        # 2) 面板上不是目标地图就按 ↑↓ 扫一遍。这一步只发生在"已经卡了 30 秒"
+        #    的场景，方向键作用在选图界面还是游戏内都不改变结论（游戏内最多
+        #    把角色挪一小段），所以不做额外的"界面是否打开"探测。
+        if not self._select_dungeon_title_is():
+            for i in range(SELECT_DUNGEON_SCAN_MAX):
+                if not self.brush_running:
+                    return False
+                pyauto.keyPressChar("up" if i % 2 == 0 else "down")
+                time.sleep(0.4)
+                if self._select_dungeon_title_is():
+                    break
+            else:
+                logger.info(f"选图界面里没找到 {self.player.map_name}，放弃本次重选")
+                return False
+            logger.info(f"选图界面已定位到 {self.player.map_name}")
+
+        # 难度：shift+← 选最低，再按 (map_level - 1) 次 → 抬到配置的档位
+        time.sleep(0.2)
+        pyauto.keyDownChar("shift")
+        time.sleep(0.05)
+        pyauto.keyDownChar("left")
+        time.sleep(0.05)
+        pyauto.keyUpChar("left")
+        time.sleep(0.05)
+        pyauto.keyUpChar("shift")
+        time.sleep(0.2)
+        for _ in range(max(0, int(self.player.map_level or 1) - 1)):
+            pyauto.keyPressChar("right")
+            time.sleep(0.2)
+
+        # 空格 = 进入地下城，然后按"小地图能不能认出房间号"确认是否进图
+        pyauto.keyPressChar("space")
+        time.sleep(1.0)
+        start = time.time()
+        while self.brush_running and time.time() - start < SELECT_DUNGEON_ENTER_TIMEOUT:
+            self.get_min_map_yolo_res()
+            if self.player.player_room_id is not None:
+                self.send_log("地图确认已进入地图")
+                return True
+            pyauto.keyPressChar("space")
+            time.sleep(0.5)
+        logger.info("选图界面里按空格后仍未能确认进图")
+        return False
+
+    def _reset_state_for_new_run(self):
+        """进入新一轮副本后重置刷图状态。
+
+        原来这段逻辑在 process_pass 里被复制了三份（每处 return True 之前），
+        F11 重选副本这条路也需要，抽出来避免又抄一遍。
+        """
+        self.room_info_map = deepcopy(a_mapInfo.get(self.player.map_name))
+        logger.info('初始化地图')
+        for room_list in self.room_info_map:
+            logger.info(room_list)
+        self.brush_cnt += 1
+        self.first_press_to_exit = True
+        # 新的一轮，F11 额度恢复
+        self._select_other_dungeon_count = 0
+        self.direction_dic.clear()
+        self.is_boss = False
+        self.to_door_count = 0
+        self.release_buffer()
+        self.pass_room_id.clear()
+        self.Number_of_moves_to_the_next_room.clear()
+        self.room_item_pickup_counts.clear()
+        self.doorOpenState.clear()
+        if self.player.player_occupation == "女魔法师-召唤师":
+            pyauto.keyPressChar("left")
+            time.sleep(0.05)
+            pyauto.keyPressChar("up")
+            time.sleep(0.05)
+            pyauto.keyPressChar("right")
+            time.sleep(0.05)
+            pyauto.keyPressChar("space")
+            time.sleep(0.05)
 
     def agg_pick_up_goods(self):
         """

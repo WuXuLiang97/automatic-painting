@@ -11,6 +11,9 @@
   "challenge_again": {
     "key": "F10"
   },
+  "select_other_dungeon": {
+    "key": "F11"
+  },
   "skills": [
     [
       "Q",

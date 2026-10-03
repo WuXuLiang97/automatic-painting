@@ -15,6 +15,9 @@ DEFAULT_CONFIG = {
     'move_character': {'key': 'W'},
     'back_to_selia': {'key': 'R'},
     'challenge_again': {'key': 'F10'},
+    # 结算界面「选择其它地下城」。启示类副本刷完后「再次挑战」(F10) 会失效，
+    # 需要按这个键重新选本。按键设置窗口里没有对应按钮，但会原样保留。
+    'select_other_dungeon': {'key': 'F11'},
     'skills': [
         ['Q', 'W', 'E', 'R', 'T', 'Y', 'Ctrl'],
         ['A', 'S', 'D', 'F', 'G', 'H', 'Alt']
@@ -295,6 +298,15 @@ class KeyConfigDialog(QDialog, Ui_Frame):
             'challenge_again': {'key': self.btn_challenge_again.text() if self.btn_challenge_again.text() != '未设置' else ''},
             'skills': []
         }
+
+        # 保留窗口里没有对应控件的配置项（如 select_other_dungeon），
+        # 否则用户在按键设置里点一次保存就会把它抹掉。
+        try:
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                for key, value in json.load(f).items():
+                    config.setdefault(key, value)
+        except Exception:
+            pass
 
         # 补充技能按键配置
         for row in self.skill_buttons:

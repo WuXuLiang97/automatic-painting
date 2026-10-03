@@ -1,5 +1,5 @@
 {
-    "ip": "192.168.0.103",
+    "ip": "192.168.0.105",
     "yjs": 1,
     "banzhuan": 0,
     "vmware_ip": "192.168.137.2",
@@ -18,5 +18,14 @@
         ],
         "supports_hd": true,
         "label": "1 · 采集卡 · 1920x1080 · MSMF"
+    },
+    "screenshot_recorder": {
+        "enabled": true,
+        "interval": 1.0,
+        "quality": 90,
+        "save_on_event": true,
+        "max_queue": 64,
+        "root": "",
+        "max_total_gb": 0
     }
 }

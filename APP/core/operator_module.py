@@ -428,7 +428,7 @@ class OperatorModule:
             """下面这两个退出是为了更新界面"""
             pyauto.keyPressChar("esc")
             time.sleep(0.2)
-            ret = self.mm.FindPic(0, 0, 1067, 600, "畅玩.bmp", 0.9, drag=None)
+            ret = self.mm.FindPic(0, 0, 1067, 600, "畅玩.bmp|畅玩1.bmp", 0.8, drag=None)
             if ret:
                 time.sleep(0.2)
                 logger.info("退出返回城镇(handle_return_to_town)")
